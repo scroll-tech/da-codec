@@ -26,9 +26,6 @@ var (
 
 	// BlobDataProofArgs defines the argument types for `_blobDataProof` in `finalizeBatchWithProof4844`.
 	BlobDataProofArgs abi.Arguments
-
-	// MaxNumChunks is the maximum number of chunks that a batch can contain.
-	MaxNumChunks int = 15
 )
 
 func init() {
@@ -222,12 +219,7 @@ func (c *DAChunk) Hash() (common.Hash, error) {
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
-func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
-	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > MaxNumChunks {
-		return nil, fmt.Errorf("too many chunks in batch")
-	}
-
+func NewDABatch(batch *encoding.Batch, useCompression bool) (*DABatch, error) {
 	if len(batch.Chunks) == 0 {
 		return nil, fmt.Errorf("too few chunks in batch")
 	}
@@ -245,7 +237,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := constructBlobPayload(batch.Chunks)
+	blob, blobVersionedHash, z, err := constructBlobPayload(batch.Chunks, useCompression)
 	if err != nil {
 		return nil, err
 	}
@@ -292,62 +284,78 @@ func computeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore u
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
-func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
-	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
-	metadataLength := 2 + MaxNumChunks*4
+func constructBlobPayload(chunks []*encoding.Chunk, useCompression bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+	maxNumChunks := getMaxNumChunks(useCompression)
 
-	// the raw (un-padded) blob payload
-	blobBytes := make([]byte, metadataLength)
+	// this encoding can only support a fixed number of chunks per batch
+	if len(chunks) > maxNumChunks {
+		return nil, common.Hash{}, nil, fmt.Errorf("too many chunks in batch")
+	}
+
+	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
+	metadataLength := 2 + maxNumChunks*4
+
+	// the raw (un-padded) batch payload
+	batchBytes := make([]byte, metadataLength)
 
 	// challenge digest preimage
 	// 1 hash for metadata, 1 hash for each chunk, 1 hash for blob versioned hash
-	challengePreimage := make([]byte, (1+MaxNumChunks+1)*32)
+	challengePreimage := make([]byte, (1+maxNumChunks+1)*32)
 
 	// the chunk data hash used for calculating the challenge preimage
 	var chunkDataHash common.Hash
 
-	// blob metadata: num_chunks
-	binary.BigEndian.PutUint16(blobBytes[0:], uint16(len(chunks)))
+	// batch metadata: num_chunks
+	binary.BigEndian.PutUint16(batchBytes[0:], uint16(len(chunks)))
 
-	// encode blob metadata and L2 transactions,
+	// encode batch metadata and L2 transactions,
 	// and simultaneously also build challenge preimage
 	for chunkID, chunk := range chunks {
-		currentChunkStartIndex := len(blobBytes)
+		currentChunkStartIndex := len(batchBytes)
 
 		for _, block := range chunk.Blocks {
 			for _, tx := range block.Transactions {
 				if tx.Type != types.L1MessageTxType {
-					// encode L2 txs into blob payload
+					// encode L2 txs into batch payload
 					rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
 					if err != nil {
 						return nil, common.Hash{}, nil, err
 					}
-					blobBytes = append(blobBytes, rlpTxData...)
+					batchBytes = append(batchBytes, rlpTxData...)
 				}
 			}
 		}
 
-		// blob metadata: chunki_size
-		if chunkSize := len(blobBytes) - currentChunkStartIndex; chunkSize != 0 {
-			binary.BigEndian.PutUint32(blobBytes[2+4*chunkID:], uint32(chunkSize))
+		// batch metadata: chunki_size
+		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
+			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
 		}
 
 		// challenge: compute chunk data hash
-		chunkDataHash = crypto.Keccak256Hash(blobBytes[currentChunkStartIndex:])
+		chunkDataHash = crypto.Keccak256Hash(batchBytes[currentChunkStartIndex:])
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
 
-	// if we have fewer than MaxNumChunks chunks, the rest
-	// of the blob metadata is correctly initialized to 0,
+	// if we have fewer than maxNumChunks chunks, the rest
+	// of the batch metadata is correctly initialized to 0,
 	// but we need to add padding to the challenge preimage
-	for chunkID := len(chunks); chunkID < MaxNumChunks; chunkID++ {
+	for chunkID := len(chunks); chunkID < maxNumChunks; chunkID++ {
 		// use the last chunk's data hash as padding
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
 
 	// challenge: compute metadata hash
-	hash := crypto.Keccak256Hash(blobBytes[0:metadataLength])
+	hash := crypto.Keccak256Hash(batchBytes[0:metadataLength])
 	copy(challengePreimage[0:], hash[:])
+
+	blobBytes := batchBytes
+	if useCompression {
+		var err error
+		blobBytes, err = compressScrollBatchBytes(batchBytes)
+		if err != nil {
+			return nil, common.Hash{}, nil, err
+		}
+	}
 
 	// convert raw data to BLSFieldElements
 	blob, err := makeBlobCanonical(blobBytes)
@@ -356,14 +364,14 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 	}
 
 	// compute blob versioned hash
-	c, err := kzg4844.BlobToCommitment(*blob)
+	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
 		return nil, common.Hash{}, nil, fmt.Errorf("failed to create blob commitment")
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
 	// challenge: append blob versioned hash
-	copy(challengePreimage[(1+MaxNumChunks)*32:], blobVersionedHash[:])
+	copy(challengePreimage[(1+maxNumChunks)*32:], blobVersionedHash[:])
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
@@ -380,9 +388,9 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 
 // makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
 func makeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
-	// blob contains 131072 bytes but we can only utilize 31/32 of these
-	if len(blobBytes) > 126976 {
-		return nil, fmt.Errorf("oversized batch payload")
+	// blob contains 131072 bytes but we can only utilize 31/32 of these, which is 126976 bytes.
+	if len(blobBytes) > 124*1024 {
+		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 124*1024)
 	}
 
 	// the canonical (padded) blob payload
@@ -453,12 +461,12 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 		return nil, errors.New("called BlobDataProof with empty z")
 	}
 
-	commitment, err := kzg4844.BlobToCommitment(*b.blob)
+	commitment, err := kzg4844.BlobToCommitment(b.blob)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blob commitment")
 	}
 
-	proof, y, err := kzg4844.ComputeProof(*b.blob, *b.z)
+	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
 	if err != nil {
 		log.Crit("failed to create KZG proof at point", "err", err, "z", hex.EncodeToString(b.z[:]))
 	}
@@ -484,19 +492,46 @@ func DecodeFromCalldata(data []byte) (*DABatch, []*DAChunk, error) {
 }
 
 // EstimateChunkL1CommitBlobSize estimates the size of the L1 commit blob for a single chunk.
-func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
-	metadataSize := uint64(2 + 4*MaxNumChunks) // over-estimate: adding metadata length
+func EstimateChunkL1CommitBlobSize(c *encoding.Chunk, useCompression bool) (uint64, error) {
+	maxNumChunks := getMaxNumChunks(useCompression)
+
+	if useCompression {
+		batchBytes, err := constructBatchPayload([]*encoding.Chunk{c}, maxNumChunks)
+		if err != nil {
+			return 0, err
+		}
+		blobBytes, err := compressScrollBatchBytes(batchBytes)
+		if err != nil {
+			return 0, err
+		}
+		return calculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	}
+
+	metadataSize := uint64(2 + 4*maxNumChunks) // over-estimate: adding metadata length
 	chunkDataSize, err := chunkL1CommitBlobDataSize(c)
 	if err != nil {
 		return 0, err
 	}
-	paddedSize := ((metadataSize + chunkDataSize + 30) / 31) * 32
-	return paddedSize, nil
+	return calculatePaddedBlobSize(metadataSize + chunkDataSize), nil
 }
 
 // EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
-func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
-	metadataSize := uint64(2 + 4*MaxNumChunks)
+func EstimateBatchL1CommitBlobSize(b *encoding.Batch, useCompression bool) (uint64, error) {
+	maxNumChunks := getMaxNumChunks(useCompression)
+
+	if useCompression {
+		batchBytes, err := constructBatchPayload(b.Chunks, maxNumChunks)
+		if err != nil {
+			return 0, err
+		}
+		blobBytes, err := compressScrollBatchBytes(batchBytes)
+		if err != nil {
+			return 0, err
+		}
+		return calculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	}
+
+	metadataSize := uint64(2 + 4*maxNumChunks)
 	var batchDataSize uint64
 	for _, c := range b.Chunks {
 		chunkDataSize, err := chunkL1CommitBlobDataSize(c)
@@ -505,8 +540,7 @@ func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
 		}
 		batchDataSize += chunkDataSize
 	}
-	paddedSize := ((metadataSize + batchDataSize + 30) / 31) * 32
-	return paddedSize, nil
+	return calculatePaddedBlobSize(metadataSize + batchDataSize), nil
 }
 
 func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
@@ -523,4 +557,80 @@ func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
 		}
 	}
 	return dataSize, nil
+}
+
+// EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
+func EstimateChunkL1CommitCalldataSize(c *encoding.Chunk) uint64 {
+	return uint64(60 * len(c.Blocks))
+}
+
+// EstimateBatchL1CommitCalldataSize calculates the calldata size in l1 commit for this batch approximately.
+func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
+	var totalL1CommitCalldataSize uint64
+	for _, chunk := range b.Chunks {
+		totalL1CommitCalldataSize += EstimateChunkL1CommitCalldataSize(chunk)
+	}
+	return totalL1CommitCalldataSize
+}
+
+// constructBatchPayload constructs the batch payload.
+// This function is only used in compressed batch payload length estimation.
+func constructBatchPayload(chunks []*encoding.Chunk, maxNumChunks int) ([]byte, error) {
+	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
+	metadataLength := 2 + maxNumChunks*4
+
+	// the raw (un-padded) batch payload
+	batchBytes := make([]byte, metadataLength)
+
+	// batch metadata: num_chunks
+	binary.BigEndian.PutUint16(batchBytes[0:], uint16(len(chunks)))
+
+	// encode batch metadata and L2 transactions,
+	for chunkID, chunk := range chunks {
+		currentChunkStartIndex := len(batchBytes)
+
+		for _, block := range chunk.Blocks {
+			for _, tx := range block.Transactions {
+				if tx.Type != types.L1MessageTxType {
+					// encode L2 txs into batch payload
+					rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
+					if err != nil {
+						return nil, err
+					}
+					batchBytes = append(batchBytes, rlpTxData...)
+				}
+			}
+		}
+
+		// batch metadata: chunki_size
+		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
+			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
+		}
+	}
+	return batchBytes, nil
+}
+
+// getMaxNumChunks is the maximum number of chunks that a batch can contain.
+func getMaxNumChunks(useCompression bool) int {
+	if useCompression {
+		return 45
+	}
+	return 15
+}
+
+func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
+	// TODO: replace this function with real implementation.
+	return batchBytes, nil
+}
+
+// calculatePaddedBlobSize calculates the required size on blob storage
+// where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
+func calculatePaddedBlobSize(dataSize uint64) uint64 {
+	paddedSize := (dataSize / 31) * 32
+
+	if dataSize%31 != 0 {
+		paddedSize += 1 + dataSize%31 // Add 1 byte for the first empty byte plus the remainder bytes
+	}
+
+	return paddedSize
 }
