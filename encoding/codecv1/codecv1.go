@@ -1,5 +1,12 @@
 package codecv1
 
+/*
+#cgo LDFLAGS: -L../../rs -lm -ldl -lscroll_zstd
+#include <stdlib.h>
+#include "../../rs/rs_zstd.h"
+*/
+import "C"
+
 import (
 	"crypto/sha256"
 	"encoding/binary"
@@ -9,6 +16,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"unsafe"
 
 	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
@@ -619,8 +627,22 @@ func getMaxNumChunks(useCompression bool) int {
 }
 
 func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
-	// TODO: replace this function with real implementation.
-	return batchBytes, nil
+	srcSize := C.uint64_t(len(batchBytes))
+	outbuf := make([]byte, len(batchBytes))
+	outbufSize := C.uint64_t(len(batchBytes))
+
+	err := C.compress_scroll_batch_bytes(
+		(*C.uchar)(unsafe.Pointer(&batchBytes[0])),
+		srcSize,
+		(*C.uchar)(unsafe.Pointer(&outbuf[0])),
+		&outbufSize,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("compress_scroll_batch_bytes fail: %s", C.GoString(err))
+	}
+
+	return outbuf[:int(outbufSize)], nil
 }
 
 // calculatePaddedBlobSize calculates the required size on blob storage

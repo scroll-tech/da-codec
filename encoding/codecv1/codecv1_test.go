@@ -772,9 +772,9 @@ func TestCodecV1ChunkAndBatchBlobSizeEstimation(t *testing.T) {
 		traceFile     string
 		expectedSizes map[bool]uint64
 	}{
-		{"../testdata/blockTrace_02.json", map[bool]uint64{false: 302, true: 426}},
-		{"../testdata/blockTrace_03.json", map[bool]uint64{false: 5929, true: 6053}},
-		{"../testdata/blockTrace_04.json", map[bool]uint64{false: 98, true: 221}},
+		{"../testdata/blockTrace_02.json", map[bool]uint64{false: 302, true: 236}},
+		{"../testdata/blockTrace_03.json", map[bool]uint64{false: 5929, true: 2617}},
+		{"../testdata/blockTrace_04.json", map[bool]uint64{false: 98, true: 54}},
 	}
 
 	for _, c := range cases {
@@ -798,8 +798,8 @@ func TestCodecV1ChunkAndBatchBlobSizeEstimation(t *testing.T) {
 		traceFiles    []string
 		expectedSizes map[bool]uint64
 	}{
-		{[]string{"../testdata/blockTrace_02.json", "../testdata/blockTrace_03.json"}, map[bool]uint64{false: 6166, true: 6290}},
-		{[]string{"../testdata/blockTrace_04.json"}, map[bool]uint64{false: 98, true: 221}},
+		{[]string{"../testdata/blockTrace_02.json", "../testdata/blockTrace_03.json"}, map[bool]uint64{false: 6166, true: 2834}},
+		{[]string{"../testdata/blockTrace_04.json"}, map[bool]uint64{false: 98, true: 54}},
 	}
 
 	for _, cc := range combinedCases {
