@@ -13,6 +13,3 @@ libzstddbg:
 	cargo build
 	cp -f $(PWD)/target/debug/libscroll_zstd.so $(PWD)/
 	find $(PWD)/target/debug | grep libzktrie.so | xargs -I{} cp -f {} $(PWD)/
-
-setenv:
-	export LD_LIBRARY_PATH=$(PWD):$(LD_LIBRARY_PATH)
