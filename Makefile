@@ -15,4 +15,4 @@ run: build
 	docker run -it --rm -v "$(PWD):/workspace" -w /workspace my-dev-container
 
 test:
-	./run_test.sh
+	go test -v -race -gcflags="-l" -ldflags="-s=false" -coverprofile=coverage.txt -covermode=atomic ./...
