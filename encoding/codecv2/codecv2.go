@@ -1,4 +1,11 @@
-package codecv1
+package codecv2
+
+/*
+#cgo LDFLAGS: -L../../rs -lm -ldl -lscroll_zstd
+#include <stdlib.h>
+#include "../../rs/rs_zstd.h"
+*/
+import "C"
 
 import (
 	"crypto/sha256"
@@ -9,6 +16,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"unsafe"
 
 	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
@@ -28,7 +36,7 @@ var (
 	BlobDataProofArgs abi.Arguments
 
 	// MaxNumChunks is the maximum number of chunks that a batch can contain.
-	MaxNumChunks int = 15
+	MaxNumChunks int = 45
 )
 
 func init() {
@@ -55,7 +63,7 @@ func init() {
 }
 
 // CodecV1Version denotes the version of the codec.
-const CodecV1Version = 1
+const CodecV2Version = 2
 
 // DABlock represents a Data Availability Block.
 type DABlock struct {
@@ -251,7 +259,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	daBatch := DABatch{
-		Version:                CodecV1Version,
+		Version:                CodecV2Version,
 		BatchIndex:             batch.Index,
 		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
 		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
@@ -349,8 +357,14 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 	hash := crypto.Keccak256Hash(blobBytes[0:metadataLength])
 	copy(challengePreimage[0:], hash[:])
 
+	// compress blob bytes
+	compressedBlobBytes, err := compressScrollBatchBytes(blobBytes)
+	if err != nil {
+		return nil, common.Hash{}, nil, err
+	}
+
 	// convert raw data to BLSFieldElements
-	blob, err := makeBlobCanonical(blobBytes)
+	blob, err := makeBlobCanonical(compressedBlobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
@@ -485,26 +499,28 @@ func DecodeFromCalldata(data []byte) (*DABatch, []*DAChunk, error) {
 
 // EstimateChunkL1CommitBlobSize estimates the size of the L1 commit blob for a single chunk.
 func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
-	metadataSize := uint64(2 + 4*MaxNumChunks) // over-estimate: adding metadata length
-	chunkDataSize, err := chunkL1CommitBlobDataSize(c)
+	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
 	if err != nil {
 		return 0, err
 	}
-	return calculatePaddedBlobSize(metadataSize + chunkDataSize), nil
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return 0, err
+	}
+	return calculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
 func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
-	metadataSize := uint64(2 + 4*MaxNumChunks)
-	var batchDataSize uint64
-	for _, c := range b.Chunks {
-		chunkDataSize, err := chunkL1CommitBlobDataSize(c)
-		if err != nil {
-			return 0, err
-		}
-		batchDataSize += chunkDataSize
+	batchBytes, err := constructBatchPayload(b.Chunks)
+	if err != nil {
+		return 0, err
 	}
-	return calculatePaddedBlobSize(metadataSize + batchDataSize), nil
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return 0, err
+	}
+	return calculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
@@ -535,6 +551,62 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
 		totalL1CommitCalldataSize += EstimateChunkL1CommitCalldataSize(chunk)
 	}
 	return totalL1CommitCalldataSize
+}
+
+// constructBatchPayload constructs the batch payload.
+// This function is only used in compressed batch payload length estimation.
+func constructBatchPayload(chunks []*encoding.Chunk) ([]byte, error) {
+	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
+	metadataLength := 2 + MaxNumChunks*4
+
+	// the raw (un-padded) batch payload
+	batchBytes := make([]byte, metadataLength)
+
+	// batch metadata: num_chunks
+	binary.BigEndian.PutUint16(batchBytes[0:], uint16(len(chunks)))
+
+	// encode batch metadata and L2 transactions,
+	for chunkID, chunk := range chunks {
+		currentChunkStartIndex := len(batchBytes)
+
+		for _, block := range chunk.Blocks {
+			for _, tx := range block.Transactions {
+				if tx.Type != types.L1MessageTxType {
+					// encode L2 txs into batch payload
+					rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
+					if err != nil {
+						return nil, err
+					}
+					batchBytes = append(batchBytes, rlpTxData...)
+				}
+			}
+		}
+
+		// batch metadata: chunki_size
+		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
+			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
+		}
+	}
+	return batchBytes, nil
+}
+
+func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
+	srcSize := C.uint64_t(len(batchBytes))
+	outbuf := make([]byte, len(batchBytes))
+	outbufSize := C.uint64_t(len(batchBytes))
+
+	err := C.compress_scroll_batch_bytes(
+		(*C.uchar)(unsafe.Pointer(&batchBytes[0])),
+		srcSize,
+		(*C.uchar)(unsafe.Pointer(&outbuf[0])),
+		&outbufSize,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("compress_scroll_batch_bytes fail: %s", C.GoString(err))
+	}
+
+	return outbuf[:int(outbufSize)], nil
 }
 
 // calculatePaddedBlobSize calculates the required size on blob storage
