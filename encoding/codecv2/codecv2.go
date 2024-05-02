@@ -62,7 +62,7 @@ func init() {
 	}
 }
 
-// CodecV1Version denotes the version of the codec.
+// CodecV2Version denotes the version of the codec.
 const CodecV2Version = 2
 
 // DABlock represents a Data Availability Block.
