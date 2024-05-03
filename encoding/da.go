@@ -19,6 +19,9 @@ const (
 	// CodecV1 represents the version 1 of the encoder and decoder.
 	CodecV1
 
+	// CodecV2 represents the version 2 of the encoder and decoder.
+	CodecV2
+
 	// txTypeTest is a special transaction type used in unit tests.
 	txTypeTest = 0xff
 )
