@@ -1,4 +1,4 @@
-.PHONY: libzstd
+.PHONY: libzstd libzstddbg
 
 clean:
 	rm -f *.a *.so
