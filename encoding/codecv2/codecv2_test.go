@@ -16,7 +16,7 @@ import (
 	"github.com/scroll-tech/da-codec/encoding/codecv0"
 )
 
-func TestCodecV1BlockEncode(t *testing.T) {
+func TestCodecV2BlockEncode(t *testing.T) {
 	block := &DABlock{}
 	encoded := hex.EncodeToString(block.Encode())
 	assert.Equal(t, "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", encoded)
@@ -71,7 +71,7 @@ func TestCodecV1BlockEncode(t *testing.T) {
 	}
 }
 
-func TestCodecV1ChunkEncode(t *testing.T) {
+func TestCodecV2ChunkEncode(t *testing.T) {
 	// chunk with a single empty block
 	block := DABlock{}
 	chunk := &DAChunk{Blocks: []*DABlock{&block}, Transactions: [][]*types.TransactionData{nil}}
@@ -126,7 +126,7 @@ func TestCodecV1ChunkEncode(t *testing.T) {
 	assert.Equal(t, "01000000000000001100000000646b6ed0000000000000000000000000000000000000000000000000000000000000000000000000007a120001010101", encoded)
 }
 
-func TestCodecV1ChunkHash(t *testing.T) {
+func TestCodecV2ChunkHash(t *testing.T) {
 	// chunk with a single empty block
 	block := DABlock{}
 	chunk := &DAChunk{Blocks: []*DABlock{&block}, Transactions: [][]*types.TransactionData{nil}}
@@ -592,7 +592,7 @@ func TestCodecV1BatchChallengeWithStandardTestCases(t *testing.T) {
 	}
 }
 
-func TestCodecV1BatchBlobDataProof(t *testing.T) {
+func TestCodecV2BatchBlobDataProof(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
@@ -665,7 +665,7 @@ func TestCodecV1BatchBlobDataProof(t *testing.T) {
 	assert.Equal(t, "0abb7234091b0fcd8958d3b185cdf7e65ca8de8a66ee0da55d5abcf0ead103762f6302533db813acc8a6eb935bf294519a231ef7394ac8748cf7e2d71cc38b2ba6f8f5e7269a81d459f9e9dbb6325a22b9f60fb552df59f8e42337f6436471c0aec58228cd6149f10d9fb46f6d9369b29721818659be1b9a2ce318d562d933f42ec44bc2fbad6eee9ed096fe4c84d5b33930d1785e0662600eb9f7354751cf1d", hex.EncodeToString(verifyData))
 }
 
-func TestCodecV1BatchSkipBitmap(t *testing.T) {
+func TestCodecV2BatchSkipBitmap(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
@@ -751,7 +751,7 @@ func TestCodecV1BatchSkipBitmap(t *testing.T) {
 	assert.Equal(t, 42, int(batch.TotalL1MessagePopped))
 }
 
-func TestCodecV1ChunkAndBatchBlobSizeEstimation(t *testing.T) {
+func TestCodecV2ChunkAndBatchBlobSizeEstimation(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	chunk2BlobSize, err := EstimateChunkL1CommitBlobSize(chunk2)

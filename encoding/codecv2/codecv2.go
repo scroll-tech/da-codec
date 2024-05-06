@@ -304,7 +304,7 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
-	// the raw (un-padded) blob payload
+	// the raw (un-compressed and un-padded) blob payload
 	blobBytes := make([]byte, metadataLength)
 
 	// challenge digest preimage

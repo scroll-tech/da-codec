@@ -5,8 +5,8 @@ use std::os::raw::{c_char, c_uchar};
 use std::ptr::null;
 
 fn out_as_err(err: &str, out: &mut [u8]){
-    assert!(out.len() > 8, "the buffer is too few to containt any msg");
-    let msg = if err.len() > out.len() + 1{
+    assert!(out.len() > 8, "the buffer is too short to containt any msg");
+    let msg = if err.len() > out.len() + 1 {
         "NENOUGH"
     } else {
         err

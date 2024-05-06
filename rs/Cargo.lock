@@ -3085,7 +3085,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "scroll_zstd"
+name = "scroll-zstd"
 version = "0.1.0"
 dependencies = [
  "aggregator",
