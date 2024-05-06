@@ -5,7 +5,7 @@ use std::os::raw::{c_char, c_uchar};
 use std::ptr::null;
 
 fn out_as_err(err: &str, out: &mut [u8]) -> *const c_char {
-    let msg = if err.len() > out.len() - 1 {
+    let msg = if err.len() + 1 > out.len() {
         "compress_scroll_batch_bytes: not enough output buffer for the error message"
     } else {
         err
