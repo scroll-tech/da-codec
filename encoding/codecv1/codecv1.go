@@ -26,9 +26,6 @@ var (
 
 	// BlobDataProofArgs defines the argument types for `_blobDataProof` in `finalizeBatchWithProof4844`.
 	BlobDataProofArgs abi.Arguments
-
-	// MaxNumChunks is the maximum number of chunks that a batch can contain.
-	MaxNumChunks int = 15
 )
 
 func init() {
@@ -56,6 +53,9 @@ func init() {
 
 // CodecV1Version denotes the version of the codec.
 const CodecV1Version = 1
+
+// MaxNumChunks is the maximum number of chunks that a batch can contain.
+const MaxNumChunks = 15
 
 // DABlock represents a Data Availability Block.
 type DABlock struct {
@@ -233,7 +233,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// batch data hash
-	dataHash, err := computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -266,11 +266,11 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	return &daBatch, nil
 }
 
-// computeBatchDataHash computes the data hash of the batch.
+// ComputeBatchDataHash computes the data hash of the batch.
 // Note: The batch hash and batch data hash are two different hashes,
 // the former is used for identifying a badge in the contracts,
 // the latter is used in the public input to the provers.
-func computeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
 	var dataBytes []byte
 	totalL1MessagePoppedBeforeChunk := totalL1MessagePoppedBefore
 
@@ -350,7 +350,7 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 	copy(challengePreimage[0:], hash[:])
 
 	// convert raw data to BLSFieldElements
-	blob, err := makeBlobCanonical(blobBytes)
+	blob, err := MakeBlobCanonical(blobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
@@ -378,8 +378,8 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 	return blob, blobVersionedHash, &z, nil
 }
 
-// makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
-func makeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
+// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
+func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	// blob contains 131072 bytes but we can only utilize 31/32 of these
 	if len(blobBytes) > 126976 {
 		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
@@ -477,12 +477,6 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 	return b.blob
 }
 
-// DecodeFromCalldata attempts to decode a DABatch and an array of DAChunks from the provided calldata byte slice.
-func DecodeFromCalldata(data []byte) (*DABatch, []*DAChunk, error) {
-	// TODO: implement this function.
-	return nil, nil, nil
-}
-
 // EstimateChunkL1CommitBlobSize estimates the size of the L1 commit blob for a single chunk.
 func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
 	metadataSize := uint64(2 + 4*MaxNumChunks) // over-estimate: adding metadata length
@@ -490,7 +484,7 @@ func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return calculatePaddedBlobSize(metadataSize + chunkDataSize), nil
+	return CalculatePaddedBlobSize(metadataSize + chunkDataSize), nil
 }
 
 // EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
@@ -504,7 +498,7 @@ func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
 		}
 		batchDataSize += chunkDataSize
 	}
-	return calculatePaddedBlobSize(metadataSize + batchDataSize), nil
+	return CalculatePaddedBlobSize(metadataSize + batchDataSize), nil
 }
 
 func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
@@ -537,9 +531,9 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
 	return totalL1CommitCalldataSize
 }
 
-// calculatePaddedBlobSize calculates the required size on blob storage
+// CalculatePaddedBlobSize calculates the required size on blob storage
 // where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
-func calculatePaddedBlobSize(dataSize uint64) uint64 {
+func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 	paddedSize := (dataSize / 31) * 32
 
 	if dataSize%31 != 0 {

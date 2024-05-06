@@ -298,12 +298,6 @@ func (b *DABatch) Hash() common.Hash {
 	return crypto.Keccak256Hash(bytes)
 }
 
-// DecodeFromCalldata attempts to decode a DABatch and an array of DAChunks from the provided calldata byte slice.
-func DecodeFromCalldata(data []byte) (*DABatch, []*DAChunk, error) {
-	// TODO: implement this function.
-	return nil, nil, nil
-}
-
 // CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
 const CalldataNonZeroByteGas = 16
 
