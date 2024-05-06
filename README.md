@@ -9,14 +9,14 @@ Follow these steps to build the `.so` file:
     make run
     ```
 
-2. Change directory to rs:
+2. Change directory to libzstd:
     ```
-    cd rs
+    cd libzstd
     ```
 
 3. Build libzstd:
     ```
-    export CARGO_NET_GIT_FETCH_WITH_CLI=true
+    export CARGO_NET_GIT_FETCH_WITH_CLI=false
     make libzstd
     ```
 
@@ -31,7 +31,7 @@ Follow these steps to run unit tests:
 
 2. Set the directory for shared libraries:
     ```
-    export LD_LIBRARY_PATH=${PWD}/rs:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=${PWD}/libzstd:$LD_LIBRARY_PATH
     ```
 
 3. Execute the unit tests:
