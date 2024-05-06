@@ -28,9 +28,6 @@ import (
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
 )
 
-// CodecV2Version denotes the version of the codec.
-const CodecV2Version = 2
-
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 45
 
@@ -228,7 +225,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	daBatch := DABatch{
-		Version:                CodecV2Version,
+		Version:                uint8(encoding.CodecV2),
 		BatchIndex:             batch.Index,
 		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
 		TotalL1MessagePopped:   totalL1MessagePoppedAfter,

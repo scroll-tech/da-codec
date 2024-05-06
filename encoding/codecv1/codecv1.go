@@ -51,9 +51,6 @@ func init() {
 	}
 }
 
-// CodecV1Version denotes the version of the codec.
-const CodecV1Version = 1
-
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 15
 
@@ -251,7 +248,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	daBatch := DABatch{
-		Version:                CodecV1Version,
+		Version:                uint8(encoding.CodecV1),
 		BatchIndex:             batch.Index,
 		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
 		TotalL1MessagePopped:   totalL1MessagePoppedAfter,

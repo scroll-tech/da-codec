@@ -208,7 +208,7 @@ func TestCodecV1ChunkHash(t *testing.T) {
 
 func TestCodecV1BatchEncode(t *testing.T) {
 	// empty batch
-	batch := &DABatch{Version: CodecV1Version}
+	batch := &DABatch{Version: uint8(encoding.CodecV1)}
 	encoded := hex.EncodeToString(batch.Encode())
 	assert.Equal(t, "01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", encoded)
 
@@ -277,7 +277,7 @@ func TestCodecV1BatchEncode(t *testing.T) {
 
 func TestCodecV1BatchHash(t *testing.T) {
 	// empty batch
-	batch := &DABatch{Version: CodecV1Version}
+	batch := &DABatch{Version: uint8(encoding.CodecV1)}
 	assert.Equal(t, "0x4b6fe410f63051f6e93532087b42ece79fb7b966e2ba5845e6cd1c091f27e564", batch.Hash().Hex())
 
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")

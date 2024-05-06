@@ -206,9 +206,9 @@ func TestCodecV2ChunkHash(t *testing.T) {
 	assert.Equal(t, "0xb65521bea7daff75838de07951c3c055966750fb5a270fead5e0e727c32455c3", hash.Hex())
 }
 
-func TestCodecV1BatchEncode(t *testing.T) {
+func TestCodecV2BatchEncode(t *testing.T) {
 	// empty batch
-	batch := &DABatch{Version: CodecV2Version}
+	batch := &DABatch{Version: uint8(encoding.CodecV2)}
 	encoded := hex.EncodeToString(batch.Encode())
 	assert.Equal(t, "02000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", encoded)
 
@@ -275,9 +275,9 @@ func TestCodecV1BatchEncode(t *testing.T) {
 	assert.Equal(t, "020000000000000000000000000000002a000000000000002a9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e13476701795981f4ed52897102965ce76defc953c45835a947f4efe2957b0d29d476ae00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001ffffffbff", encoded)
 }
 
-func TestCodecV1BatchHash(t *testing.T) {
+func TestCodecV2BatchHash(t *testing.T) {
 	// empty batch
-	batch := &DABatch{Version: CodecV2Version}
+	batch := &DABatch{Version: uint8(encoding.CodecV2)}
 	assert.Equal(t, "0x8839b8a7b8dfebdc8e829f6fe543578ccdc8da1307e1e1581541a1e2a8fa5592", batch.Hash().Hex())
 
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
@@ -335,7 +335,7 @@ func TestCodecV1BatchHash(t *testing.T) {
 	assert.Equal(t, "0x9b6b98a6e198c2f7b4ab6f40bf3cbd1ce40d68e54f120ff8e3c6bf22900486f3", batch.Hash().Hex())
 }
 
-func TestCodecV1BatchDataHash(t *testing.T) {
+func TestCodecV2BatchDataHash(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
@@ -391,7 +391,7 @@ func TestCodecV1BatchDataHash(t *testing.T) {
 	assert.Equal(t, "0x9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e134767", batch.DataHash.Hex())
 }
 
-func TestCodecV1BatchBlob(t *testing.T) {
+func TestCodecV2BatchBlob(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
@@ -465,7 +465,7 @@ func TestCodecV1BatchBlob(t *testing.T) {
 	assert.Equal(t, "0x01795981f4ed52897102965ce76defc953c45835a947f4efe2957b0d29d476ae", batch.BlobVersionedHash.Hex())
 }
 
-func TestCodecV1BatchChallenge(t *testing.T) {
+func TestCodecV2BatchChallenge(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
@@ -530,7 +530,7 @@ func repeat(element byte, count int) string {
 	return "0x" + common.Bytes2Hex(result)
 }
 
-func TestCodecV1BatchChallengeWithStandardTestCases(t *testing.T) {
+func TestCodecV2BatchChallengeWithStandardTestCases(t *testing.T) {
 	nRowsData := 126914
 
 	for _, tc := range []struct {

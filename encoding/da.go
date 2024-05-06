@@ -10,7 +10,7 @@ import (
 )
 
 // CodecVersion defines the version of encoder and decoder.
-type CodecVersion int
+type CodecVersion uint8
 
 const (
 	// CodecV0 represents the version 0 of the encoder and decoder.

@@ -16,9 +16,6 @@ import (
 	"github.com/scroll-tech/da-codec/encoding"
 )
 
-// CodecV0Version denotes the version of the codec.
-const CodecV0Version = 0
-
 // DABlock represents a Data Availability Block.
 type DABlock struct {
 	BlockNumber     uint64
@@ -247,7 +244,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	daBatch := DABatch{
-		Version:                CodecV0Version,
+		Version:                uint8(encoding.CodecV0),
 		BatchIndex:             batch.Index,
 		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
 		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
