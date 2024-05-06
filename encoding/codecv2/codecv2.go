@@ -180,17 +180,19 @@ func (c *DAChunk) Hash() (common.Hash, error) {
 	// concatenate l1 tx hashes
 	for _, blockTxs := range c.Transactions {
 		for _, txData := range blockTxs {
-			if txData.Type == types.L1MessageTxType {
-				txHash := strings.TrimPrefix(txData.TxHash, "0x")
-				hashBytes, err := hex.DecodeString(txHash)
-				if err != nil {
-					return common.Hash{}, err
-				}
-				if len(hashBytes) != 32 {
-					return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
-				}
-				dataBytes = append(dataBytes, hashBytes...)
+			if txData.Type != types.L1MessageTxType {
+				continue
 			}
+
+			txHash := strings.TrimPrefix(txData.TxHash, "0x")
+			hashBytes, err := hex.DecodeString(txHash)
+			if err != nil {
+				return common.Hash{}, err
+			}
+			if len(hashBytes) != 32 {
+				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
+			}
+			dataBytes = append(dataBytes, hashBytes...)
 		}
 	}
 
@@ -276,14 +278,16 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 
 		for _, block := range chunk.Blocks {
 			for _, tx := range block.Transactions {
-				if tx.Type != types.L1MessageTxType {
-					// encode L2 txs into blob payload
-					rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
-					if err != nil {
-						return nil, common.Hash{}, nil, err
-					}
-					blobBytes = append(blobBytes, rlpTxData...)
+				if tx.Type == types.L1MessageTxType {
+					continue
 				}
+
+				// encode L2 txs into blob payload
+				rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
+				if err != nil {
+					return nil, common.Hash{}, nil, err
+				}
+				blobBytes = append(blobBytes, rlpTxData...)
 			}
 		}
 
@@ -472,14 +476,16 @@ func constructBatchPayload(chunks []*encoding.Chunk) ([]byte, error) {
 
 		for _, block := range chunk.Blocks {
 			for _, tx := range block.Transactions {
-				if tx.Type != types.L1MessageTxType {
-					// encode L2 txs into batch payload
-					rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
-					if err != nil {
-						return nil, err
-					}
-					batchBytes = append(batchBytes, rlpTxData...)
+				if tx.Type == types.L1MessageTxType {
+					continue
 				}
+
+				// encode L2 txs into batch payload
+				rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
+				if err != nil {
+					return nil, err
+				}
+				batchBytes = append(batchBytes, rlpTxData...)
 			}
 		}
 

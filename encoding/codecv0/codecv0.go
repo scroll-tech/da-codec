@@ -160,6 +160,7 @@ func (c *DAChunk) Encode() ([]byte, error) {
 			if txData.Type == types.L1MessageTxType {
 				continue
 			}
+
 			var txLen [4]byte
 			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData)
 			if err != nil {
@@ -320,6 +321,7 @@ func EstimateBlockL1CommitCalldataSize(b *encoding.Block) (uint64, error) {
 		if txData.Type == types.L1MessageTxType {
 			continue
 		}
+
 		size += 4 // 4 bytes payload length
 		txPayloadLength, err := getTxPayloadLength(txData)
 		if err != nil {
