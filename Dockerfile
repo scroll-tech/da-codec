@@ -4,8 +4,10 @@ ARG CARGO_CHEF_TAG=0.1.41
 
 FROM ubuntu:20.04
 
+RUN apt-get update
+
 # Install basic packages
-RUN apt-get install -y build-essential
+RUN ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime && apt-get install -y build-essential
 RUN apt-get install -y curl
 RUN apt-get install -y wget
 RUN apt-get install -y git
