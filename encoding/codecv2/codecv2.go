@@ -559,7 +559,7 @@ func constructBatchPayload(chunks []*encoding.Chunk) ([]byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
-	// the raw (un-padded) batch payload
+	// the raw (un-compressed and un-padded) blob payload
 	batchBytes := make([]byte, metadataLength)
 
 	// batch metadata: num_chunks
