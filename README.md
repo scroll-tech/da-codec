@@ -16,7 +16,6 @@ Follow these steps to build the `.so` file:
 
 3. Build libzstd:
     ```
-    export CARGO_NET_GIT_FETCH_WITH_CLI=false
     make libzstd
     ```
 
