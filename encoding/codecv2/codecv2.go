@@ -22,7 +22,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-	"github.com/scroll-tech/go-ethereum/log"
 
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
@@ -400,7 +399,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 
 	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
 	if err != nil {
-		log.Crit("failed to create KZG proof at point", "err", err, "z", hex.EncodeToString(b.z[:]))
+		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
 	// Memory layout of ``_blobDataProof``:
@@ -409,7 +408,11 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	return codecv1.BlobDataProofArgs.Pack(values...)
+	blobDataProofArgs, err := codecv1.GetBlobDataProofArgs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
+	}
+	return blobDataProofArgs.Pack(values...)
 }
 
 // Blob returns the blob of the batch.

@@ -2,11 +2,11 @@ package encoding
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
-	"github.com/scroll-tech/go-ethereum/log"
 )
 
 // CodecVersion defines the version of encoder and decoder.
@@ -26,11 +26,24 @@ const (
 	txTypeTest = 0xff
 )
 
-func init() {
-	// make sure txTypeTest will not interfere with other transaction types
-	if txTypeTest == types.LegacyTxType || txTypeTest == types.AccessListTxType || txTypeTest == types.DynamicFeeTxType || txTypeTest == types.BlobTxType || txTypeTest == types.L1MessageTxType {
-		log.Crit("txTypeTest is overlapping with existing transaction types")
-	}
+var checkTxTypeOnce sync.Once
+
+func ensureTxTypesChecked() error {
+	var checkError error
+	checkTxTypeOnce.Do(func() {
+		existingTypes := map[uint8]bool{
+			types.LegacyTxType:     true,
+			types.AccessListTxType: true,
+			types.DynamicFeeTxType: true,
+			types.BlobTxType:       true,
+			types.L1MessageTxType:  true,
+		}
+
+		if _, exists := existingTypes[txTypeTest]; exists {
+			checkError = fmt.Errorf("txTypeTest (%d) is overlapping with existing transaction types", txTypeTest)
+		}
+	})
+	return checkError
 }
 
 // Block represents an L2 block.
@@ -97,6 +110,10 @@ func (c *Chunk) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 
 // ConvertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
 func ConvertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
+	if err := ensureTxTypesChecked(); err != nil {
+		return nil, fmt.Errorf("test tx type conflicts with existing tx types: err=%w", err)
+	}
+
 	data, err := hexutil.Decode(txData.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)

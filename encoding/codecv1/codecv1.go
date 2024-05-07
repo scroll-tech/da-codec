@@ -9,47 +9,19 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"sync"
 
 	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-	"github.com/scroll-tech/go-ethereum/log"
 
 	"github.com/scroll-tech/da-codec/encoding"
 )
 
-var (
-	// BLSModulus is the BLS modulus defined in EIP-4844.
-	BLSModulus *big.Int
-
-	// BlobDataProofArgs defines the argument types for `_blobDataProof` in `finalizeBatchWithProof4844`.
-	BlobDataProofArgs abi.Arguments
-)
-
-func init() {
-	// initialize modulus
-	modulus, success := new(big.Int).SetString("52435875175126190479447740508185965837690552500527637822603658699938581184513", 10)
-	if !success {
-		log.Crit("BLSModulus conversion failed")
-	}
-	BLSModulus = modulus
-
-	// initialize arguments
-	bytes32Type, err1 := abi.NewType("bytes32", "bytes32", nil)
-	bytes48Type, err2 := abi.NewType("bytes48", "bytes48", nil)
-	if err1 != nil || err2 != nil {
-		log.Crit("Failed to initialize abi types", "err1", err1, "err2", err2)
-	}
-
-	BlobDataProofArgs = abi.Arguments{
-		{Type: bytes32Type, Name: "z"},
-		{Type: bytes32Type, Name: "y"},
-		{Type: bytes48Type, Name: "commitment"},
-		{Type: bytes48Type, Name: "proof"},
-	}
-}
+// BLSModulus is the BLS modulus defined in EIP-4844.
+var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
 
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 15
@@ -459,7 +431,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 
 	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
 	if err != nil {
-		log.Crit("failed to create KZG proof at point", "err", err, "z", hex.EncodeToString(b.z[:]))
+		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
 	// Memory layout of ``_blobDataProof``:
@@ -468,7 +440,11 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	return BlobDataProofArgs.Pack(values...)
+	blobDataProofArgs, err := GetBlobDataProofArgs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
+	}
+	return blobDataProofArgs.Pack(values...)
 }
 
 // Blob returns the blob of the batch.
@@ -542,4 +518,44 @@ func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 	}
 
 	return paddedSize
+}
+
+var (
+	blobDataProofArgs *abi.Arguments
+	once              sync.Once
+)
+
+// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
+func GetBlobDataProofArgs() (*abi.Arguments, error) {
+	var initError error
+
+	once.Do(func() {
+		// Initialize bytes32 type
+		bytes32Type, err := abi.NewType("bytes32", "bytes32", nil)
+		if err != nil {
+			initError = fmt.Errorf("failed to initialize abi type bytes32: %w", err)
+			return
+		}
+
+		// Initialize bytes48 type
+		bytes48Type, err := abi.NewType("bytes48", "bytes48", nil)
+		if err != nil {
+			initError = fmt.Errorf("failed to initialize abi type bytes48: %w", err)
+			return
+		}
+
+		// Successfully create the argument list
+		blobDataProofArgs = &abi.Arguments{
+			{Type: bytes32Type, Name: "z"},
+			{Type: bytes32Type, Name: "y"},
+			{Type: bytes48Type, Name: "kzg_commitment"},
+			{Type: bytes48Type, Name: "kzg_proof"},
+		}
+	})
+
+	if initError != nil {
+		return nil, initError
+	}
+
+	return blobDataProofArgs, nil
 }
