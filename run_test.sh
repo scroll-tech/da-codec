@@ -3,12 +3,12 @@
 # Save the root directory of the project
 ROOT_DIR=$(pwd)
 
-# Set the environment variable
-export LD_LIBRARY_PATH=$ROOT_DIR/libzstd:$LD_LIBRARY_PATH
-
 # Compile libzstd
 cd $ROOT_DIR/libzstd
 make libzstd
+
+# Set the environment variable
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 
 # Run module tests
 cd $ROOT_DIR

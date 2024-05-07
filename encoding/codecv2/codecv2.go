@@ -1,7 +1,7 @@
 package codecv2
 
 /*
-#cgo LDFLAGS: -L../../libzstd -lm -ldl -lscroll_zstd
+#cgo LDFLAGS: -lm -ldl -lscroll_zstd
 #include <stdlib.h>
 #include "../../libzstd/rs_zstd.h"
 */

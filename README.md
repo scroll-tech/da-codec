@@ -1,8 +1,8 @@
 # da-codec
 
-## Building `libscroll_zstd.so` File.
+## Running unit tests
 
-Follow these steps to build the `.so` file:
+Follow these steps to run unit tests:
 
 1. Build and enter the container:
     ```
@@ -19,21 +19,8 @@ Follow these steps to build the `.so` file:
     make libzstd
     ```
 
-## Running unit tests
-
-Follow these steps to run unit tests:
-
-1. Build and enter the container:
+4. Execute the unit tests:
     ```
-    make run
-    ```
-
-2. Set the directory for shared libraries:
-    ```
-    export LD_LIBRARY_PATH=${PWD}/libzstd:$LD_LIBRARY_PATH
-    ```
-
-3. Execute the unit tests:
-    ```
+    cd ..
     go test -v -race ./...
     ```

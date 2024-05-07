@@ -36,3 +36,4 @@ RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz
 RUN tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
 RUN rm go${GO_VERSION}.linux-amd64.tar.gz
 ENV PATH="/usr/local/go/bin:${PATH}"
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
