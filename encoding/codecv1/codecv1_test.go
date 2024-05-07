@@ -841,34 +841,40 @@ func TestCodecV1ChunkAndBatchCommitCalldataSizeEstimation(t *testing.T) {
 }
 
 func TestCodecV1ChunkAndBatchCommitGasEstimation(t *testing.T) {
-	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
-	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
+	block2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
+	block2Gas := EstimateBlockL1CommitGas(block2)
+	assert.Equal(t, uint64(960), block2Gas)
+	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{block2}}
 	chunk2Gas := EstimateChunkL1CommitGas(chunk2)
 	assert.Equal(t, uint64(2084), chunk2Gas)
 	batch2 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
 	batch2Gas := EstimateBatchL1CommitGas(batch2)
 	assert.Equal(t, uint64(158609), batch2Gas)
 
-	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
-	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{trace3}}
+	block3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
+	block3Gas := EstimateBlockL1CommitGas(block3)
+	assert.Equal(t, uint64(960), block3Gas)
+	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{block3}}
 	chunk3Gas := EstimateChunkL1CommitGas(chunk3)
 	assert.Equal(t, uint64(2084), chunk3Gas)
 	batch3 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
 	batch3Gas := EstimateBatchL1CommitGas(batch3)
 	assert.Equal(t, uint64(158609), batch3Gas)
 
-	trace4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
-	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
+	block4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
+	block4Gas := EstimateBlockL1CommitGas(block4)
+	assert.Equal(t, uint64(3572), block4Gas)
+	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{block4}}
 	chunk4Gas := EstimateChunkL1CommitGas(chunk4)
 	assert.Equal(t, uint64(4705), chunk4Gas)
 	batch4 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
 	batch4Gas := EstimateBatchL1CommitGas(batch4)
 	assert.Equal(t, uint64(161262), batch4Gas)
 
-	chunk5 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3}}
+	chunk5 := &encoding.Chunk{Blocks: []*encoding.Block{block2, block3}}
 	chunk5Gas := EstimateChunkL1CommitGas(chunk5)
 	assert.Equal(t, uint64(4122), chunk5Gas)
-	chunk6 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
+	chunk6 := &encoding.Chunk{Blocks: []*encoding.Block{block4}}
 	chunk6Gas := EstimateChunkL1CommitGas(chunk6)
 	assert.Equal(t, uint64(4705), chunk6Gas)
 	batch5 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk5, chunk6}}

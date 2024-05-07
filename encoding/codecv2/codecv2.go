@@ -456,6 +456,21 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
 	return codecv1.EstimateBatchL1CommitCalldataSize(b)
 }
 
+// EstimateBlockL1CommitGas calculates the total L1 commit gas for this block approximately.
+func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
+	return codecv1.EstimateBlockL1CommitGas(b)
+}
+
+// EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
+func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
+	return codecv1.EstimateChunkL1CommitGas(c)
+}
+
+// EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
+func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
+	return codecv1.EstimateBatchL1CommitGas(b)
+}
+
 // constructBatchPayload constructs the batch payload.
 // This function is only used in compressed batch payload length estimation.
 func constructBatchPayload(chunks []*encoding.Chunk) ([]byte, error) {
