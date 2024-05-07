@@ -316,7 +316,6 @@ func EstimateBlockL1CommitCalldataSize(b *encoding.Block) (uint64, error) {
 		if txData.Type == types.L1MessageTxType {
 			continue
 		}
-
 		size += 4 // 4 bytes payload length
 		txPayloadLength, err := getTxPayloadLength(txData)
 		if err != nil {
