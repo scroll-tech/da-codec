@@ -626,15 +626,15 @@ func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 }
 
 var (
-	blobDataProofArgs *abi.Arguments
-	once              sync.Once
+	blobDataProofArgs         *abi.Arguments
+	initBlobDataProofArgsOnce sync.Once
 )
 
 // GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
 func GetBlobDataProofArgs() (*abi.Arguments, error) {
 	var initError error
 
-	once.Do(func() {
+	initBlobDataProofArgsOnce.Do(func() {
 		// Initialize bytes32 type
 		bytes32Type, err := abi.NewType("bytes32", "bytes32", nil)
 		if err != nil {

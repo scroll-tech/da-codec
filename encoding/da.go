@@ -26,11 +26,11 @@ const (
 	txTypeTest = 0xff
 )
 
-var checkTxTypeOnce sync.Once
+var checkTestTxTypeConflictOnce sync.Once
 
 func ensureTxTypesChecked() error {
 	var checkError error
-	checkTxTypeOnce.Do(func() {
+	checkTestTxTypeConflictOnce.Do(func() {
 		existingTypes := map[uint8]bool{
 			types.LegacyTxType:     true,
 			types.AccessListTxType: true,
@@ -111,7 +111,7 @@ func (c *Chunk) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 // ConvertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
 func ConvertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 	if err := ensureTxTypesChecked(); err != nil {
-		return nil, fmt.Errorf("test tx type conflicts with existing tx types: err=%w", err)
+		return nil, fmt.Errorf("test tx type conflicts with existing tx types, err: %w", err)
 	}
 
 	data, err := hexutil.Decode(txData.Data)
