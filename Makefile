@@ -15,4 +15,4 @@ run: build
 	docker run -it --rm -v "$(PWD):/workspace" -w /workspace my-dev-container
 
 test:
-	./run_test
+	./run_test.sh

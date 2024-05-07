@@ -59,5 +59,4 @@ jobs:
     - name: Test codec packages
       working-directory: '.'
       run: |
-        export LD_LIBRARY_PATH=${PWD}/libzstd:$LD_LIBRARY_PATH
         make test
