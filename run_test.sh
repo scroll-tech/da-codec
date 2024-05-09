@@ -7,8 +7,6 @@ find $(pwd)/libzstd/target/release | grep libzktrie.so | xargs -I{} cp -f {} $(p
 
 # Set the environment variable
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)
-
-# Set CGO_LDFLAGS
 export CGO_LDFLAGS="-L$(pwd) -lscroll_zstd -lzktrie"
 
 # Run module tests
