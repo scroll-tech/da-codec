@@ -1,26 +1,12 @@
 # da-codec
 
 ## Running unit tests
-
-Follow these steps to run unit tests:
-
-1. Build and enter the container:
-    ```
-    make run
-    ```
-
-2. Change directory to libzstd:
-    ```
-    cd libzstd
-    ```
-
-3. Build libzstd:
-    ```
-    make libzstd
-    ```
-
-4. Execute the unit tests:
-    ```
-    cd ..
-    go test -v -race ./...
-    ```
+```
+make run
+cd libzstd
+make libzstd
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)
+export CGO_LDFLAGS="-L$(pwd) -lscroll_zstd -lzktrie"
+cd ..
+go test -v -race ./...
+```
