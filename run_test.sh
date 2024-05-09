@@ -9,5 +9,8 @@ sudo cp -f libscroll_zstd.so libzktrie.so /workspace/lib
 # Set the environment variable
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/workspace/lib
 
+# Set CGO_LDFLAGS
+export CGO_LDFLAGS="-L/workspace/lib -lscroll_zstd -lzktrie"
+
 # Run module tests
-env GO111MODULE=on go test -v -race -gcflags="-l" -ldflags="-s=false" -coverprofile=coverage.txt -covermode=atomic ./...
+go test -v -race -gcflags="-l" -ldflags="-s=false" -coverprofile=coverage.txt -covermode=atomic ./...
