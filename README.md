@@ -5,8 +5,8 @@
 make run
 cd libzstd
 make libzstd
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)
-export CGO_LDFLAGS="-L$(pwd) -Wl,-rpath=$(pwd)"
 cd ..
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/libzstd
+export CGO_LDFLAGS="-L$(pwd)/libzstd -Wl,-rpath=$(pwd)/libzstd"
 go test -v -race ./...
 ```
