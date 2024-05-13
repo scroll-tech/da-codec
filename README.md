@@ -2,7 +2,8 @@
 
 ## Running unit tests
 ```
-make run
+docker pull scrolltech/go-rust-builder:go-1.21-rust-nightly-2023-12-03 --platform linux/amd64
+docker run -it --rm -v "$(PWD):/workspace" -w /workspace scrolltech/go-rust-builder:go-1.21-rust-nightly-2023-12-03
 cd libzstd
 make libzstd
 cd ..
