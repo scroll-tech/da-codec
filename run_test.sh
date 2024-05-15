@@ -8,7 +8,7 @@ find $(pwd)/libzstd/target/release -name 'libzktrie.so' | xargs -I{} sudo cp -f 
 
 # Set the environment variable
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/scroll/lib/
-export CGO_LDFLAGS="-L/scroll/lib/ -Wl,-rpath=/scroll/lib/"
+export CGO_LDFLAGS="-L/scroll/lib/ -Wl,-rpath,/scroll/lib/"
 
 # Run module tests
 go test -v -race -gcflags="-l" -ldflags="-s=false" -coverprofile=coverage.txt -covermode=atomic ./...
