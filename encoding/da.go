@@ -2,7 +2,6 @@ package encoding
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
@@ -21,30 +20,7 @@ const (
 
 	// CodecV2 represents the version 2 of the encoder and decoder.
 	CodecV2
-
-	// txTypeTest is a special transaction type used in unit tests.
-	txTypeTest = 0xff
 )
-
-var checkTestTxTypeConflictOnce sync.Once
-
-func ensureTxTypesChecked() error {
-	var checkError error
-	checkTestTxTypeConflictOnce.Do(func() {
-		existingTypes := map[uint8]bool{
-			types.LegacyTxType:     true,
-			types.AccessListTxType: true,
-			types.DynamicFeeTxType: true,
-			types.BlobTxType:       true,
-			types.L1MessageTxType:  true,
-		}
-
-		if _, exists := existingTypes[txTypeTest]; exists {
-			checkError = fmt.Errorf("txTypeTest (%d) is overlapping with existing transaction types", txTypeTest)
-		}
-	})
-	return checkError
-}
 
 // Block represents an L2 block.
 type Block struct {
@@ -109,14 +85,14 @@ func (c *Chunk) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 }
 
 // ConvertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
-func ConvertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
-	if err := ensureTxTypesChecked(); err != nil {
-		return nil, fmt.Errorf("test tx type conflicts with existing tx types, err: %w", err)
-	}
-
+func ConvertTxDataToRLPEncoding(txData *types.TransactionData, useMockTxData bool) ([]byte, error) {
 	data, err := hexutil.Decode(txData.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
+	}
+
+	if useMockTxData {
+		return data, nil
 	}
 
 	var tx *types.Transaction
@@ -164,10 +140,6 @@ func ConvertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 			R:          txData.R.ToInt(),
 			S:          txData.S.ToInt(),
 		})
-
-	case txTypeTest:
-		// in the tests, we simply use `data` as the RLP-encoded transaction
-		return data, nil
 
 	case types.L1MessageTxType: // L1MessageTxType is not supported
 	default:

@@ -214,7 +214,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := constructBlobPayload(batch.Chunks)
+	blob, blobVersionedHash, z, err := constructBlobPayload(batch.Chunks, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore u
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
-func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -290,7 +290,7 @@ func constructBlobPayload(chunks []*encoding.Chunk) (*kzg4844.Blob, common.Hash,
 				}
 
 				// encode L2 txs into blob payload
-				rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
+				rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx, useMockTxData)
 				if err != nil {
 					return nil, common.Hash{}, nil, err
 				}
@@ -484,7 +484,7 @@ func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
 				continue
 			}
 
-			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx)
+			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx, false /* no mock */)
 			if err != nil {
 				return 0, err
 			}

@@ -157,7 +157,7 @@ func (c *DAChunk) Encode() ([]byte, error) {
 			}
 
 			var txLen [4]byte
-			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData)
+			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData, false /* no mock */)
 			if err != nil {
 				return nil, err
 			}
@@ -461,7 +461,7 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) (uint64, error) {
 }
 
 func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
-	rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData)
+	rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData, false /* no mock */)
 	if err != nil {
 		return 0, err
 	}
