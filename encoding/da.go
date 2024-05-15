@@ -91,6 +91,8 @@ func ConvertTxDataToRLPEncoding(txData *types.TransactionData, useMockTxData boo
 		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
 	}
 
+	// This mock param is only used in testing comparing batch challenges with standard test cases.
+	// These tests use this param to set the tx data for convenience.
 	if useMockTxData {
 		return data, nil
 	}
