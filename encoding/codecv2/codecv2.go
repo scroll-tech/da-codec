@@ -511,10 +511,10 @@ func constructBatchPayload(chunks []*encoding.Chunk) ([]byte, error) {
 }
 
 // compressScrollBatchBytes compresses the given batch of bytes.
-// The output buffer is allocated with an extra 256 bytes to accommodate metadata overhead or error message.
+// The output buffer is allocated with an extra 128 bytes to accommodate metadata overhead or error message.
 func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
 	srcSize := C.uint64_t(len(batchBytes))
-	outbufSize := C.uint64_t(len(batchBytes) + 256) // Allocate output buffer with extra 256 bytes
+	outbufSize := C.uint64_t(len(batchBytes) + 128) // Allocate output buffer with extra 128 bytes
 	outbuf := make([]byte, outbufSize)
 
 	if err := C.compress_scroll_batch_bytes((*C.uchar)(unsafe.Pointer(&batchBytes[0])), srcSize,
