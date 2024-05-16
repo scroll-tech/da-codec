@@ -1,4 +1,4 @@
-.PHONY: fmt lint test
+.PHONY: fmt lint test build run
 
 lint:
 	GOBIN=$(PWD)/build/bin go run ./build/lint.go
@@ -9,4 +9,4 @@ fmt:
 	gofumpt -l -w .
 
 test:
-	go test -v -race -gcflags="-l" -ldflags="-s=false" -coverprofile=coverage.txt -covermode=atomic ./...
+	./run_test.sh

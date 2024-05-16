@@ -16,9 +16,6 @@ import (
 	"github.com/scroll-tech/da-codec/encoding"
 )
 
-// CodecV0Version denotes the version of the codec.
-const CodecV0Version = 0
-
 // DABlock represents a Data Availability Block.
 type DABlock struct {
 	BlockNumber     uint64
@@ -91,22 +88,20 @@ func (b *DABlock) Encode() []byte {
 	return bytes
 }
 
-// DecodeDABlock takes a byte slice and decodes it into a DABlock.
-func DecodeDABlock(bytes []byte) (*DABlock, error) {
+// Decode populates the fields of a DABlock from a byte slice.
+func (b *DABlock) Decode(bytes []byte) error {
 	if len(bytes) != 60 {
-		return nil, errors.New("block encoding is not 60 bytes long")
+		return errors.New("block encoding is not 60 bytes long")
 	}
 
-	block := &DABlock{
-		BlockNumber:     binary.BigEndian.Uint64(bytes[0:8]),
-		Timestamp:       binary.BigEndian.Uint64(bytes[8:16]),
-		BaseFee:         new(big.Int).SetUint64(binary.BigEndian.Uint64(bytes[40:48])),
-		GasLimit:        binary.BigEndian.Uint64(bytes[48:56]),
-		NumTransactions: binary.BigEndian.Uint16(bytes[56:58]),
-		NumL1Messages:   binary.BigEndian.Uint16(bytes[58:60]),
-	}
+	b.BlockNumber = binary.BigEndian.Uint64(bytes[0:8])
+	b.Timestamp = binary.BigEndian.Uint64(bytes[8:16])
+	b.BaseFee = new(big.Int).SetUint64(binary.BigEndian.Uint64(bytes[40:48]))
+	b.GasLimit = binary.BigEndian.Uint64(bytes[48:56])
+	b.NumTransactions = binary.BigEndian.Uint16(bytes[56:58])
+	b.NumL1Messages = binary.BigEndian.Uint16(bytes[58:60])
 
-	return block, nil
+	return nil
 }
 
 // NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
@@ -160,8 +155,9 @@ func (c *DAChunk) Encode() ([]byte, error) {
 			if txData.Type == types.L1MessageTxType {
 				continue
 			}
+
 			var txLen [4]byte
-			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData)
+			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData, false /* no mock */)
 			if err != nil {
 				return nil, err
 			}
@@ -248,7 +244,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	daBatch := DABatch{
-		Version:                CodecV0Version,
+		Version:                uint8(encoding.CodecV0),
 		BatchIndex:             batch.Index,
 		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
 		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
@@ -296,12 +292,6 @@ func (b *DABatch) Encode() []byte {
 func (b *DABatch) Hash() common.Hash {
 	bytes := b.Encode()
 	return crypto.Keccak256Hash(bytes)
-}
-
-// DecodeFromCalldata attempts to decode a DABatch and an array of DAChunks from the provided calldata byte slice.
-func DecodeFromCalldata(data []byte) (*DABatch, []*DAChunk, error) {
-	// TODO: implement this function.
-	return nil, nil, nil
 }
 
 // CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
@@ -471,7 +461,7 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) (uint64, error) {
 }
 
 func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
-	rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData)
+	rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(txData, false /* no mock */)
 	if err != nil {
 		return 0, err
 	}

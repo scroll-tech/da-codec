@@ -1,4 +1,11 @@
-package codecv1
+package codecv2
+
+/*
+#cgo LDFLAGS: -lm -ldl -lscroll_zstd
+#include <stdint.h>
+char* compress_scroll_batch_bytes(uint8_t* src, uint64_t src_size, uint8_t* output_buf, uint64_t *output_buf_size);
+*/
+import "C"
 
 import (
 	"crypto/sha256"
@@ -9,22 +16,19 @@ import (
 	"math"
 	"math/big"
 	"strings"
-	"sync"
+	"unsafe"
 
-	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 
 	"github.com/scroll-tech/da-codec/encoding"
+	"github.com/scroll-tech/da-codec/encoding/codecv1"
 )
 
-// BLSModulus is the BLS modulus defined in EIP-4844.
-var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
-
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
-const MaxNumChunks = 15
+const MaxNumChunks = 45
 
 // DABlock represents a Data Availability Block.
 type DABlock struct {
@@ -220,7 +224,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	daBatch := DABatch{
-		Version:                uint8(encoding.CodecV1),
+		Version:                uint8(encoding.CodecV2),
 		BatchIndex:             batch.Index,
 		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
 		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
@@ -240,24 +244,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 // the former is used for identifying a badge in the contracts,
 // the latter is used in the public input to the provers.
 func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
-	var dataBytes []byte
-	totalL1MessagePoppedBeforeChunk := totalL1MessagePoppedBefore
-
-	for _, chunk := range chunks {
-		daChunk, err := NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		totalL1MessagePoppedBeforeChunk += chunk.NumL1Messages(totalL1MessagePoppedBeforeChunk)
-		chunkHash, err := daChunk.Hash()
-		if err != nil {
-			return common.Hash{}, err
-		}
-		dataBytes = append(dataBytes, chunkHash.Bytes()...)
-	}
-
-	dataHash := crypto.Keccak256Hash(dataBytes)
-	return dataHash, nil
+	return codecv1.ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
@@ -265,7 +252,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
-	// the raw (un-padded) blob payload
+	// the raw (un-compressed and un-padded) blob payload
 	blobBytes := make([]byte, metadataLength)
 
 	// challenge digest preimage
@@ -320,8 +307,14 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	hash := crypto.Keccak256Hash(blobBytes[0:metadataLength])
 	copy(challengePreimage[0:], hash[:])
 
+	// compress blob bytes
+	compressedBlobBytes, err := compressScrollBatchBytes(blobBytes)
+	if err != nil {
+		return nil, common.Hash{}, nil, err
+	}
+
 	// convert raw data to BLSFieldElements
-	blob, err := MakeBlobCanonical(blobBytes)
+	blob, err := codecv1.MakeBlobCanonical(compressedBlobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
@@ -338,7 +331,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), BLSModulus)
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), codecv1.BLSModulus)
 	pointBytes := pointBigInt.Bytes()
 
 	// the challenge point z
@@ -347,31 +340,6 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, nil
-}
-
-// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
-func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
-	// blob contains 131072 bytes but we can only utilize 31/32 of these
-	if len(blobBytes) > 126976 {
-		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
-	}
-
-	// the canonical (padded) blob payload
-	var blob kzg4844.Blob
-
-	// encode blob payload by prepending every 31 bytes with 1 zero byte
-	index := 0
-
-	for from := 0; from < len(blobBytes); from += 31 {
-		to := from + 31
-		if to > len(blobBytes) {
-			to = len(blobBytes)
-		}
-		copy(blob[index+1:], blobBytes[from:to])
-		index += 32
-	}
-
-	return &blob, nil
 }
 
 // NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.
@@ -440,7 +408,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := GetBlobDataProofArgs()
+	blobDataProofArgs, err := codecv1.GetBlobDataProofArgs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
 	}
@@ -454,213 +422,105 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 
 // EstimateChunkL1CommitBlobSize estimates the size of the L1 commit blob for a single chunk.
 func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
-	metadataSize := uint64(2 + 4*MaxNumChunks) // over-estimate: adding metadata length
-	chunkDataSize, err := chunkL1CommitBlobDataSize(c)
+	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
 	if err != nil {
 		return 0, err
 	}
-	return CalculatePaddedBlobSize(metadataSize + chunkDataSize), nil
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return 0, err
+	}
+	return codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
 func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
-	metadataSize := uint64(2 + 4*MaxNumChunks)
-	var batchDataSize uint64
-	for _, c := range b.Chunks {
-		chunkDataSize, err := chunkL1CommitBlobDataSize(c)
-		if err != nil {
-			return 0, err
-		}
-		batchDataSize += chunkDataSize
+	batchBytes, err := constructBatchPayload(b.Chunks)
+	if err != nil {
+		return 0, err
 	}
-	return CalculatePaddedBlobSize(metadataSize + batchDataSize), nil
-}
-
-func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
-	var dataSize uint64
-	for _, block := range c.Blocks {
-		for _, tx := range block.Transactions {
-			if tx.Type == types.L1MessageTxType {
-				continue
-			}
-
-			rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx, false /* no mock */)
-			if err != nil {
-				return 0, err
-			}
-			dataSize += uint64(len(rlpTxData))
-		}
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return 0, err
 	}
-	return dataSize, nil
-}
-
-// CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
-const CalldataNonZeroByteGas = 16
-
-// GetKeccak256Gas calculates the gas cost for computing the keccak256 hash of a given size.
-func GetKeccak256Gas(size uint64) uint64 {
-	return GetMemoryExpansionCost(size) + 30 + 6*((size+31)/32)
-}
-
-// GetMemoryExpansionCost calculates the cost of memory expansion for a given memoryByteSize.
-func GetMemoryExpansionCost(memoryByteSize uint64) uint64 {
-	memorySizeWord := (memoryByteSize + 31) / 32
-	memoryCost := (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
-	return memoryCost
-}
-
-// EstimateBlockL1CommitGas calculates the total L1 commit gas for this block approximately.
-func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
-	var total uint64
-	var numL1Messages uint64
-	for _, txData := range b.Transactions {
-		if txData.Type == types.L1MessageTxType {
-			numL1Messages++
-			continue
-		}
-	}
-
-	// 60 bytes BlockContext calldata
-	total += CalldataNonZeroByteGas * 60
-
-	// sload
-	total += 2100 * numL1Messages // numL1Messages times cold sload in L1MessageQueue
-
-	// staticcall
-	total += 100 * numL1Messages // numL1Messages times call to L1MessageQueue
-	total += 100 * numL1Messages // numL1Messages times warm address access to L1MessageQueue
-
-	total += GetMemoryExpansionCost(36) * numL1Messages // staticcall to proxy
-	total += 100 * numL1Messages                        // read admin in proxy
-	total += 100 * numL1Messages                        // read impl in proxy
-	total += 100 * numL1Messages                        // access impl
-	total += GetMemoryExpansionCost(36) * numL1Messages // delegatecall to impl
-
-	return total
+	return codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
 func EstimateChunkL1CommitCalldataSize(c *encoding.Chunk) uint64 {
-	return uint64(60 * len(c.Blocks))
-}
-
-// EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
-func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
-	var totalNonSkippedL1Messages uint64
-	var totalL1CommitGas uint64
-	for _, block := range c.Blocks {
-		totalNonSkippedL1Messages += uint64(len(block.Transactions)) - block.NumL2Transactions()
-		blockL1CommitGas := EstimateBlockL1CommitGas(block)
-		totalL1CommitGas += blockL1CommitGas
-	}
-
-	numBlocks := uint64(len(c.Blocks))
-	totalL1CommitGas += 100 * numBlocks                         // numBlocks times warm sload
-	totalL1CommitGas += CalldataNonZeroByteGas                  // numBlocks field of chunk encoding in calldata
-	totalL1CommitGas += CalldataNonZeroByteGas * numBlocks * 60 // numBlocks of BlockContext in chunk
-
-	totalL1CommitGas += GetKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
-	return totalL1CommitGas
-}
-
-// EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
-func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
-	var totalL1CommitGas uint64
-
-	// Add extra gas costs
-	totalL1CommitGas += 100000                 // constant to account for ops like _getAdmin, _implementation, _requireNotPaused, etc
-	totalL1CommitGas += 4 * 2100               // 4 one-time cold sload for commitBatch
-	totalL1CommitGas += 20000                  // 1 time sstore
-	totalL1CommitGas += 21000                  // base fee for tx
-	totalL1CommitGas += CalldataNonZeroByteGas // version in calldata
-
-	// adjusting gas:
-	// add 1 time cold sload (2100 gas) for L1MessageQueue
-	// add 1 time cold address access (2600 gas) for L1MessageQueue
-	// minus 1 time warm sload (100 gas) & 1 time warm address access (100 gas)
-	totalL1CommitGas += (2100 + 2600 - 100 - 100)
-	totalL1CommitGas += GetKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
-	totalL1CommitGas += CalldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
-
-	// adjust batch data hash gas cost
-	totalL1CommitGas += GetKeccak256Gas(uint64(32 * len(b.Chunks)))
-
-	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
-
-	for _, chunk := range b.Chunks {
-		chunkL1CommitGas := EstimateChunkL1CommitGas(chunk)
-		totalL1CommitGas += chunkL1CommitGas
-
-		totalL1MessagePoppedInChunk := chunk.NumL1Messages(totalL1MessagePoppedBefore)
-		totalL1MessagePoppedBefore += totalL1MessagePoppedInChunk
-
-		totalL1CommitGas += CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
-		totalL1CommitGas += GetKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
-
-		totalL1CommitCalldataSize := EstimateChunkL1CommitCalldataSize(chunk)
-		totalL1CommitGas += GetMemoryExpansionCost(totalL1CommitCalldataSize)
-	}
-
-	return totalL1CommitGas
+	return codecv1.EstimateChunkL1CommitCalldataSize(c)
 }
 
 // EstimateBatchL1CommitCalldataSize calculates the calldata size in l1 commit for this batch approximately.
 func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
-	var totalL1CommitCalldataSize uint64
-	for _, chunk := range b.Chunks {
-		totalL1CommitCalldataSize += EstimateChunkL1CommitCalldataSize(chunk)
-	}
-	return totalL1CommitCalldataSize
+	return codecv1.EstimateBatchL1CommitCalldataSize(b)
 }
 
-// CalculatePaddedBlobSize calculates the required size on blob storage
-// where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
-func CalculatePaddedBlobSize(dataSize uint64) uint64 {
-	paddedSize := (dataSize / 31) * 32
-
-	if dataSize%31 != 0 {
-		paddedSize += 1 + dataSize%31 // Add 1 byte for the first empty byte plus the remainder bytes
-	}
-
-	return paddedSize
+// EstimateBlockL1CommitGas calculates the total L1 commit gas for this block approximately.
+func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
+	return codecv1.EstimateBlockL1CommitGas(b)
 }
 
-var (
-	blobDataProofArgs         *abi.Arguments
-	initBlobDataProofArgsOnce sync.Once
-)
+// EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
+func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
+	return codecv1.EstimateChunkL1CommitGas(c)
+}
 
-// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
-func GetBlobDataProofArgs() (*abi.Arguments, error) {
-	var initError error
+// EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
+func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
+	return codecv1.EstimateBatchL1CommitGas(b)
+}
 
-	initBlobDataProofArgsOnce.Do(func() {
-		// Initialize bytes32 type
-		bytes32Type, err := abi.NewType("bytes32", "bytes32", nil)
-		if err != nil {
-			initError = fmt.Errorf("failed to initialize abi type bytes32: %w", err)
-			return
+// constructBatchPayload constructs the batch payload.
+// This function is only used in compressed batch payload length estimation.
+func constructBatchPayload(chunks []*encoding.Chunk) ([]byte, error) {
+	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
+	metadataLength := 2 + MaxNumChunks*4
+
+	// the raw (un-compressed and un-padded) blob payload
+	batchBytes := make([]byte, metadataLength)
+
+	// batch metadata: num_chunks
+	binary.BigEndian.PutUint16(batchBytes[0:], uint16(len(chunks)))
+
+	// encode batch metadata and L2 transactions,
+	for chunkID, chunk := range chunks {
+		currentChunkStartIndex := len(batchBytes)
+
+		for _, block := range chunk.Blocks {
+			for _, tx := range block.Transactions {
+				if tx.Type == types.L1MessageTxType {
+					continue
+				}
+
+				// encode L2 txs into batch payload
+				rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx, false /* no mock */)
+				if err != nil {
+					return nil, err
+				}
+				batchBytes = append(batchBytes, rlpTxData...)
+			}
 		}
 
-		// Initialize bytes48 type
-		bytes48Type, err := abi.NewType("bytes48", "bytes48", nil)
-		if err != nil {
-			initError = fmt.Errorf("failed to initialize abi type bytes48: %w", err)
-			return
+		// batch metadata: chunki_size
+		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
+			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
 		}
+	}
+	return batchBytes, nil
+}
 
-		// Successfully create the argument list
-		blobDataProofArgs = &abi.Arguments{
-			{Type: bytes32Type, Name: "z"},
-			{Type: bytes32Type, Name: "y"},
-			{Type: bytes48Type, Name: "kzg_commitment"},
-			{Type: bytes48Type, Name: "kzg_proof"},
-		}
-	})
+// compressScrollBatchBytes compresses the given batch of bytes.
+// The output buffer is allocated with an extra 128 bytes to accommodate metadata overhead or error message.
+func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
+	srcSize := C.uint64_t(len(batchBytes))
+	outbufSize := C.uint64_t(len(batchBytes) + 128) // Allocate output buffer with extra 128 bytes
+	outbuf := make([]byte, outbufSize)
 
-	if initError != nil {
-		return nil, initError
+	if err := C.compress_scroll_batch_bytes((*C.uchar)(unsafe.Pointer(&batchBytes[0])), srcSize,
+		(*C.uchar)(unsafe.Pointer(&outbuf[0])), &outbufSize); err != nil {
+		return nil, fmt.Errorf("failed to compress scroll batch bytes: %s", C.GoString(err))
 	}
 
-	return blobDataProofArgs, nil
+	return outbuf[:int(outbufSize)], nil
 }

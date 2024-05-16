@@ -6,11 +6,10 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
-	"github.com/scroll-tech/go-ethereum/log"
 )
 
 // CodecVersion defines the version of encoder and decoder.
-type CodecVersion int
+type CodecVersion uint8
 
 const (
 	// CodecV0 represents the version 0 of the encoder and decoder.
@@ -19,16 +18,9 @@ const (
 	// CodecV1 represents the version 1 of the encoder and decoder.
 	CodecV1
 
-	// txTypeTest is a special transaction type used in unit tests.
-	txTypeTest = 0xff
+	// CodecV2 represents the version 2 of the encoder and decoder.
+	CodecV2
 )
-
-func init() {
-	// make sure txTypeTest will not interfere with other transaction types
-	if txTypeTest == types.LegacyTxType || txTypeTest == types.AccessListTxType || txTypeTest == types.DynamicFeeTxType || txTypeTest == types.BlobTxType || txTypeTest == types.L1MessageTxType {
-		log.Crit("txTypeTest is overlapping with existing transaction types")
-	}
-}
 
 // Block represents an L2 block.
 type Block struct {
@@ -93,10 +85,16 @@ func (c *Chunk) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 }
 
 // ConvertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
-func ConvertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
+func ConvertTxDataToRLPEncoding(txData *types.TransactionData, useMockTxData bool) ([]byte, error) {
 	data, err := hexutil.Decode(txData.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
+	}
+
+	// This mock param is only used in testing comparing batch challenges with standard test cases.
+	// These tests use this param to set the tx data for convenience.
+	if useMockTxData {
+		return data, nil
 	}
 
 	var tx *types.Transaction
@@ -144,10 +142,6 @@ func ConvertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 			R:          txData.R.ToInt(),
 			S:          txData.S.ToInt(),
 		})
-
-	case txTypeTest:
-		// in the tests, we simply use `data` as the RLP-encoded transaction
-		return data, nil
 
 	case types.L1MessageTxType: // L1MessageTxType is not supported
 	default:

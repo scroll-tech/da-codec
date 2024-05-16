@@ -24,6 +24,7 @@ func ConstructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePo
 				if tx.Type != types.L1MessageTxType {
 					continue
 				}
+
 				currentIndex := tx.Nonce
 
 				if currentIndex < nextIndex {
