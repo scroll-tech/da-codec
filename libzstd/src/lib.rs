@@ -29,7 +29,7 @@ pub unsafe extern "C" fn compress_scroll_batch_bytes(
     let src = unsafe { slice::from_raw_parts(src, src_size as usize) };
     let out = unsafe { slice::from_raw_parts_mut(output_buf, buf_size as usize)};
 
-    let mut encoder = init_zstd_encoder();
+    let mut encoder = init_zstd_encoder(None);
     encoder
         .set_pledged_src_size(Some(src.len() as u64))
         .expect("compress_scroll_batch_bytes: failed to set pledged src size, should be infallible");
