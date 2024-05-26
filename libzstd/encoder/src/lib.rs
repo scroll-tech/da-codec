@@ -1,6 +1,9 @@
 use zstd::stream::Encoder;
 use zstd::zstd_safe::{CParameter, ParamSwitch};
 
+// re-export zstd
+pub use zstd;
+
 // we use offset window no more than = 17
 // TODO: use for multi-block zstd.
 #[allow(dead_code)]
