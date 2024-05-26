@@ -7,5 +7,4 @@ edition = "2021"
 [lib]
 
 [dependencies]
-bitstream-io = "2.2.0"
 zstd = { git = "https://github.com/scroll-tech/zstd-rs", branch = "hack/mul-block", features = ["experimental"]}

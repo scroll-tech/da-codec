@@ -3,12 +3,6 @@
 version = 3
 
 [[package]]
-name = "bitstream-io"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06c9989a51171e2e81038ab168b6ae22886fe9ded214430dbb4f41c28cf176da"
-
-[[package]]
 name = "cc"
 version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -23,7 +17,6 @@ dependencies = [
 name = "encoder"
 version = "0.1.0"
 dependencies = [
- "bitstream-io",
  "zstd",
 ]
 
