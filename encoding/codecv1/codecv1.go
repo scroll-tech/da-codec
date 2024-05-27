@@ -555,9 +555,8 @@ func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
 	}
 
 	numBlocks := uint64(len(c.Blocks))
-	totalL1CommitGas += 100 * numBlocks                         // numBlocks times warm sload
-	totalL1CommitGas += CalldataNonZeroByteGas                  // numBlocks field of chunk encoding in calldata
-	totalL1CommitGas += CalldataNonZeroByteGas * numBlocks * 60 // numBlocks of BlockContext in chunk
+	totalL1CommitGas += 100 * numBlocks        // numBlocks times warm sload
+	totalL1CommitGas += CalldataNonZeroByteGas // numBlocks field of chunk encoding in calldata
 
 	totalL1CommitGas += GetKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
 	return totalL1CommitGas
