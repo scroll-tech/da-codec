@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Compile libzstd
-cd libzstd && cargo build --release && cd ..
+cd libzstd && make libzstd && cd ..
 sudo mkdir -p /scroll/lib/
 sudo cp -f $(pwd)/libzstd/target/release/libscroll_zstd.so /scroll/lib/
 
@@ -9,5 +9,5 @@ sudo cp -f $(pwd)/libzstd/target/release/libscroll_zstd.so /scroll/lib/
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/scroll/lib/
 export CGO_LDFLAGS="-L/scroll/lib/ -Wl,-rpath,/scroll/lib/"
 
-# Run module tests
+# Run unit tests
 go test -v -race -gcflags="-l" -ldflags="-s=false" -coverprofile=coverage.txt -covermode=atomic ./...
