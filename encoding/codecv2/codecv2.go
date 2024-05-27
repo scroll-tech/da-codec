@@ -421,29 +421,29 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 }
 
 // EstimateChunkL1CommitBlobSize estimates the size of the L1 commit blob for a single chunk.
-func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
+func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	blobBytes, err := compressScrollBatchBytes(batchBytes)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
-func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
+func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayload(b.Chunks)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	blobBytes, err := compressScrollBatchBytes(batchBytes)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	return codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
