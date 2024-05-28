@@ -28,7 +28,7 @@ import (
 )
 
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
-const MaxNumChunks = 45
+const MaxNumChunks = 15
 
 // DABlock represents a Data Availability Block.
 type DABlock struct {
