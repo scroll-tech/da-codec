@@ -9,4 +9,4 @@ fmt:
 	gofumpt -l -w .
 
 test:
-	./run_test.sh
+	go test -v -race -gcflags="-l" -ldflags="-s=false" -coverprofile=coverage.txt -covermode=atomic ./...
