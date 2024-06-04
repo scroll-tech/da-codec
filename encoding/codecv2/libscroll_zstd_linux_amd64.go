@@ -1,4 +1,5 @@
 //go:build !musl
+// +build !musl
 
 package codecv2
 
