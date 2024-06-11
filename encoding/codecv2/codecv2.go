@@ -29,6 +29,8 @@ import (
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 45
 
+const BlockContextByteSize = 60
+
 // DABlock represents a Data Availability Block.
 type DABlock struct {
 	BlockNumber     uint64
@@ -43,6 +45,12 @@ type DABlock struct {
 type DAChunk struct {
 	Blocks       []*DABlock
 	Transactions [][]*types.TransactionData
+}
+
+// DAChunkRawTx groups consecutive DABlocks with their transactions.
+type DAChunkRawTx struct {
+	Blocks       []*DABlock
+	Transactions []types.Transactions
 }
 
 // DABatch contains metadata about a batch of DAChunks.
@@ -157,6 +165,39 @@ func (c *DAChunk) Encode() []byte {
 	}
 
 	return chunkBytes
+}
+
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []DAChunkRawTx.
+func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
+	var chunks []*DAChunkRawTx
+	for _, chunk := range bytes {
+		if len(chunk) < 1 {
+			return nil, fmt.Errorf("invalid chunk, length is less than 1")
+		}
+
+		numBlocks := int(chunk[0])
+		if len(chunk) < 1+numBlocks*BlockContextByteSize {
+			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*BlockContextByteSize)
+		}
+
+		blocks := make([]*DABlock, numBlocks)
+		for i := 0; i < numBlocks; i++ {
+			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
+			endIdx := startIdx + BlockContextByteSize
+			err := blocks[i].Decode(chunk[startIdx:endIdx])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var transactions []types.Transactions
+
+		chunks = append(chunks, &DAChunkRawTx{
+			Blocks:       blocks,
+			Transactions: transactions,
+		})
+	}
+	return chunks, nil
 }
 
 // Hash computes the hash of the DAChunk data.
@@ -339,6 +380,46 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, nil
+}
+
+// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+	blobBytes := codecv1.BytesFromBlobCanonical(blob)
+
+	// todo: decompress
+	// blobBytes, err := decompressScrollBatchBytes(blobBytes)
+	// if err != nil {
+	// 	return err
+	// }
+
+	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
+	if numChunks != len(chunks) {
+		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
+	}
+	index := 2 + MaxNumChunks*4
+	for chunkID, chunk := range chunks {
+		var transactions []types.Transactions
+		chunkSize := int(binary.BigEndian.Uint32(blobBytes[2+4*chunkID : 2+4*chunkID+4]))
+
+		chunkBytes := blobBytes[index : index+chunkSize]
+		curIndex := 0
+		for _, block := range chunk.Blocks {
+			var blockTransactions types.Transactions
+			var txNum = int(block.NumTransactions - block.NumL1Messages)
+			for i := 0; i < txNum; i++ {
+				tx, nextIndex, err := codecv1.GetNextTx(chunkBytes, curIndex)
+				if err != nil {
+					return fmt.Errorf("couldn't decode next tx from blob bytes: %w, index: %d", err, index+curIndex+4)
+				}
+				curIndex = nextIndex
+				blockTransactions = append(blockTransactions, tx)
+			}
+			transactions = append(transactions, blockTransactions)
+		}
+		chunk.Transactions = transactions
+		index += chunkSize
+	}
+	return nil
 }
 
 // NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.

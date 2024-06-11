@@ -16,6 +16,8 @@ import (
 	"github.com/scroll-tech/da-codec/encoding"
 )
 
+const BlockContextByteSize = 60
+
 // DABlock represents a Data Availability Block.
 type DABlock struct {
 	BlockNumber     uint64
@@ -30,6 +32,12 @@ type DABlock struct {
 type DAChunk struct {
 	Blocks       []*DABlock
 	Transactions [][]*types.TransactionData
+}
+
+// DAChunkRawTx groups consecutive DABlocks with their transactions.
+type DAChunkRawTx struct {
+	Blocks       []*DABlock
+	Transactions []types.Transactions
 }
 
 // DABatch contains metadata about a batch of DAChunks.
@@ -169,6 +177,62 @@ func (c *DAChunk) Encode() ([]byte, error) {
 
 	chunkBytes = append(chunkBytes, l2TxDataBytes...)
 	return chunkBytes, nil
+}
+
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []DAChunkRawTx.
+func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
+	var chunks []*DAChunkRawTx
+	for _, chunk := range bytes {
+		if len(chunk) < 1 {
+			return nil, fmt.Errorf("invalid chunk, length is less than 1")
+		}
+
+		numBlocks := int(chunk[0])
+		if len(chunk) < 1+numBlocks*BlockContextByteSize {
+			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*BlockContextByteSize)
+		}
+
+		blocks := make([]*DABlock, numBlocks)
+		for i := 0; i < numBlocks; i++ {
+			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
+			endIdx := startIdx + BlockContextByteSize
+			err := blocks[i].Decode(chunk[startIdx:endIdx])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var transactions []types.Transactions
+		currentIndex := 1 + numBlocks*BlockContextByteSize
+		for _, block := range blocks {
+			var blockTransactions types.Transactions
+			var txNum int = int(block.NumTransactions - block.NumL1Messages)
+			for i := 0; i < txNum; i++ {
+				if len(chunk) < currentIndex+4 {
+					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected length: %v", len(chunk), currentIndex+4)
+				}
+				txLen := int(binary.BigEndian.Uint32(chunk[currentIndex : currentIndex+4]))
+				if len(chunk) < currentIndex+4+txLen {
+					return nil, fmt.Errorf("chunk size doesn't match with next tx length, byte length of chunk: %v, expected length: %v", len(chunk), currentIndex+4+txLen)
+				}
+				txData := chunk[currentIndex+4 : currentIndex+4+txLen]
+				tx := &types.Transaction{}
+				err := tx.UnmarshalBinary(txData)
+				if err != nil {
+					return nil, fmt.Errorf("failed to unmarshal tx, err: %w", err)
+				}
+				blockTransactions = append(blockTransactions, tx)
+				currentIndex += 4 + txLen
+			}
+			transactions = append(transactions, blockTransactions)
+		}
+
+		chunks = append(chunks, &DAChunkRawTx{
+			Blocks:       blocks,
+			Transactions: transactions,
+		})
+	}
+	return chunks, nil
 }
 
 // Hash computes the hash of the DAChunk data.
