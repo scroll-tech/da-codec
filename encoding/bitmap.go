@@ -83,6 +83,9 @@ func DecodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*b
 
 // IsL1MessageSkipped checks if index is skipped in bitmap
 func IsL1MessageSkipped(skippedBitmap []*big.Int, index uint64) bool {
+	if index > uint64(len(skippedBitmap))*256 {
+		return false
+	}
 	quo := index / 256
 	rem := index % 256
 	return skippedBitmap[quo].Bit(int(rem)) != 0

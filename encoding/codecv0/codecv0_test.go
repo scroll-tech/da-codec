@@ -264,6 +264,38 @@ func TestCodecV0(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 61, len(chunkBytes2))
 
+	daChunksRawTx, err := DecodeDAChunksRawTx([][]byte{chunkBytes1, chunkBytes2})
+	assert.NoError(t, err)
+	// assert number of chunks
+	assert.Equal(t, 2, len(daChunksRawTx))
+
+	// assert block in first chunk
+	assert.Equal(t, 3, len(daChunksRawTx[0].Blocks))
+	assert.Equal(t, daChunk1.Blocks[0], daChunksRawTx[0].Blocks[0])
+	assert.Equal(t, daChunk1.Blocks[1], daChunksRawTx[0].Blocks[1])
+	daChunksRawTx[0].Blocks[2].BaseFee = nil
+	assert.Equal(t, daChunk1.Blocks[2], daChunksRawTx[0].Blocks[2])
+
+	// assert block in second chunk
+	assert.Equal(t, 1, len(daChunksRawTx[1].Blocks))
+	daChunksRawTx[1].Blocks[0].BaseFee = nil
+	assert.Equal(t, daChunk2.Blocks[0], daChunksRawTx[1].Blocks[0])
+
+	// assert transactions in first chunk
+	assert.Equal(t, 3, len(daChunksRawTx[0].Transactions))
+	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
+	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions[0]))
+	assert.Equal(t, 1, len(daChunksRawTx[0].Transactions[1]))
+	assert.Equal(t, 1, len(daChunksRawTx[0].Transactions[2]))
+
+	assert.EqualValues(t, daChunk1.Transactions[0][0].TxHash, daChunksRawTx[0].Transactions[0][0].Hash().String())
+	assert.EqualValues(t, daChunk1.Transactions[0][1].TxHash, daChunksRawTx[0].Transactions[0][1].Hash().String())
+
+	// assert transactions in second chunk
+	assert.Equal(t, 1, len(daChunksRawTx[1].Transactions))
+	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
+	assert.Equal(t, 0, len(daChunksRawTx[1].Transactions[0]))
+
 	batch = &encoding.Batch{
 		Index:                      1,
 		TotalL1MessagePoppedBefore: 0,
@@ -296,6 +328,19 @@ func TestCodecV0(t *testing.T) {
 	decodedBatchBytes = decodedDABatch.Encode()
 	decodedBatchHexString = hex.EncodeToString(decodedBatchBytes)
 	assert.Equal(t, batchHexString, decodedBatchHexString)
+
+	decodedBitmap, err := encoding.DecodeBitmap(decodedDABatch.SkippedL1MessageBitmap, int(decodedDABatch.L1MessagePopped))
+	assert.NoError(t, err)
+	assert.True(t, encoding.IsL1MessageSkipped(decodedBitmap, 0))
+	assert.True(t, encoding.IsL1MessageSkipped(decodedBitmap, 9))
+	assert.False(t, encoding.IsL1MessageSkipped(decodedBitmap, 10))
+	assert.True(t, encoding.IsL1MessageSkipped(decodedBitmap, 11))
+	assert.True(t, encoding.IsL1MessageSkipped(decodedBitmap, 36))
+	assert.False(t, encoding.IsL1MessageSkipped(decodedBitmap, 37))
+	assert.False(t, encoding.IsL1MessageSkipped(decodedBitmap, 38))
+	assert.False(t, encoding.IsL1MessageSkipped(decodedBitmap, 39))
+	assert.False(t, encoding.IsL1MessageSkipped(decodedBitmap, 40))
+	assert.False(t, encoding.IsL1MessageSkipped(decodedBitmap, 41))
 
 	// Test case: many consecutive L1 Msgs in 1 bitmap, no leading skipped msgs.
 	chunk = &encoding.Chunk{

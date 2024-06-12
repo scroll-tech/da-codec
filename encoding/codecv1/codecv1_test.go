@@ -473,6 +473,61 @@ func TestCodecV1BatchBlob(t *testing.T) {
 	assert.Equal(t, "0x01b63f87bdd2caa8d43500d47ee59204f61af95339483c62ff436c6beabf47bf", batch.BlobVersionedHash.Hex())
 }
 
+func TestCodecV1Decode(t *testing.T) {
+	trace0 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
+	trace1 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
+	chunk0 := &encoding.Chunk{Blocks: []*encoding.Block{trace0, trace1}}
+	daChunk0, err := NewDAChunk(chunk0, 0)
+	assert.NoError(t, err)
+	chunkBytes0 := daChunk0.Encode()
+
+	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
+	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_05.json")
+	chunk1 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3}}
+	daChunk1, err := NewDAChunk(chunk1, 0)
+	assert.NoError(t, err)
+	chunkBytes1 := daChunk1.Encode()
+
+	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk0, chunk1}}
+	batch, err := NewDABatch(originalBatch)
+	assert.NoError(t, err)
+
+	daChunksRawTx, err := DecodeDAChunksRawTx([][]byte{chunkBytes0, chunkBytes1})
+	assert.NoError(t, err)
+	// assert number of chunks
+	assert.Equal(t, 2, len(daChunksRawTx))
+
+	// assert block in first chunk
+	assert.Equal(t, 2, len(daChunksRawTx[0].Blocks))
+	assert.Equal(t, daChunk0.Blocks[0], daChunksRawTx[0].Blocks[0])
+	assert.Equal(t, daChunk0.Blocks[1], daChunksRawTx[0].Blocks[1])
+
+	// assert block in second chunk
+	assert.Equal(t, 2, len(daChunksRawTx[1].Blocks))
+	daChunksRawTx[1].Blocks[0].BaseFee = nil
+	assert.Equal(t, daChunk1.Blocks[0], daChunksRawTx[1].Blocks[0])
+	daChunksRawTx[1].Blocks[1].BaseFee = nil
+	assert.Equal(t, daChunk1.Blocks[1], daChunksRawTx[1].Blocks[1])
+
+	blob := batch.Blob()
+	DecodeTxsFromBlob(blob, daChunksRawTx)
+
+	// assert transactions in first chunk
+	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions))
+	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
+	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions[0]))
+	assert.Equal(t, 1, len(daChunksRawTx[0].Transactions[1]))
+
+	assert.EqualValues(t, daChunk0.Transactions[0][0].TxHash, daChunksRawTx[0].Transactions[0][0].Hash().String())
+	assert.EqualValues(t, daChunk0.Transactions[0][1].TxHash, daChunksRawTx[0].Transactions[0][1].Hash().String())
+
+	// assert transactions in second chunk
+	assert.Equal(t, 2, len(daChunksRawTx[1].Transactions))
+	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
+	assert.Equal(t, 1, len(daChunksRawTx[1].Transactions[0]))
+	assert.Equal(t, 0, len(daChunksRawTx[1].Transactions[1]))
+}
+
 func TestCodecV1BatchChallenge(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
