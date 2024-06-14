@@ -510,7 +510,8 @@ func TestCodecV1Decode(t *testing.T) {
 	assert.Equal(t, daChunk1.Blocks[1], daChunksRawTx[1].Blocks[1])
 
 	blob := batch.Blob()
-	DecodeTxsFromBlob(blob, daChunksRawTx)
+	err = DecodeTxsFromBlob(blob, daChunksRawTx)
+	assert.NoError(t, err)
 
 	// assert transactions in first chunk
 	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions))

@@ -7,23 +7,23 @@ char* compress_scroll_batch_bytes(uint8_t* src, uint64_t src_size, uint8_t* outp
 import "C"
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
 	"strings"
 	"unsafe"
 
 	"github.com/DataDog/zstd"
-	zstd2 "github.com/klauspost/compress/zstd"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-	"github.com/valyala/gozstd"
 
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
@@ -389,9 +389,9 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	compressedBytes := codecv1.BytesFromBlobCanonical(blob)
+	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
 
-	// todo: decompress
-	blobBytes, err := decompressScrollBatchBytes(compressedBytes[:])
+	blobBytes, err := decompressScrollBatchBytes(append(magics, compressedBytes[:]...))
 	if err != nil {
 		return err
 	}
@@ -611,20 +611,24 @@ func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
 
 // decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
 func decompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
-	data, err := gozstd.Decompress(nil, compressedBytes)
+	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
+	var res []byte
+	batchOfBytes := make([]byte, 1000)
 
-	return data, err
-}
+	r := bytes.NewReader(compressedBytes)
+	zr := zstd.NewReader(r)
 
-// decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
-func decompressScrollBatchBytes1(compressedBytes []byte) ([]byte, error) {
-	data, err := zstd.Decompress(nil, compressedBytes)
-
-	return data, err
-}
-
-// decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
-func decompressScrollBatchBytes2(compressedBytes []byte) ([]byte, error) {
-	var decoder, _ = zstd2.NewReader(nil, zstd2.WithDecoderConcurrency(0))
-	return decoder.DecodeAll(compressedBytes, nil)
+	for {
+		i, err := zr.Read(batchOfBytes)
+		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+			_ = zr.Close()
+			return nil, err
+		}
+		res = append(res, batchOfBytes[:i]...)
+		if i == 0 || err == io.EOF || err == io.ErrUnexpectedEOF {
+			break
+		}
+	}
+	_ = zr.Close()
+	return res, nil
 }

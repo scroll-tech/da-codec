@@ -4,10 +4,8 @@ go 1.21
 
 require (
 	github.com/DataDog/zstd v1.5.5
-	github.com/klauspost/compress v1.17.9
 	github.com/scroll-tech/go-ethereum v1.10.14-0.20240607130425-e2becce6a1a4
 	github.com/stretchr/testify v1.9.0
-	github.com/valyala/gozstd v1.21.1
 )
 
 require (
