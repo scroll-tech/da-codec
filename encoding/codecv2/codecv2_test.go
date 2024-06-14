@@ -391,6 +391,19 @@ func TestCodecV2BatchDataHash(t *testing.T) {
 	assert.Equal(t, "0x9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e134767", batch.DataHash.Hex())
 }
 
+func TestCompressDecompress(t *testing.T) {
+	blobString := "00" + "0001" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000"
+	blobBytes, err := hex.DecodeString(blobString)
+	assert.NoError(t, err)
+
+	compressed, err := compressScrollBatchBytes(blobBytes)
+	assert.NoError(t, err)
+
+	decompressed, err := decompressScrollBatchBytes2(compressed)
+	assert.NoError(t, err)
+	assert.Equal(t, blobBytes, decompressed)
+}
+
 func TestCodecV2BatchBlob(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}

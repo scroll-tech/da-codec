@@ -17,10 +17,13 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/DataDog/zstd"
+	zstd2 "github.com/klauspost/compress/zstd"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+	"github.com/valyala/gozstd"
 
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
@@ -385,13 +388,13 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	blobBytes := codecv1.BytesFromBlobCanonical(blob)
+	compressedBytes := codecv1.BytesFromBlobCanonical(blob)
 
 	// todo: decompress
-	// blobBytes, err := decompressScrollBatchBytes(blobBytes)
-	// if err != nil {
-	// 	return err
-	// }
+	blobBytes, err := decompressScrollBatchBytes(compressedBytes[:])
+	if err != nil {
+		return err
+	}
 
 	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
 	if numChunks != len(chunks) {
@@ -604,4 +607,24 @@ func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
 	}
 
 	return outbuf[:int(outbufSize)], nil
+}
+
+// decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
+func decompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
+	data, err := gozstd.Decompress(nil, compressedBytes)
+
+	return data, err
+}
+
+// decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
+func decompressScrollBatchBytes1(compressedBytes []byte) ([]byte, error) {
+	data, err := zstd.Decompress(nil, compressedBytes)
+
+	return data, err
+}
+
+// decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
+func decompressScrollBatchBytes2(compressedBytes []byte) ([]byte, error) {
+	var decoder, _ = zstd2.NewReader(nil, zstd2.WithDecoderConcurrency(0))
+	return decoder.DecodeAll(compressedBytes, nil)
 }
