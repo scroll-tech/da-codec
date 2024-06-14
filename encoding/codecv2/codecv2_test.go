@@ -3,7 +3,6 @@ package codecv2
 import (
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -454,7 +453,6 @@ func TestCodecV2Decode(t *testing.T) {
 	assert.Equal(t, daChunk1.Blocks[1], daChunksRawTx[1].Blocks[1])
 
 	blob := batch.Blob()
-	fmt.Println(len(blob))
 	err = DecodeTxsFromBlob(blob, daChunksRawTx)
 	assert.NoError(t, err)
 
