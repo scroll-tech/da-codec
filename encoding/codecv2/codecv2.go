@@ -13,13 +13,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/big"
 	"strings"
 	"unsafe"
 
-	"github.com/DataDog/zstd"
+	"github.com/klauspost/compress/zstd"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
@@ -613,22 +612,25 @@ func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
 func decompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
 	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
 	var res []byte
-	batchOfBytes := make([]byte, 1000)
+	readBatchSize := 131072
+	batchOfBytes := make([]byte, readBatchSize)
 
 	r := bytes.NewReader(compressedBytes)
-	zr := zstd.NewReader(r)
+	zr, err := zstd.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
 
 	for {
-		i, err := zr.Read(batchOfBytes)
-		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-			_ = zr.Close()
-			return nil, err
-		}
+		i, _ := zr.Read(batchOfBytes) //
 		res = append(res, batchOfBytes[:i]...)
-		if i == 0 || err == io.EOF || err == io.ErrUnexpectedEOF {
+		if i < readBatchSize {
 			break
 		}
 	}
-	_ = zr.Close()
+	if len(res) == 0 {
+		return nil, fmt.Errorf("failed to decompress blob bytes")
+	}
 	return res, nil
 }
