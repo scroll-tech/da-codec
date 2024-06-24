@@ -20,6 +20,9 @@ const (
 
 	// CodecV2 represents the version 2 of the encoder and decoder.
 	CodecV2
+
+	// CodecV3 represents the version 2 of the encoder and decoder.
+	CodecV3
 )
 
 // Block represents an L2 block.
