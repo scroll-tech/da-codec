@@ -97,7 +97,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 		z:                      z,
 	}
 
-	daBatch.BlobDataProof, err = daBatch.BlobDataProofForBatchHeader()
+	daBatch.BlobDataProof, err = daBatch.BlobDataProofForPICircuit()
 	if err != nil {
 		return nil, err
 	}
@@ -150,13 +150,13 @@ func (b *DABatch) Hash() common.Hash {
 	return crypto.Keccak256Hash(bytes)
 }
 
-// BlobDataProofForBatchHeader computes the abi-encoded blob verification data.
-func (b *DABatch) BlobDataProofForBatchHeader() ([64]byte, error) {
+// BlobDataProofForPICircuit computes the abi-encoded blob verification data.
+func (b *DABatch) BlobDataProofForPICircuit() ([64]byte, error) {
 	if b.blob == nil {
-		return [64]byte{}, errors.New("called BlobDataProofForBatchHeader with empty blob")
+		return [64]byte{}, errors.New("called BlobDataProofForPICircuit with empty blob")
 	}
 	if b.z == nil {
-		return [64]byte{}, errors.New("called BlobDataProofForBatchHeader with empty z")
+		return [64]byte{}, errors.New("called BlobDataProofForPICircuit with empty z")
 	}
 
 	_, y, err := kzg4844.ComputeProof(b.blob, *b.z)
