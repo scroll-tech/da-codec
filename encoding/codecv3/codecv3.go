@@ -121,10 +121,9 @@ func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 		BlobVersionedHash:      common.BytesToHash(data[57:89]),
 		ParentBatchHash:        common.BytesToHash(data[89:121]),
 		LastBlockTimestamp:     binary.BigEndian.Uint64(data[121:129]),
+		BlobDataProof:          [64]byte(data[129:193]),
 		SkippedL1MessageBitmap: data[193:],
 	}
-
-	copy(b.BlobDataProof[:], data[129:193])
 
 	return b, nil
 }
@@ -233,17 +232,12 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
 	return codecv2.EstimateBatchL1CommitCalldataSize(b)
 }
 
-// EstimateBlockL1CommitGas calculates the total L1 commit gas for this block approximately.
-func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
-	return codecv2.EstimateBlockL1CommitGas(b)
-}
-
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
 func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
-	return codecv2.EstimateChunkL1CommitGas(c)
+	return codecv2.EstimateChunkL1CommitGas(c) + 50000 // plus 50000 for the point-evaluation precompile call.
 }
 
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
 func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
-	return codecv2.EstimateBatchL1CommitGas(b)
+	return codecv2.EstimateBatchL1CommitGas(b) + 50000 // plus 50000 for the point-evaluation precompile call.
 }
