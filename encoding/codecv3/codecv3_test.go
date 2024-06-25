@@ -641,7 +641,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
 	batch, err := NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err := batch.BlobDataProofForFinalize()
+	verifyData, err := batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "098f1f136f5734039818bee35222d35a96acd7d17120ce8816307527d19badea17d013be5ef696cfbc05b97bb322a587432c2cb23c4848d4d7cb8453c475b38d90b7a581ba5b2cd6a916d139d2b7f28bf6997adb512653f6bdef0bbb7d681c742560fab406fd299c04fc1a464d277f8a8b3a918761888bd0f9a96cb9b2521347131a43b633c4fa01470842d9fe4211bc59c990f69185b80def79b9dfbf039b75", hex.EncodeToString(verifyData))
 
@@ -650,7 +650,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err = batch.BlobDataProofForFinalize()
+	verifyData, err = batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "2c440817c5d20c385554774de3fa5d9f32da1dcba228e5cf04f627a41b4b779203f4ef0f3161a3a812523673119d90fb5303248b9fc58c3031a7f4b0937912b8b1530a433168a29443af928876b3d63f4205ba1876d303d56f8456483b9ce91b6ff2b1707726f01c1429cb9d87e4c165ade0ec9e0547ea5721ff442f63d8fcf9ba2f066b07d9b8a0f057e9c0e0e1e56f9a6ec627f9b1cb24866802e15c49c22a", hex.EncodeToString(verifyData))
 
@@ -659,7 +659,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err = batch.BlobDataProofForFinalize()
+	verifyData, err = batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "3e935190ba34184cc7bf61a54e030b0ec229292b3025c14c3ef7672b259521cf27c007dc51295c1fe2e05882128a62ef03fb30aaaa4415505929eac7f35424f2a5979717c35155300b0b2d68610aacdd8b0dbb94990168103bfd62985732e3f682370c91c9f2b8f08c6398194e2bb18b83eae765cef6e4e991d91e631dd454953516721962a089a03e4d8f640cd115ede836bad7141e8094317a45ccd04ec842", hex.EncodeToString(verifyData))
 
@@ -668,7 +668,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk5}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err = batch.BlobDataProofForFinalize()
+	verifyData, err = batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "30ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2aa4fe1ee5d7af73b27b10c68f66f4c3700ffe684aa0593cd19690e8075303ca7d395e6d0add8aa5e3e668820713c3377a8bf6769fc8bef4d141ac117962ae0fc2e2606862b3542e5e9b6197f9dcd8a4b126a08b160da6ade484dd4cc1c7be4be", hex.EncodeToString(verifyData))
 
@@ -677,7 +677,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk6}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err = batch.BlobDataProofForFinalize()
+	verifyData, err = batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "30ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2aa4fe1ee5d7af73b27b10c68f66f4c3700ffe684aa0593cd19690e8075303ca7d395e6d0add8aa5e3e668820713c3377a8bf6769fc8bef4d141ac117962ae0fc2e2606862b3542e5e9b6197f9dcd8a4b126a08b160da6ade484dd4cc1c7be4be", hex.EncodeToString(verifyData))
 
@@ -686,7 +686,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk7}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err = batch.BlobDataProofForFinalize()
+	verifyData, err = batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "30ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2aa4fe1ee5d7af73b27b10c68f66f4c3700ffe684aa0593cd19690e8075303ca7d395e6d0add8aa5e3e668820713c3377a8bf6769fc8bef4d141ac117962ae0fc2e2606862b3542e5e9b6197f9dcd8a4b126a08b160da6ade484dd4cc1c7be4be", hex.EncodeToString(verifyData))
 
@@ -694,7 +694,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2, chunk2}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err = batch.BlobDataProofForFinalize()
+	verifyData, err = batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "1bc420092ec4e0af62e7a9243dd6a39ee1341e33032647d3edc16fb4dea5f60a0fad18d05f6f7d57b03dc717f8409489806d89ee5044bea951538682c52d815097e898dbd9a99b1bae2d759ee5f77ac6b6e8fb2cddaf26500532270fd4066e7ae85c450bcbf2cdb4643147091a1ee11ca615b823c97a69cb716d80de6ccafc5823af3a17fc71b72c224edd387abbf4433af013b53f15f394e501e5a3e57af074", hex.EncodeToString(verifyData))
 
@@ -703,7 +703,7 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk8, chunk9}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	verifyData, err = batch.BlobDataProofForFinalize()
+	verifyData, err = batch.BlobDataProofForPointEvaluation()
 	assert.NoError(t, err)
 	assert.Equal(t, "1bea70cbdd3d088c0db7d3dd5a11a2934ec4e7db761195d1e62f9f38a2fd5b325910eea5d881106c394f8d9a80bac8ecc43a86e0b920c5dc93f89caa43b205c2880cc02297edda15b6a14c4481fd15db8209aa52b80aecde6fce0592093eaf0d813c2f081eacb1efa9a8030191e1b780b421b0df42cc64da5e466af6f8cbc20afcb993e6d217440b5b21f2be91abe8620e1518780aa2005ec0a80cb947ebfef9", hex.EncodeToString(verifyData))
 }
