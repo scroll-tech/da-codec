@@ -66,7 +66,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// batch data hash
-	dataHash, err := codecv2.ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := codecv1.ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
