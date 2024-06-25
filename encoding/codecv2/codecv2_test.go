@@ -847,6 +847,42 @@ func TestCodecV2ChunkAndBatchBlobSizeEstimation(t *testing.T) {
 	assert.Equal(t, uint64(3186), batch5BlobSize)
 }
 
+func TestCodecV2ChunkAndBatchCalldataSizeEstimation(t *testing.T) {
+	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
+	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
+	chunk2CalldataSize := EstimateChunkL1CommitCalldataSize(chunk2)
+	assert.Equal(t, uint64(60), chunk2CalldataSize)
+	batch2 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
+	batch2CalldataSize := EstimateBatchL1CommitCalldataSize(batch2)
+	assert.Equal(t, uint64(60), batch2CalldataSize)
+
+	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
+	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{trace3}}
+	chunk3CalldataSize := EstimateChunkL1CommitCalldataSize(chunk3)
+	assert.Equal(t, uint64(60), chunk3CalldataSize)
+	batch3 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
+	batch3CalldataSize := EstimateBatchL1CommitCalldataSize(batch3)
+	assert.Equal(t, uint64(60), batch3CalldataSize)
+
+	trace4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
+	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
+	chunk4CalldataSize := EstimateChunkL1CommitCalldataSize(chunk4)
+	assert.Equal(t, uint64(60), chunk4CalldataSize)
+	batch4 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
+	batch4CalldataSize := EstimateBatchL1CommitCalldataSize(batch4)
+	assert.Equal(t, uint64(60), batch4CalldataSize)
+
+	chunk5 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3}}
+	chunk5CalldataSize := EstimateChunkL1CommitCalldataSize(chunk5)
+	assert.Equal(t, uint64(120), chunk5CalldataSize)
+	chunk6 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
+	chunk6CalldataSize := EstimateChunkL1CommitCalldataSize(chunk6)
+	assert.Equal(t, uint64(60), chunk6CalldataSize)
+	batch5 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk5, chunk6}}
+	batch5CalldataSize := EstimateBatchL1CommitCalldataSize(batch5)
+	assert.Equal(t, uint64(180), batch5CalldataSize)
+}
+
 func readBlockFromJSON(t *testing.T, filename string) *encoding.Block {
 	data, err := os.ReadFile(filename)
 	assert.NoError(t, err)
