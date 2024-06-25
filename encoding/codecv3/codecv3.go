@@ -18,18 +18,8 @@ import (
 // DABlock represents a Data Availability Block.
 type DABlock = codecv2.DABlock
 
-// NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
-func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
-	return codecv2.NewDABlock(block, totalL1MessagePoppedBefore)
-}
-
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk = codecv2.DAChunk
-
-// NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
-func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
-	return codecv2.NewDAChunk(chunk, totalL1MessagePoppedBefore)
-}
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
@@ -48,6 +38,16 @@ type DABatch struct {
 	// blob payload
 	blob *kzg4844.Blob
 	z    *kzg4844.Point
+}
+
+// NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
+func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
+	return codecv2.NewDABlock(block, totalL1MessagePoppedBefore)
+}
+
+// NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
+func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
+	return codecv2.NewDAChunk(chunk, totalL1MessagePoppedBefore)
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
