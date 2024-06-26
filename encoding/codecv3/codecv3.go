@@ -86,6 +86,9 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 		return nil, err
 	}
 
+	lastChunk := batch.Chunks[len(batch.Chunks)-1]
+	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
+
 	daBatch := DABatch{
 		Version:                uint8(encoding.CodecV3),
 		BatchIndex:             batch.Index,
@@ -94,7 +97,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 		DataHash:               dataHash,
 		BlobVersionedHash:      blobVersionedHash,
 		ParentBatchHash:        batch.ParentBatchHash,
-		LastBlockTimestamp:     batch.Chunks[len(batch.Chunks)-1].Blocks[len(batch.Chunks[len(batch.Chunks)-1].Blocks)-1].Header.Time,
+		LastBlockTimestamp:     lastBlock.Header.Time,
 		SkippedL1MessageBitmap: bitmapBytes,
 		blob:                   blob,
 		z:                      z,
