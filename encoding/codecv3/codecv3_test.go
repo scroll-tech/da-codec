@@ -235,7 +235,7 @@ func TestCodecV3BatchEncode(t *testing.T) {
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
-	assert.Equal(t, "030000000000000000000000000000000b000000000000000bcaece1705bf2ce5e94154469d910ffe8d102419c5eb3152c0c6d237cf35c885f012e15203534ae3f4cbe1b0f58fe6db6e5c29432115a8ece6ef5550bf2ffce4c000000000000000000000000000000000000000000000000000000000000000000000000646b6e133e935190ba34184cc7bf61a54e030b0ec229292b3025c14c3ef7672b259521cf27c007dc51295c1fe2e05882128a62ef03fb30aaaa4415505929eac7f35424f200000000000000000000000000000000000000000000000000000000000003ff", encoded)
+	assert.Equal(t, "030000000000000000000000000000000b000000000000000bcaece1705bf2ce5e94154469d910ffe8d102419c5eb3152c0c6d237cf35c885f012e15203534ae3f4cbe1b0f58fe6db6e5c29432115a8ece6ef5550bf2ffce4c000000000000000000000000000000000000000000000000000000000000000000000000646b6e133e935190ba34184cc7bf61a54e030b0ec229292b3025c14c3ef7672b259521cf27c007dc51295c1fe2e05882128a62ef03fb30aaaa4415505929eac7f35424f2", encoded)
 
 	trace5 := readBlockFromJSON(t, "../testdata/blockTrace_05.json")
 	chunk5 := &encoding.Chunk{Blocks: []*encoding.Block{trace5}}
@@ -243,7 +243,7 @@ func TestCodecV3BatchEncode(t *testing.T) {
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
-	assert.Equal(t, "030000000000000000000000000000002a000000000000002a93255aa24dd468c5645f1e6901b8131a7a78a0eeb2a17cbb09ba64688a8de6b4015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370000000000000000000000000000000000000000000000000000000000000000000000000646b6ed030ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df20000000000000000000000000000000000000000000000000000001fffffffff", encoded)
+	assert.Equal(t, "030000000000000000000000000000002a000000000000002a93255aa24dd468c5645f1e6901b8131a7a78a0eeb2a17cbb09ba64688a8de6b4015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370000000000000000000000000000000000000000000000000000000000000000000000000646b6ed030ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2", encoded)
 
 	trace6 := readBlockFromJSON(t, "../testdata/blockTrace_06.json")
 	chunk6 := &encoding.Chunk{Blocks: []*encoding.Block{trace6}}
@@ -251,7 +251,7 @@ func TestCodecV3BatchEncode(t *testing.T) {
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
-	assert.Equal(t, "030000000000000000000000000000000a000000000000000ac7bcc8da943dd83404e84d9ce7e894ab97ce4829df4eb51ebbbe13c90b5a3f4d015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370000000000000000000000000000000000000000000000000000000000000000000000000646b6ed030ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df200000000000000000000000000000000000000000000000000000000000001dd", encoded)
+	assert.Equal(t, "030000000000000000000000000000000a000000000000000ac7bcc8da943dd83404e84d9ce7e894ab97ce4829df4eb51ebbbe13c90b5a3f4d015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370000000000000000000000000000000000000000000000000000000000000000000000000646b6ed030ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2", encoded)
 
 	trace7 := readBlockFromJSON(t, "../testdata/blockTrace_07.json")
 	chunk7 := &encoding.Chunk{Blocks: []*encoding.Block{trace7}}
@@ -259,13 +259,13 @@ func TestCodecV3BatchEncode(t *testing.T) {
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
-	assert.Equal(t, "03000000000000000000000000000001010000000000000101899a411a3309c6491701b7b955c7b1115ac015414bbb71b59a0ca561668d5208015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370000000000000000000000000000000000000000000000000000000000000000000000000646b6ed030ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd0000000000000000000000000000000000000000000000000000000000000000", encoded)
+	assert.Equal(t, "03000000000000000000000000000001010000000000000101899a411a3309c6491701b7b955c7b1115ac015414bbb71b59a0ca561668d5208015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370000000000000000000000000000000000000000000000000000000000000000000000000646b6ed030ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2", encoded)
 
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk2, chunk3, chunk4, chunk5}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
-	assert.Equal(t, "030000000000000000000000000000002a000000000000002ae7740182b0948139505b6b296d0c6c6f7717708323e6e687917acad823b559d8013750f6cb783ce2e8fec5a8aff6c45512f2496d6861204b11b6010fb4aa0029000000000000000000000000000000000000000000000000000000000000000000000000646b6ed073c21fcf521e068860a235a4b8f2cdf4a67966ccee1bb46b804b1e7d85333b516c079a4f68903dd18292f1bbdb36b2c94fcefe676931073c2340b2545a504de40000000000000000000000000000000000000000000000000000001ffffffbff", encoded)
+	assert.Equal(t, "030000000000000000000000000000002a000000000000002ae7740182b0948139505b6b296d0c6c6f7717708323e6e687917acad823b559d8013750f6cb783ce2e8fec5a8aff6c45512f2496d6861204b11b6010fb4aa0029000000000000000000000000000000000000000000000000000000000000000000000000646b6ed073c21fcf521e068860a235a4b8f2cdf4a67966ccee1bb46b804b1e7d85333b516c079a4f68903dd18292f1bbdb36b2c94fcefe676931073c2340b2545a504de4", encoded)
 
 	chunk8 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3, trace4}}
 	chunk9 := &encoding.Chunk{Blocks: []*encoding.Block{trace5}}
@@ -273,7 +273,7 @@ func TestCodecV3BatchEncode(t *testing.T) {
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
-	assert.Equal(t, "030000000000000000000000000000002a000000000000002a9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e1347670128f90d5edbcb10d13521824ccc7f47f85aff6e2da01004f9a402854eb33632000000000000000000000000000000000000000000000000000000000000000000000000646b6ed01bea70cbdd3d088c0db7d3dd5a11a2934ec4e7db761195d1e62f9f38a2fd5b325910eea5d881106c394f8d9a80bac8ecc43a86e0b920c5dc93f89caa43b205c20000000000000000000000000000000000000000000000000000001ffffffbff", encoded)
+	assert.Equal(t, "030000000000000000000000000000002a000000000000002a9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e1347670128f90d5edbcb10d13521824ccc7f47f85aff6e2da01004f9a402854eb33632000000000000000000000000000000000000000000000000000000000000000000000000646b6ed01bea70cbdd3d088c0db7d3dd5a11a2934ec4e7db761195d1e62f9f38a2fd5b325910eea5d881106c394f8d9a80bac8ecc43a86e0b920c5dc93f89caa43b205c2", encoded)
 }
 
 func TestCodecV3BatchHash(t *testing.T) {
@@ -300,40 +300,40 @@ func TestCodecV3BatchHash(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0x5b4e78d1cc1a7953f878e9af4344f4f56956df6b2e27807cac660a45c47cc9de", batch.Hash().Hex())
+	assert.Equal(t, "0xda944b66dcaa6dc1442be2230233e97286ee1ed3c51cde155a36643b293b07c4", batch.Hash().Hex())
 
 	trace5 := readBlockFromJSON(t, "../testdata/blockTrace_05.json")
 	chunk5 := &encoding.Chunk{Blocks: []*encoding.Block{trace5}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk5}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0x600ab1069ececa167c52c85fbc167dfd292dba4b805024daf70e0e25ae4e8c9d", batch.Hash().Hex())
+	assert.Equal(t, "0x20e2324fac82e484c569eb286a221c61151c2b3c38a63b289f6ef6c30fb31e49", batch.Hash().Hex())
 
 	trace6 := readBlockFromJSON(t, "../testdata/blockTrace_06.json")
 	chunk6 := &encoding.Chunk{Blocks: []*encoding.Block{trace6}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk6}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0xf0cc36440428fbf77400d414a3b5da673946aa0bb4dc97b9098fd08aad8a1e70", batch.Hash().Hex())
+	assert.Equal(t, "0xc962bce28a34a4eb9ec81393edcf2e6367e84aad9c4fc5641da6f18f54053ed5", batch.Hash().Hex())
 
 	trace7 := readBlockFromJSON(t, "../testdata/blockTrace_07.json")
 	chunk7 := &encoding.Chunk{Blocks: []*encoding.Block{trace7}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk7}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0x5d8556259d021acab26ff0a6f0c8f0205f280f86e98373628c8fdf5e1cb4152d", batch.Hash().Hex())
+	assert.Equal(t, "0x405e0fc4b7efbe5b6d1dcc63c1f3253bbb6fbefedd1afe6b2067629f9da1f1cc", batch.Hash().Hex())
 
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk2, chunk3, chunk4, chunk5}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0x61d46cd35a8de5349167fdc1b30ee83e7b454d1c2529c02c77d9276a1e62886f", batch.Hash().Hex())
+	assert.Equal(t, "0x3d5d24c951cb55e56f3b4e2defcd8f32d6d048565e6723ac7cdff7ed5e580e3a", batch.Hash().Hex())
 
 	chunk8 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3, trace4}}
 	chunk9 := &encoding.Chunk{Blocks: []*encoding.Block{trace5}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk8, chunk9}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0xdaab9ec2bb91dd1306bdba3d9e9968940ab2eceb0c59c06196838150adb6d2f8", batch.Hash().Hex())
+	assert.Equal(t, "0xb25d9bd7d8442a56efd8e5ee814a99da7efdf3672bb85c48b975a9e248711bfb", batch.Hash().Hex())
 }
 
 func TestCodecV3BatchDataHash(t *testing.T) {
@@ -702,13 +702,12 @@ func TestCodecV3BatchBlobDataProof(t *testing.T) {
 	assert.Equal(t, "1bea70cbdd3d088c0db7d3dd5a11a2934ec4e7db761195d1e62f9f38a2fd5b325910eea5d881106c394f8d9a80bac8ecc43a86e0b920c5dc93f89caa43b205c2880cc02297edda15b6a14c4481fd15db8209aa52b80aecde6fce0592093eaf0d813c2f081eacb1efa9a8030191e1b780b421b0df42cc64da5e466af6f8cbc20afcb993e6d217440b5b21f2be91abe8620e1518780aa2005ec0a80cb947ebfef9", hex.EncodeToString(verifyData))
 }
 
-func TestCodecV3BatchSkipBitmap(t *testing.T) {
+func TestCodecV3BatchL1MessagePopped(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
 	batch, err := NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 0, int(batch.L1MessagePopped))
 	assert.Equal(t, 0, int(batch.TotalL1MessagePopped))
 
@@ -717,7 +716,6 @@ func TestCodecV3BatchSkipBitmap(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 0, int(batch.L1MessagePopped))
 	assert.Equal(t, 0, int(batch.TotalL1MessagePopped))
 
@@ -726,7 +724,6 @@ func TestCodecV3BatchSkipBitmap(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "00000000000000000000000000000000000000000000000000000000000003ff", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 11, int(batch.L1MessagePopped)) // skip 10, include 1
 	assert.Equal(t, 11, int(batch.TotalL1MessagePopped))
 
@@ -735,14 +732,12 @@ func TestCodecV3BatchSkipBitmap(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk5}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000001fffffffff", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 42, int(batch.L1MessagePopped)) // skip 37, include 5
 	assert.Equal(t, 42, int(batch.TotalL1MessagePopped))
 
 	originalBatch.TotalL1MessagePoppedBefore = 37
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 5, int(batch.L1MessagePopped)) // skip 37, include 5
 	assert.Equal(t, 42, int(batch.TotalL1MessagePopped))
 
@@ -751,7 +746,6 @@ func TestCodecV3BatchSkipBitmap(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk6}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "00000000000000000000000000000000000000000000000000000000000001dd", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 10, int(batch.L1MessagePopped)) // skip 7, include 3
 	assert.Equal(t, 10, int(batch.TotalL1MessagePopped))
 
@@ -760,14 +754,12 @@ func TestCodecV3BatchSkipBitmap(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk7}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd0000000000000000000000000000000000000000000000000000000000000000", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 257, int(batch.L1MessagePopped)) // skip 255, include 2
 	assert.Equal(t, 257, int(batch.TotalL1MessagePopped))
 
 	originalBatch.TotalL1MessagePoppedBefore = 1
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 256, int(batch.L1MessagePopped)) // skip 254, include 2
 	assert.Equal(t, 257, int(batch.TotalL1MessagePopped))
 
@@ -776,14 +768,12 @@ func TestCodecV3BatchSkipBitmap(t *testing.T) {
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk8, chunk9}}
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000001ffffffbff", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 42, int(batch.L1MessagePopped))
 	assert.Equal(t, 42, int(batch.TotalL1MessagePopped))
 
 	originalBatch.TotalL1MessagePoppedBefore = 10
 	batch, err = NewDABatch(originalBatch)
 	assert.NoError(t, err)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000007fffffe", hex.EncodeToString(batch.SkippedL1MessageBitmap))
 	assert.Equal(t, 32, int(batch.L1MessagePopped))
 	assert.Equal(t, 42, int(batch.TotalL1MessagePopped))
 }

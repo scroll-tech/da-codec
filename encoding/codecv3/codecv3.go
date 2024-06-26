@@ -27,16 +27,15 @@ type DAChunk = codecv2.DAChunk
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
 	// header
-	Version                uint8
-	BatchIndex             uint64
-	L1MessagePopped        uint64
-	TotalL1MessagePopped   uint64
-	DataHash               common.Hash
-	BlobVersionedHash      common.Hash
-	ParentBatchHash        common.Hash
-	LastBlockTimestamp     uint64
-	BlobDataProof          [64]byte
-	SkippedL1MessageBitmap []byte
+	Version              uint8
+	BatchIndex           uint64
+	L1MessagePopped      uint64
+	TotalL1MessagePopped uint64
+	DataHash             common.Hash
+	BlobVersionedHash    common.Hash
+	ParentBatchHash      common.Hash
+	LastBlockTimestamp   uint64
+	BlobDataProof        [64]byte
 
 	// blob payload
 	blob *kzg4844.Blob
@@ -75,7 +74,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// skipped L1 messages bitmap
-	bitmapBytes, totalL1MessagePoppedAfter, err := encoding.ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	_, totalL1MessagePoppedAfter, err := encoding.ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -90,17 +89,16 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
 	daBatch := DABatch{
-		Version:                uint8(encoding.CodecV3),
-		BatchIndex:             batch.Index,
-		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-		DataHash:               dataHash,
-		BlobVersionedHash:      blobVersionedHash,
-		ParentBatchHash:        batch.ParentBatchHash,
-		LastBlockTimestamp:     lastBlock.Header.Time,
-		SkippedL1MessageBitmap: bitmapBytes,
-		blob:                   blob,
-		z:                      z,
+		Version:              uint8(encoding.CodecV3),
+		BatchIndex:           batch.Index,
+		L1MessagePopped:      totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
+		TotalL1MessagePopped: totalL1MessagePoppedAfter,
+		DataHash:             dataHash,
+		BlobVersionedHash:    blobVersionedHash,
+		ParentBatchHash:      batch.ParentBatchHash,
+		LastBlockTimestamp:   lastBlock.Header.Time,
+		blob:                 blob,
+		z:                    z,
 	}
 
 	daBatch.BlobDataProof, err = daBatch.blobDataProofForPICircuit()
@@ -127,21 +125,20 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
-	if len(data) < 193 {
-		return nil, fmt.Errorf("insufficient data for DABatch, expected at least 193 bytes but got %d", len(data))
+	if len(data) != 193 {
+		return nil, fmt.Errorf("invalid data length for DABatch, expected 193 bytes but got %d", len(data))
 	}
 
 	b := &DABatch{
-		Version:                data[0],
-		BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
-		L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
-		TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
-		DataHash:               common.BytesToHash(data[25:57]),
-		BlobVersionedHash:      common.BytesToHash(data[57:89]),
-		ParentBatchHash:        common.BytesToHash(data[89:121]),
-		LastBlockTimestamp:     binary.BigEndian.Uint64(data[121:129]),
-		BlobDataProof:          [64]byte(data[129:193]),
-		SkippedL1MessageBitmap: data[193:],
+		Version:              data[0],
+		BatchIndex:           binary.BigEndian.Uint64(data[1:9]),
+		L1MessagePopped:      binary.BigEndian.Uint64(data[9:17]),
+		TotalL1MessagePopped: binary.BigEndian.Uint64(data[17:25]),
+		DataHash:             common.BytesToHash(data[25:57]),
+		BlobVersionedHash:    common.BytesToHash(data[57:89]),
+		ParentBatchHash:      common.BytesToHash(data[89:121]),
+		LastBlockTimestamp:   binary.BigEndian.Uint64(data[121:129]),
+		BlobDataProof:        [64]byte(data[129:193]),
 	}
 
 	return b, nil
@@ -149,7 +146,7 @@ func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 
 // Encode serializes the DABatch into bytes.
 func (b *DABatch) Encode() []byte {
-	batchBytes := make([]byte, 193+len(b.SkippedL1MessageBitmap))
+	batchBytes := make([]byte, 193)
 	batchBytes[0] = b.Version
 	binary.BigEndian.PutUint64(batchBytes[1:9], b.BatchIndex)
 	binary.BigEndian.PutUint64(batchBytes[9:17], b.L1MessagePopped)
@@ -159,7 +156,6 @@ func (b *DABatch) Encode() []byte {
 	copy(batchBytes[89:121], b.ParentBatchHash[:])
 	binary.BigEndian.PutUint64(batchBytes[121:129], b.LastBlockTimestamp)
 	copy(batchBytes[129:193], b.BlobDataProof[:])
-	copy(batchBytes[193:], b.SkippedL1MessageBitmap)
 	return batchBytes
 }
 
@@ -188,8 +184,8 @@ func (b *DABatch) blobDataProofForPICircuit() ([64]byte, error) {
 	// |---------|---------|
 	// | bytes32 | bytes32 |
 	var result [64]byte
-	copy(result[:32], b.z[:])
-	copy(result[32:], y[:])
+	copy(result[0:32], b.z[:])
+	copy(result[32:64], y[:])
 
 	return result, nil
 }
