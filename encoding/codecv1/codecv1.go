@@ -56,6 +56,14 @@ func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABl
 
 // NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
 func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
+	if len(chunk.Blocks) == 0 {
+		return nil, errors.New("number of blocks is 0")
+	}
+
+	if len(chunk.Blocks) > 255 {
+		return nil, errors.New("number of blocks exceeds 1 byte")
+	}
+
 	var blocks []*DABlock
 	var txs [][]*types.TransactionData
 
