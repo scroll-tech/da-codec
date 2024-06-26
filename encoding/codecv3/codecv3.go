@@ -54,15 +54,15 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > codecv2.MaxNumChunks {
-		return nil, fmt.Errorf("too many chunks in batch")
+		return nil, errors.New("too many chunks in batch")
 	}
 
 	if len(batch.Chunks) == 0 {
-		return nil, fmt.Errorf("too few chunks in batch")
+		return nil, errors.New("too few chunks in batch")
 	}
 
 	if len(batch.Chunks[len(batch.Chunks)-1].Blocks) == 0 {
-		return nil, fmt.Errorf("too few blocks in last chunk of the batch")
+		return nil, errors.New("too few blocks in last chunk of the batch")
 	}
 
 	// batch data hash
@@ -105,7 +105,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	return &daBatch, nil
 }
 
-// NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.
+// NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 	if len(data) < 193 {
