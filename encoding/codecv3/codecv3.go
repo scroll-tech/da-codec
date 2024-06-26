@@ -6,14 +6,17 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 
 	"github.com/scroll-tech/da-codec/encoding"
-	"github.com/scroll-tech/da-codec/encoding/codecv1"
 	"github.com/scroll-tech/da-codec/encoding/codecv2"
 )
+
+// MaxNumChunks is the maximum number of chunks that a batch can contain.
+const MaxNumChunks = codecv2.MaxNumChunks
 
 // DABlock represents a Data Availability Block.
 type DABlock = codecv2.DABlock
@@ -53,7 +56,7 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 // NewDABatch creates a DABatch from the provided encoding.Batch.
 func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > codecv2.MaxNumChunks {
+	if len(batch.Chunks) > MaxNumChunks {
 		return nil, errors.New("too many chunks in batch")
 	}
 
@@ -66,7 +69,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// batch data hash
-	dataHash, err := codecv1.ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +81,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := codecv2.ConstructBlobPayload(batch.Chunks, false /* no mock */)
+	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +106,19 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	return &daBatch, nil
+}
+
+// ComputeBatchDataHash computes the data hash of the batch.
+// Note: The batch hash and batch data hash are two different hashes,
+// the former is used for identifying a badge in the contracts,
+// the latter is used in the public input to the provers.
+func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+	return codecv2.ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
+}
+
+// ConstructBlobPayload constructs the 4844 blob payload.
+func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+	return codecv2.ConstructBlobPayload(chunks, useMockTxData)
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
@@ -200,7 +216,7 @@ func (b *DABatch) BlobDataProofForPointEvaluation() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := codecv1.GetBlobDataProofArgs()
+	blobDataProofArgs, err := GetBlobDataProofArgs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
 	}
@@ -240,4 +256,9 @@ func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
 func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
 	return codecv2.EstimateBatchL1CommitGas(b) + 50000 // plus 50000 for the point-evaluation precompile call.
+}
+
+// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
+func GetBlobDataProofArgs() (*abi.Arguments, error) {
+	return codecv2.GetBlobDataProofArgs()
 }
