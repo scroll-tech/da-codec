@@ -141,6 +141,14 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 
 // Encode serializes the DAChunk into a slice of bytes.
 func (c *DAChunk) Encode() ([]byte, error) {
+	if len(c.Blocks) == 0 {
+		return nil, errors.New("number of blocks is 0")
+	}
+
+	if len(c.Blocks) > 255 {
+		return nil, errors.New("number of blocks exceeds 1 byte")
+	}
+
 	var chunkBytes []byte
 	chunkBytes = append(chunkBytes, byte(len(c.Blocks)))
 
