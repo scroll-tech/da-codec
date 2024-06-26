@@ -64,11 +64,11 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > MaxNumChunks {
-		return nil, fmt.Errorf("too many chunks in batch")
+		return nil, errors.New("too many chunks in batch")
 	}
 
 	if len(batch.Chunks) == 0 {
-		return nil, fmt.Errorf("too few chunks in batch")
+		return nil, errors.New("too few chunks in batch")
 	}
 
 	// batch data hash
@@ -180,7 +180,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to create blob commitment")
+		return nil, common.Hash{}, nil, errors.New("failed to create blob commitment")
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
@@ -200,7 +200,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	return blob, blobVersionedHash, &z, nil
 }
 
-// NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.
+// NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 	if len(data) < 121 {
@@ -252,7 +252,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 
 	commitment, err := kzg4844.BlobToCommitment(b.blob)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blob commitment")
+		return nil, errors.New("failed to create blob commitment")
 	}
 
 	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
