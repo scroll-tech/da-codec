@@ -19,6 +19,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/iden3/go-iden3-crypto v0.0.15 // indirect
+	github.com/klauspost/compress v1.17.9
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
