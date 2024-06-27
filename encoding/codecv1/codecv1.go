@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"strings"
 	"sync"
@@ -18,6 +17,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 
 	"github.com/scroll-tech/da-codec/encoding"
+	"github.com/scroll-tech/da-codec/encoding/codecv0"
 )
 
 // BLSModulus is the BLS modulus defined in EIP-4844.
@@ -29,20 +29,10 @@ const MaxNumChunks = 15
 const BlockContextByteSize = 60
 
 // DABlock represents a Data Availability Block.
-type DABlock struct {
-	BlockNumber     uint64
-	Timestamp       uint64
-	BaseFee         *big.Int
-	GasLimit        uint64
-	NumTransactions uint16
-	NumL1Messages   uint16
-}
+type DABlock = codecv0.DABlock
 
 // DAChunk groups consecutive DABlocks with their transactions.
-type DAChunk struct {
-	Blocks       []*DABlock
-	Transactions [][]*types.TransactionData
-}
+type DAChunk codecv0.DAChunk
 
 // DAChunkRawTx groups consecutive DABlocks with their transactions.
 type DAChunkRawTx struct {
@@ -69,67 +59,19 @@ type DABatch struct {
 
 // NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
 func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
-	if !block.Header.Number.IsUint64() {
-		return nil, errors.New("block number is not uint64")
-	}
-
-	// note: numL1Messages includes skipped messages
-	numL1Messages := block.NumL1Messages(totalL1MessagePoppedBefore)
-	if numL1Messages > math.MaxUint16 {
-		return nil, errors.New("number of L1 messages exceeds max uint16")
-	}
-
-	// note: numTransactions includes skipped messages
-	numL2Transactions := block.NumL2Transactions()
-	numTransactions := numL1Messages + numL2Transactions
-	if numTransactions > math.MaxUint16 {
-		return nil, errors.New("number of transactions exceeds max uint16")
-	}
-
-	daBlock := DABlock{
-		BlockNumber:     block.Header.Number.Uint64(),
-		Timestamp:       block.Header.Time,
-		BaseFee:         block.Header.BaseFee,
-		GasLimit:        block.Header.GasLimit,
-		NumTransactions: uint16(numTransactions),
-		NumL1Messages:   uint16(numL1Messages),
-	}
-
-	return &daBlock, nil
-}
-
-// Encode serializes the DABlock into a slice of bytes.
-func (b *DABlock) Encode() []byte {
-	bytes := make([]byte, 60)
-	binary.BigEndian.PutUint64(bytes[0:], b.BlockNumber)
-	binary.BigEndian.PutUint64(bytes[8:], b.Timestamp)
-	if b.BaseFee != nil {
-		binary.BigEndian.PutUint64(bytes[40:], b.BaseFee.Uint64())
-	}
-	binary.BigEndian.PutUint64(bytes[48:], b.GasLimit)
-	binary.BigEndian.PutUint16(bytes[56:], b.NumTransactions)
-	binary.BigEndian.PutUint16(bytes[58:], b.NumL1Messages)
-	return bytes
-}
-
-// Decode populates the fields of a DABlock from a byte slice.
-func (b *DABlock) Decode(bytes []byte) error {
-	if len(bytes) != 60 {
-		return errors.New("block encoding is not 60 bytes long")
-	}
-
-	b.BlockNumber = binary.BigEndian.Uint64(bytes[0:8])
-	b.Timestamp = binary.BigEndian.Uint64(bytes[8:16])
-	b.BaseFee = new(big.Int).SetUint64(binary.BigEndian.Uint64(bytes[40:48]))
-	b.GasLimit = binary.BigEndian.Uint64(bytes[48:56])
-	b.NumTransactions = binary.BigEndian.Uint16(bytes[56:58])
-	b.NumL1Messages = binary.BigEndian.Uint16(bytes[58:60])
-
-	return nil
+	return codecv0.NewDABlock(block, totalL1MessagePoppedBefore)
 }
 
 // NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
 func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
+	if len(chunk.Blocks) == 0 {
+		return nil, errors.New("number of blocks is 0")
+	}
+
+	if len(chunk.Blocks) > 255 {
+		return nil, errors.New("number of blocks exceeds 1 byte")
+	}
+
 	var blocks []*DABlock
 	var txs [][]*types.TransactionData
 
@@ -236,11 +178,11 @@ func (c *DAChunk) Hash() (common.Hash, error) {
 func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > MaxNumChunks {
-		return nil, fmt.Errorf("too many chunks in batch")
+		return nil, errors.New("too many chunks in batch")
 	}
 
 	if len(batch.Chunks) == 0 {
-		return nil, fmt.Errorf("too few chunks in batch")
+		return nil, errors.New("too few chunks in batch")
 	}
 
 	// batch data hash
@@ -371,7 +313,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to create blob commitment")
+		return nil, common.Hash{}, nil, errors.New("failed to create blob commitment")
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
@@ -514,7 +456,7 @@ func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
 	return blobBytes
 }
 
-// NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.
+// NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 	if len(data) < 121 {
@@ -566,7 +508,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 
 	commitment, err := kzg4844.BlobToCommitment(b.blob)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blob commitment")
+		return nil, errors.New("failed to create blob commitment")
 	}
 
 	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)

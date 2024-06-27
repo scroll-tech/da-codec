@@ -149,6 +149,14 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 
 // Encode serializes the DAChunk into a slice of bytes.
 func (c *DAChunk) Encode() ([]byte, error) {
+	if len(c.Blocks) == 0 {
+		return nil, errors.New("number of blocks is 0")
+	}
+
+	if len(c.Blocks) > 255 {
+		return nil, errors.New("number of blocks exceeds 1 byte")
+	}
+
 	var chunkBytes []byte
 	chunkBytes = append(chunkBytes, byte(len(c.Blocks)))
 
@@ -321,7 +329,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	return &daBatch, nil
 }
 
-// NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.
+// NewDABatchFromBytes decodes the given byte slice into a DABatch.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 	if len(data) < 89 {
 		return nil, fmt.Errorf("insufficient data for DABatch, expected at least 89 bytes but got %d", len(data))
