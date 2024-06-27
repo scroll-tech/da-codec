@@ -42,10 +42,7 @@ type DABlock = codecv1.DABlock
 type DAChunk = codecv1.DAChunk
 
 // DAChunkRawTx groups consecutive DABlocks with their transactions.
-type DAChunkRawTx = struct {
-	Blocks       []*DABlock
-	Transactions []types.Transactions
-}
+type DAChunkRawTx codecv1.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
