@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"unsafe"
 
+	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
@@ -23,6 +24,9 @@ import (
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
 )
+
+// BLSModulus is the BLS modulus defined in EIP-4844.
+var BLSModulus = codecv1.BLSModulus
 
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 45
@@ -64,15 +68,15 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > MaxNumChunks {
-		return nil, fmt.Errorf("too many chunks in batch")
+		return nil, errors.New("too many chunks in batch")
 	}
 
 	if len(batch.Chunks) == 0 {
-		return nil, fmt.Errorf("too few chunks in batch")
+		return nil, errors.New("too few chunks in batch")
 	}
 
 	// batch data hash
-	dataHash, err := codecv1.ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +88,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := constructBlobPayload(batch.Chunks, false /* no mock */)
+	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +109,16 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	return &daBatch, nil
 }
 
-// constructBlobPayload constructs the 4844 blob payload.
-func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+// ComputeBatchDataHash computes the data hash of the batch.
+// Note: The batch hash and batch data hash are two different hashes,
+// the former is used for identifying a badge in the contracts,
+// the latter is used in the public input to the provers.
+func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+	return codecv1.ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
+}
+
+// ConstructBlobPayload constructs the 4844 blob payload.
+func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -172,7 +184,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	}
 
 	// convert raw data to BLSFieldElements
-	blob, err := codecv1.MakeBlobCanonical(compressedBlobBytes)
+	blob, err := MakeBlobCanonical(compressedBlobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
@@ -180,7 +192,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to create blob commitment")
+		return nil, common.Hash{}, nil, errors.New("failed to create blob commitment")
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
@@ -189,7 +201,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), codecv1.BLSModulus)
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), BLSModulus)
 	pointBytes := pointBigInt.Bytes()
 
 	// the challenge point z
@@ -200,7 +212,12 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	return blob, blobVersionedHash, &z, nil
 }
 
-// NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.
+// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
+func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
+	return codecv1.MakeBlobCanonical(blobBytes)
+}
+
+// NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 	if len(data) < 121 {
@@ -252,7 +269,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 
 	commitment, err := kzg4844.BlobToCommitment(b.blob)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blob commitment")
+		return nil, errors.New("failed to create blob commitment")
 	}
 
 	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
@@ -266,7 +283,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := codecv1.GetBlobDataProofArgs()
+	blobDataProofArgs, err := GetBlobDataProofArgs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
 	}
@@ -288,7 +305,7 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 	if err != nil {
 		return 0, 0, err
 	}
-	return uint64(len(batchBytes)), codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
@@ -301,7 +318,7 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 	if err != nil {
 		return 0, 0, err
 	}
-	return uint64(len(batchBytes)), codecv1.CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
@@ -381,4 +398,15 @@ func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
 	}
 
 	return outbuf[:int(outbufSize)], nil
+}
+
+// CalculatePaddedBlobSize calculates the required size on blob storage
+// where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
+func CalculatePaddedBlobSize(dataSize uint64) uint64 {
+	return codecv1.CalculatePaddedBlobSize(dataSize)
+}
+
+// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
+func GetBlobDataProofArgs() (*abi.Arguments, error) {
+	return codecv1.GetBlobDataProofArgs()
 }

@@ -264,7 +264,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	return &daBatch, nil
 }
 
-// NewDABatchFromBytes attempts to decode the given byte slice into a DABatch.
+// NewDABatchFromBytes decodes the given byte slice into a DABatch.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 	if len(data) < 89 {
 		return nil, fmt.Errorf("insufficient data for DABatch, expected at least 89 bytes but got %d", len(data))
