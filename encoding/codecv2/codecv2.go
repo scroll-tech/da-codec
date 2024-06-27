@@ -623,9 +623,9 @@ func decompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
 	defer zr.Close()
 
 	for {
-		i, _ := zr.Read(batchOfBytes) //
-		res = append(res, batchOfBytes[:i]...)
-		if i < readBatchSize {
+		i, err := zr.Read(batchOfBytes)
+		res = append(res, batchOfBytes[:i]...) // append already decoded bytes even if we meet error
+		if i < readBatchSize || err != nil {
 			break
 		}
 	}
