@@ -9,6 +9,7 @@ import (
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -630,7 +631,9 @@ func TestCodecV3BatchChallengeWithStandardTestCases(t *testing.T) {
 }
 
 func TestCodecV3BatchHashWithStandardTestCases(t *testing.T) {
-	nRowsData := 126914
+	// Taking into consideration compression, we allow up to 5x of max blob bytes.
+	// We then ignore the metadata rows for 45 chunks.
+	nRowsData := 5*126976 - (45*4 + 2)
 
 	for _, tc := range []struct {
 		chunks       [][]string
@@ -680,7 +683,8 @@ func TestCodecV3BatchHashWithStandardTestCases(t *testing.T) {
 		chunks := []*encoding.Chunk{}
 
 		for _, c := range tc.chunks {
-			block := &encoding.Block{Transactions: []*types.TransactionData{}}
+			block := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
+			block.Transactions = []*types.TransactionData{}
 
 			for _, data := range c {
 				tx := &types.TransactionData{Type: 0xff, Data: data}
@@ -691,15 +695,22 @@ func TestCodecV3BatchHashWithStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, true /* no mock */)
+		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, true /* use mock */)
 		require.NoError(t, err)
+
+		// Note: this is a dummy dataHash (for each chunk, we use 0xff00..0000)
+		dataBytes := make([]byte, 32*len(chunks))
+		for i, _ := range chunks {
+			copy(dataBytes[32*i:32*i+32], []byte{255 - uint8(i), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+		}
+		dataHash := crypto.Keccak256Hash(dataBytes)
 
 		batch := DABatch{
 			Version:              uint8(encoding.CodecV3),
 			BatchIndex:           6789,
 			L1MessagePopped:      101,
 			TotalL1MessagePopped: 10101,
-			DataHash:             common.Hash{},
+			DataHash:             dataHash,
 			BlobVersionedHash:    blobVersionedHash,
 			ParentBatchHash:      common.BytesToHash([]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
 			LastBlockTimestamp:   192837,
