@@ -596,15 +596,15 @@ func TestCodecV3BatchChallengeWithStandardTestCases(t *testing.T) {
 		// max number of chunks all non-empty
 		{chunks: [][]string{{"0x0a"}, {"0x0a0b"}, {"0x0a0b0c"}, {"0x0a0b0c0d"}, {"0x0a0b0c0d0e"}, {"0x0a0b0c0d0e0f"}, {"0x0a0b0c0d0e0f10"}, {"0x0a0b0c0d0e0f1011"}, {"0x0a0b0c0d0e0f101112"}, {"0x0a0b0c0d0e0f10111213"}, {"0x0a0b0c0d0e0f1011121314"}, {"0x0a0b0c0d0e0f101112131415"}, {"0x0a0b0c0d0e0f10111213141516"}, {"0x0a0b0c0d0e0f1011121314151617"}, {"0x0a0b0c0d0e0f101112131415161718"}}, expectedz: "0e1b72e4466f0c7eeb037cbd3d2e331064f04918761d6f93ca77df420f9b2eaf", expectedy: "05fe38cd1b145264bf73bc56d5a8845036fb3de2a47d4f4aa4169fc200c2eaa0"},
 		// single chunk blob full
-		{chunks: [][]string{{repeat(123, nRowsData)}}, expectedz: "27fa11d85fe287c8a6856eb9e5c5beda434d1fe2546acdba2b8dfa2ba7ab1d88", expectedy: "3779e3107e53b9bf8f2c321555c8b11794658697ad3331d554c4f9349da54c10"},
+		{chunks: [][]string{{repeat(123, nRowsData)}}, expectedz: "63bebf986e2f0fc8bf5f7067108ea4a2b35a5927296e17d5c0bbc5ec04d8dce4", expectedy: "013b762f02e95a62f08977b1a43a017cd84f785b52ebf8ef25e9ebba6c9b76cb"},
 		// multiple chunks blob full
-		{chunks: [][]string{{repeat(123, 1111)}, {repeat(231, nRowsData-1111)}}, expectedz: "1043772b5108fdab00a783973907e894f49b2a2f9161fc40e1cac49c11b440f6", expectedy: "26252617e2f2082d644d2cace2b952f2fcc2eadee7ad53bdc318a4b8eb6687f3"},
+		{chunks: [][]string{{repeat(123, 1111)}, {repeat(231, nRowsData-1111)}}, expectedz: "465e095b082136f20ca975c10eafbb3bf2b71724798da87bd62d3f8795c615dc", expectedy: "6f2ff37b255e0da8b5678a9b1157fdc8a1213c17bd248efd50a4c1540c26295c"},
 		// max number of chunks only last one non-empty not full blob
-		{chunks: [][]string{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {repeat(132, nRowsData-1111)}}, expectedz: "5be7c98e72cba00fa2d2db53ea0aae8ed51d69cbd5a8ee3f1c9090eaa9b4069d", expectedy: "3741b74e012b1196cc20efe0274914037a87957b0580408568783071f2b7fb73"},
+		{chunks: [][]string{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {repeat(132, nRowsData-1111)}}, expectedz: "1ca17fdb4dea8396d7e2f10ef7b2a587750517df70ec0ce0d853e61310aec0f3", expectedy: "1b686f2eb8d7e3e2325d9101dd799f5e13af8482b402661325545646a9c96ec0"},
 		// max number of chunks only last one non-empty full blob
-		{chunks: [][]string{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {repeat(132, nRowsData)}}, expectedz: "2685529f135d0657d77a70ce21e1ae5edb5c6a822f85fd4b8881361ef79b1aca", expectedy: "64c4b81ac600ba7699050bf6f705c60974bc3f48193fe0506f95572062fa3d36"},
+		{chunks: [][]string{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {repeat(132, nRowsData)}}, expectedz: "29c684b13d22cb43d81b9b449c281c15126fdc73512606de81c2d3fc9c7793b1", expectedy: "574418d83d77f6096934c2c4281edf61d48925a268411df0e0c818c6d43156d1"},
 		// max number of chunks but last is empty
-		{chunks: [][]string{{repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {}}, expectedz: "2ce5c98ca63d933e2cddd9a17d47dbf9e457d66cc2c531a56d7a6c820bb8b200", expectedy: "44990a2427f91f2db69be6ac7a36ecaac9074ed17b1040bad9cbfeffcd68cbf1"},
+		{chunks: [][]string{{repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)},{repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)},{repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {}}, expectedz: "16d2883b0797d3420fabf4591f9dbe9f850ce600ce6133c98c9d291d8b3ce0a9", expectedy: "5bdc1ca8f09efa9c544d2b03d565fec500d5347acd5b3fd4d88e881f9459d83a"},
 	} {
 		chunks := []*encoding.Chunk{}
 
@@ -629,7 +629,6 @@ func TestCodecV3BatchChallengeWithStandardTestCases(t *testing.T) {
 		require.NoError(t, err)
 		actualY := hex.EncodeToString(y[:])
 		assert.Equal(t, tc.expectedy, actualY)
-
 	}
 }
 
