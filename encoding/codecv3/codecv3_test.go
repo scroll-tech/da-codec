@@ -691,18 +691,15 @@ func TestCodecV3BatchHashWithStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, false /* no mock */)
+		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, true /* no mock */)
 		require.NoError(t, err)
 
-		dataHash, err := ComputeBatchDataHash(chunks, 10101)
-		require.NoError(t, err)
-
-		daBatch := DABatch{
+		batch := DABatch{
 			Version:              uint8(encoding.CodecV3),
 			BatchIndex:           6789,
 			L1MessagePopped:      101,
 			TotalL1MessagePopped: 10101,
-			DataHash:             dataHash,
+			DataHash:             common.Hash{},
 			BlobVersionedHash:    blobVersionedHash,
 			ParentBatchHash:      common.BytesToHash([]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
 			LastBlockTimestamp:   192837,
@@ -710,12 +707,9 @@ func TestCodecV3BatchHashWithStandardTestCases(t *testing.T) {
 			z:                    z,
 		}
 
-		daBatch.BlobDataProof, err = daBatch.blobDataProofForPICircuit()
+		batch.BlobDataProof, err = batch.blobDataProofForPICircuit()
 		require.NoError(t, err)
 
-		originalBatch := &encoding.Batch{Chunks: chunks}
-		batch, err := NewDABatch(originalBatch)
-		require.NoError(t, err)
 		assert.Equal(t, common.HexToHash(tc.expectedHash), batch.Hash())
 	}
 }
