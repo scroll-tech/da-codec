@@ -569,7 +569,10 @@ func repeat(element byte, count int) string {
 }
 
 func TestCodecV3BatchChallengeWithStandardTestCases(t *testing.T) {
-	nRowsData := 126914
+	// Taking into consideration compression, we allow up to 5x of max blob bytes.
+	// We then ignore the metadata rows for 45 chunks.
+	maxChunks := 45
+	nRowsData := 5*126976 - (maxChunks*4 + 2)
 
 	for _, tc := range []struct {
 		chunks    [][]string
@@ -633,7 +636,8 @@ func TestCodecV3BatchChallengeWithStandardTestCases(t *testing.T) {
 func TestCodecV3BatchHashWithStandardTestCases(t *testing.T) {
 	// Taking into consideration compression, we allow up to 5x of max blob bytes.
 	// We then ignore the metadata rows for 45 chunks.
-	nRowsData := 5*126976 - (45*4 + 2)
+	maxChunks := 45
+	nRowsData := 5*126976 - (maxChunks*4 + 2)
 
 	for _, tc := range []struct {
 		chunks       [][]string
