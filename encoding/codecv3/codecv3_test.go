@@ -945,6 +945,57 @@ func TestCodecV3ChunkAndBatchCalldataSizeEstimation(t *testing.T) {
 	assert.Equal(t, uint64(180), batch5CalldataSize)
 }
 
+func TestCodecV3DABatchJSON(t *testing.T) {
+	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
+	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
+	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
+	original, err := NewDABatch(originalBatch)
+	assert.NoError(t, err)
+
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	var decoded DABatch
+	err = json.Unmarshal(data, &decoded)
+	require.NoError(t, err)
+
+	assert.Equal(t, original.Version, decoded.Version)
+	assert.Equal(t, original.BatchIndex, decoded.BatchIndex)
+	assert.Equal(t, original.L1MessagePopped, decoded.L1MessagePopped)
+	assert.Equal(t, original.TotalL1MessagePopped, decoded.TotalL1MessagePopped)
+	assert.Equal(t, original.DataHash, decoded.DataHash)
+	assert.Equal(t, original.BlobVersionedHash, decoded.BlobVersionedHash)
+	assert.Equal(t, original.ParentBatchHash, decoded.ParentBatchHash)
+	assert.Equal(t, original.LastBlockTimestamp, decoded.LastBlockTimestamp)
+	assert.Equal(t, original.BlobDataProof, decoded.BlobDataProof)
+
+	jsonStr := `{
+		"Version": 3,
+		"BatchIndex": 0,
+		"L1MessagePopped": 0,
+		"TotalL1MessagePopped": 0,
+		"DataHash": "0x9f81f6879f121da5b7a37535cdb21b3d53099266de57b1fdf603ce32100ed541",
+		"BlobVersionedHash": "0x01bbc6b98d7d3783730b6208afac839ad37dcf211b9d9e7c83a5f9d02125ddd7",
+		"ParentBatchHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"LastBlockTimestamp": 1669364522,
+		"BlobDataProof": [9, 143, 31, 19, 111, 87, 52, 3, 152, 24, 190, 227, 82, 34, 211, 90, 150, 172, 215, 209, 113, 32, 206, 136, 22, 48, 117, 39, 209, 155, 173, 234, 23, 208, 19, 190, 94, 246, 150, 207, 188, 5, 185, 123, 179, 34, 165, 135, 67, 44, 44, 178, 60, 72, 72, 212, 215, 203, 132, 83, 196, 117, 179, 141]
+	}`
+
+	var expected DABatch
+	err = json.Unmarshal([]byte(jsonStr), &expected)
+	require.NoError(t, err)
+
+	assert.Equal(t, expected.Version, decoded.Version)
+	assert.Equal(t, expected.BatchIndex, decoded.BatchIndex)
+	assert.Equal(t, expected.L1MessagePopped, decoded.L1MessagePopped)
+	assert.Equal(t, expected.TotalL1MessagePopped, decoded.TotalL1MessagePopped)
+	assert.Equal(t, expected.DataHash, decoded.DataHash)
+	assert.Equal(t, expected.BlobVersionedHash, decoded.BlobVersionedHash)
+	assert.Equal(t, expected.ParentBatchHash, decoded.ParentBatchHash)
+	assert.Equal(t, expected.LastBlockTimestamp, decoded.LastBlockTimestamp)
+	assert.Equal(t, expected.BlobDataProof, decoded.BlobDataProof)
+}
+
 func readBlockFromJSON(t *testing.T, filename string) *encoding.Block {
 	data, err := os.ReadFile(filename)
 	assert.NoError(t, err)
