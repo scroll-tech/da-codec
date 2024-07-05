@@ -177,11 +177,15 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	hash := crypto.Keccak256Hash(blobBytes[0:metadataLength])
 	copy(challengePreimage[0:], hash[:])
 
+	fmt.Println("batchBytes", string(blobBytes))
+
 	// compress blob bytes
 	compressedBlobBytes, err := compressScrollBatchBytes(blobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
+
+	fmt.Println("blobBytes", string(compressedBlobBytes))
 
 	// convert raw data to BLSFieldElements
 	blob, err := MakeBlobCanonical(compressedBlobBytes)
