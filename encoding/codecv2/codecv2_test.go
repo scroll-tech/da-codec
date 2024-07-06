@@ -883,6 +883,33 @@ func TestCodecV2ChunkAndBatchCalldataSizeEstimation(t *testing.T) {
 	assert.Equal(t, uint64(180), batch5CalldataSize)
 }
 
+func TestBugRoundTripData(t *testing.T) {
+
+	filePath := "../testdata/bug_roundtrip.orig"
+
+	// Read the file into a []byte
+	blobBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		panic(err)
+	}
+
+	compressed, err := compressScrollBatchBytes(blobBytes)
+	assert.NoError(t, err)
+
+	err = encoding.TestCompressedDataCompatibility(compressed)
+	assert.NoError(t, err)
+
+	// magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
+	// compressedBytes := append(magics, compressed...)
+
+	// err = os.WriteFile("../testdata/bug_out.zstd", compressedBytes, 0644)
+	// assert.NoError(t, err)
+
+	// decompressed, err := decompressScrollBatchBytes(compressedBytes)
+	// assert.NoError(t, err)
+	// assert.Equal(t, blobBytes, decompressed)
+}
+
 func readBlockFromJSON(t *testing.T, filename string) *encoding.Block {
 	data, err := os.ReadFile(filename)
 	assert.NoError(t, err)
