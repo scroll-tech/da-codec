@@ -272,7 +272,7 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 
 // Fast testing if the compressed data is compatible with our circuit
 // (require specified frame header and each block is compressed)
-func TestCompressedDataCompatibility(data []byte) error {
+func CheckCompressedDataCompatibility(data []byte) error {
 	if len(data) < 16 {
 		return fmt.Errorf("too small size (%x), what is it?", data)
 	}

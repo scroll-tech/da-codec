@@ -896,7 +896,7 @@ func TestBugRoundTripData(t *testing.T) {
 	compressed, err := compressScrollBatchBytes(blobBytes)
 	assert.NoError(t, err)
 
-	err = encoding.TestCompressedDataCompatibility(compressed)
+	err = encoding.CheckCompressedDataCompatibility(compressed)
 	assert.NoError(t, err)
 
 	// magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
