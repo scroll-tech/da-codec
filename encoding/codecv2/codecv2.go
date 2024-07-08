@@ -3,6 +3,7 @@ package codecv2
 /*
 #include <stdint.h>
 char* compress_scroll_batch_bytes(uint8_t* src, uint64_t src_size, uint8_t* output_buf, uint64_t *output_buf_size);
+char* compress_scroll_batch_bytes_ex(uint8_t* src, uint64_t src_size, uint32_t blk_size, uint8_t* output_buf, uint64_t *output_buf_size);
 */
 import "C"
 

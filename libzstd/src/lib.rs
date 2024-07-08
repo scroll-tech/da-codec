@@ -17,11 +17,43 @@ fn out_as_err(err: &str, out: &mut [u8]) -> *const c_char {
     out.as_ptr() as *const c_char
 }
 
-/// Entry
+
+/// Entry with "average block size" trick
 #[no_mangle]
 pub unsafe extern "C" fn compress_scroll_batch_bytes(
     src: *const c_uchar,
     src_size: u64,
+    output_buf: *mut c_uchar,
+    output_buf_size: *mut u64,
+) -> *const c_char {
+
+    // when the src size larger than one input block (so the output has too
+    // be distributed in multiple blocks), we average each input block to
+    // avoid the small size in last input, which may lead to Raw or RLE blocks
+    let blk_size = if src_size > N_BLOCK_SIZE_TARGET as u64{
+        let exp_blocks = (src_size - 1) / N_BLOCK_SIZE_TARGET as u64 + 1;
+        let reset_blk_size = src_size / exp_blocks;
+        assert!(reset_blk_size <= N_BLOCK_SIZE_TARGET as u64);
+        reset_blk_size as u32
+    } else {
+        N_BLOCK_SIZE_TARGET
+    };
+
+    compress_scroll_batch_bytes_ex(
+        src,
+        src_size,
+        blk_size,
+        output_buf,
+        output_buf_size,
+    )
+}
+
+/// Entry
+#[no_mangle]
+pub unsafe extern "C" fn compress_scroll_batch_bytes_ex(
+    src: *const c_uchar,
+    src_size: u64,
+    blk_size: u32,
     output_buf: *mut c_uchar,
     output_buf_size: *mut u64,
 ) -> *const c_char {
@@ -32,18 +64,7 @@ pub unsafe extern "C" fn compress_scroll_batch_bytes(
     // when the src size larger than one input block (so the output has too
     // be distributed in multiple blocks), we average each input block to
     // avoid the small size in last input, which may lead to Raw or RLE blocks
-    let mut encoder = if src_size > N_BLOCK_SIZE_TARGET as u64{
-        let exp_blocks = (src_size - 1) / N_BLOCK_SIZE_TARGET as u64 + 1;
-        /* 
-            slightly increase for blocks except the last one,
-            so ensure no "tip" would be left
-        */
-        let reset_blk_size = src_size / exp_blocks + 8;
-        assert!(reset_blk_size <= N_BLOCK_SIZE_TARGET as u64);
-        init_zstd_encoder(reset_blk_size as u32)
-    } else {
-        init_zstd_encoder(N_BLOCK_SIZE_TARGET)
-    };
+    let mut encoder = init_zstd_encoder(blk_size);
     encoder.set_pledged_src_size(Some(src.len() as u64)).expect(
         "compress_scroll_batch_bytes: failed to set pledged src size, should be infallible",
     );
