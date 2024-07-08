@@ -9,7 +9,7 @@ pub use zstd;
 #[allow(dead_code)]
 pub const CL_WINDOW_LIMIT: usize = 17;
 
-/// default targetted block size is max block size (128kB).
+/// default targeted block size is max block size (128kB).
 pub const N_BLOCK_SIZE_TARGET: u32 = 128 * 1024;
 
 /// Maximum number of blocks that we can expect in the encoded data.
