@@ -303,7 +303,6 @@ func CheckCompressedDataCompatibility(data []byte) error {
 		isLast = (data[0] & 1) == 1
 		blkType := (data[0] >> 1) & 3
 		blkSize := (uint(data[2])*65536 + uint(data[1])*256 + uint(data[0])) >> 3
-		//println("blk", blkType, blkSize, isLast)
 		if blkType != 2 {
 			return fmt.Errorf("unexpected blk type {%d}, size {%d}, last {%t}", blkType, blkSize, isLast)
 		}
