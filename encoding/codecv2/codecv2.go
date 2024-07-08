@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"unsafe"
 
@@ -184,14 +185,6 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 		return nil, common.Hash{}, nil, err
 	}
 
-	// Only apply this check when the uncompressed batch data has exceeded 128KiB.
-	if len(blobBytes) > 131072 {
-		// check compressed data compatibility
-		if err = encoding.CheckCompressedDataCompatibility(compressedBlobBytes); err != nil {
-			return nil, common.Hash{}, nil, err
-		}
-	}
-
 	// convert raw data to BLSFieldElements
 	blob, err := MakeBlobCanonical(compressedBlobBytes)
 	if err != nil {
@@ -314,6 +307,13 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 	if err != nil {
 		return 0, 0, err
 	}
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(batchBytes) > 131072 {
+		// Check compressed data compatibility.
+		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+			return math.MaxUint32, math.MaxUint32, nil // Return math.MaxUint32 to indicate the batch is too large and avoid overflows.
+		}
+	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
@@ -326,6 +326,13 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 	blobBytes, err := compressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return 0, 0, err
+	}
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(batchBytes) > 131072 {
+		// Check compressed data compatibility.
+		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+			return math.MaxUint32, math.MaxUint32, nil // Return math.MaxUint32 to indicate the batch is too large and avoid overflows.
+		}
 	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
