@@ -184,7 +184,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	}
 
 	// check compressed data compatibility
-	if err := encoding.CheckCompressedDataCompatibility(compressedBlobBytes); err != nil {
+	if err = encoding.CheckCompressedDataCompatibility(compressedBlobBytes); err != nil {
 		return nil, common.Hash{}, nil, err
 	}
 
