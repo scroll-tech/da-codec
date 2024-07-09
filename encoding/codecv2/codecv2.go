@@ -184,6 +184,15 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 		return nil, common.Hash{}, nil, err
 	}
 
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(blobBytes) > 131072 {
+		// Check compressed data compatibility.
+		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(blobBytes), "compressedBlobBytes", hex.EncodeToString(compressedBlobBytes))
+			return nil, common.Hash{}, nil, &encoding.CompressedDataCompatibilityError{Err: err}
+		}
+	}
+
 	// convert raw data to BLSFieldElements
 	blob, err := MakeBlobCanonical(compressedBlobBytes)
 	if err != nil {
