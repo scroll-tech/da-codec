@@ -319,7 +319,7 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 	if len(batchBytes) > 131072 {
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			log.Warn("EstimateChunkL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+			log.Warn("EstimateChunkL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(batchBytes), "compressedBlobBytes", hex.EncodeToString(blobBytes))
 			return 0, 0, &encoding.CompressedDataCompatibilityError{Err: err}
 		}
 	}
@@ -340,7 +340,7 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 	if len(batchBytes) > 131072 {
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			log.Warn("EstimateBatchL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+			log.Warn("EstimateBatchL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(batchBytes), "compressedBlobBytes", hex.EncodeToString(blobBytes))
 			return 0, 0, &encoding.CompressedDataCompatibilityError{Err: err}
 		}
 	}
