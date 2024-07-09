@@ -270,6 +270,22 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 	return txsData
 }
 
+// CompressedDataCompatibilityError represents an error that occurs when
+// the compressed data fails the compatibility check.
+type CompressedDataCompatibilityError struct {
+	Err error
+}
+
+// Error returns a string representation of the CompressedDataCompatibilityError.
+func (e *CompressedDataCompatibilityError) Error() string {
+	return fmt.Sprintf("compressed data compatibility check failed: %v", e.Err)
+}
+
+// Unwrap returns the underlying error.
+func (e *CompressedDataCompatibilityError) Unwrap() error {
+	return e.Err
+}
+
 // Fast testing if the compressed data is compatible with our circuit
 // (require specified frame header and each block is compressed)
 func CheckCompressedDataCompatibility(data []byte) error {

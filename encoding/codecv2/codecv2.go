@@ -189,7 +189,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("EstimateBatchL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-			return nil, common.Hash{}, nil, err
+			return nil, common.Hash{}, nil, &encoding.CompressedDataCompatibilityError{Err: err}
 		}
 	}
 
@@ -320,7 +320,7 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("EstimateChunkL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-			return 0, 0, err
+			return 0, 0, &encoding.CompressedDataCompatibilityError{Err: err}
 		}
 	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
@@ -341,7 +341,7 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("EstimateBatchL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-			return 0, 0, err
+			return 0, 0, &encoding.CompressedDataCompatibilityError{Err: err}
 		}
 	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
