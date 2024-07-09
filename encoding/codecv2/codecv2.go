@@ -12,10 +12,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"unsafe"
 
+	"github.com/golang/gddo/log"
 	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -310,7 +310,8 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 	if len(batchBytes) > 131072 {
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			return math.MaxUint32, math.MaxUint32, nil // Return math.MaxUint32 to indicate the batch built based on the single chunk is too large and avoid overflows.
+			log.Error("EstimateChunkL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+			return 0, 0, err
 		}
 	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
@@ -330,7 +331,8 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 	if len(batchBytes) > 131072 {
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			return math.MaxUint32, math.MaxUint32, nil // Return math.MaxUint32 to indicate the batch is too large and avoid overflows.
+			log.Error("EstimateBatchL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+			return 0, 0, err
 		}
 	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
