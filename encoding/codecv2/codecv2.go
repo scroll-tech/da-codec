@@ -124,7 +124,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	metadataLength := 2 + MaxNumChunks*4
 
 	// the raw (un-compressed and un-padded) blob payload
-	batchBytes := make([]byte, metadataLength)
+	blobBytes := make([]byte, metadataLength)
 
 	// challenge digest preimage
 	// 1 hash for metadata, 1 hash for each chunk, 1 hash for blob versioned hash
@@ -134,12 +134,12 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	var chunkDataHash common.Hash
 
 	// blob metadata: num_chunks
-	binary.BigEndian.PutUint16(batchBytes[0:], uint16(len(chunks)))
+	binary.BigEndian.PutUint16(blobBytes[0:], uint16(len(chunks)))
 
 	// encode blob metadata and L2 transactions,
 	// and simultaneously also build challenge preimage
 	for chunkID, chunk := range chunks {
-		currentChunkStartIndex := len(batchBytes)
+		currentChunkStartIndex := len(blobBytes)
 
 		for _, block := range chunk.Blocks {
 			for _, tx := range block.Transactions {
@@ -152,17 +152,17 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 				if err != nil {
 					return nil, common.Hash{}, nil, err
 				}
-				batchBytes = append(batchBytes, rlpTxData...)
+				blobBytes = append(blobBytes, rlpTxData...)
 			}
 		}
 
 		// blob metadata: chunki_size
-		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
-			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
+		if chunkSize := len(blobBytes) - currentChunkStartIndex; chunkSize != 0 {
+			binary.BigEndian.PutUint32(blobBytes[2+4*chunkID:], uint32(chunkSize))
 		}
 
 		// challenge: compute chunk data hash
-		chunkDataHash = crypto.Keccak256Hash(batchBytes[currentChunkStartIndex:])
+		chunkDataHash = crypto.Keccak256Hash(blobBytes[currentChunkStartIndex:])
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
 
@@ -175,26 +175,17 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	}
 
 	// challenge: compute metadata hash
-	hash := crypto.Keccak256Hash(batchBytes[0:metadataLength])
+	hash := crypto.Keccak256Hash(blobBytes[0:metadataLength])
 	copy(challengePreimage[0:], hash[:])
 
-	// compress raw (un-compressed and un-padded) blob payload
-	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	// compress blob bytes
+	compressedBlobBytes, err := compressScrollBatchBytes(blobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
 
-	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(blobBytes) > 131072 {
-		// Check compressed data compatibility.
-		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-			return nil, common.Hash{}, nil, &encoding.CompressedDataCompatibilityError{Err: err}
-		}
-	}
-
 	// convert raw data to BLSFieldElements
-	blob, err := MakeBlobCanonical(blobBytes)
+	blob, err := MakeBlobCanonical(compressedBlobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
