@@ -310,7 +310,7 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 	if len(batchBytes) > 131072 {
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			return math.MaxUint32, math.MaxUint32, nil // Return math.MaxUint32 to indicate the batch is too large and avoid overflows.
+			return math.MaxUint32, math.MaxUint32, nil // Return math.MaxUint32 to indicate the chunk is too large and avoid overflows.
 		}
 	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
