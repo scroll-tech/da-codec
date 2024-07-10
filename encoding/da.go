@@ -269,3 +269,69 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 	}
 	return txsData
 }
+
+// CompressedDataCompatibilityError represents an error that occurs when
+// the compressed data fails the compatibility check.
+type CompressedDataCompatibilityError struct {
+	Err error
+}
+
+// Error returns a string representation of the CompressedDataCompatibilityError.
+func (e *CompressedDataCompatibilityError) Error() string {
+	return fmt.Sprintf("compressed data compatibility check failed: %v", e.Err)
+}
+
+// Unwrap returns the underlying error.
+func (e *CompressedDataCompatibilityError) Unwrap() error {
+	return e.Err
+}
+
+// Fast testing if the compressed data is compatible with our circuit
+// (require specified frame header and each block is compressed)
+func CheckCompressedDataCompatibility(data []byte) error {
+	if len(data) < 16 {
+		return fmt.Errorf("too small size (%x), what is it?", data)
+	}
+
+	fheader := data[0]
+	// it is not the encoding type we expected in our zstd header
+	if fheader&63 != 32 {
+		return fmt.Errorf("unexpected header type (%x)", fheader)
+	}
+
+	// skip content size
+	switch fheader >> 6 {
+	case 0:
+		data = data[2:]
+	case 1:
+		data = data[3:]
+	case 2:
+		data = data[5:]
+	case 3:
+		data = data[9:]
+	default:
+		panic("impossible")
+	}
+
+	isLast := false
+	// scan each block until done
+	for len(data) > 3 && !isLast {
+		isLast = (data[0] & 1) == 1
+		blkType := (data[0] >> 1) & 3
+		blkSize := (uint(data[2])*65536 + uint(data[1])*256 + uint(data[0])) >> 3
+		if blkType != 2 {
+			return fmt.Errorf("unexpected blk type {%d}, size {%d}, last {%t}", blkType, blkSize, isLast)
+		}
+		if len(data) < 3+int(blkSize) {
+			return fmt.Errorf("wrong data len {%d}, expect min {%d}", len(data), 3+blkSize)
+		}
+		data = data[3+blkSize:]
+	}
+
+	// Should we return invalid if isLast is still false?
+	if !isLast {
+		return fmt.Errorf("unexpected end before last block")
+	}
+
+	return nil
+}
