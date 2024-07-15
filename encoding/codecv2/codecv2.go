@@ -22,6 +22,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+	"github.com/scroll-tech/go-ethereum/log"
 
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
@@ -224,6 +225,15 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 		return nil, common.Hash{}, nil, err
 	}
 
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(blobBytes) > 131072 {
+		// Check compressed data compatibility.
+		if err = encoding.CheckCompressedDataCompatibility(compressedBlobBytes); err != nil {
+			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(blobBytes), "compressedBlobBytes", hex.EncodeToString(compressedBlobBytes))
+			return nil, common.Hash{}, nil, err
+		}
+	}
+
 	// convert raw data to BLSFieldElements
 	blob, err := MakeBlobCanonical(compressedBlobBytes)
 	if err != nil {
@@ -400,6 +410,50 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 		return 0, 0, err
 	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+}
+
+// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
+func CheckChunkCompressedDataCompatibility(c *encoding.Chunk) (bool, error) {
+	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
+	if err != nil {
+		return false, err
+	}
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return false, err
+	}
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(batchBytes) <= 131072 {
+		return true, nil
+	}
+	if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+		log.Warn("CheckChunkCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(batchBytes), "compressedBlobBytes", hex.EncodeToString(blobBytes))
+		return false, nil
+	}
+	return true, nil
+}
+
+// CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
+func CheckBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
+	batchBytes, err := constructBatchPayload(b.Chunks)
+	if err != nil {
+		return false, err
+	}
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return false, err
+	}
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(batchBytes) <= 131072 {
+		return true, nil
+	}
+	if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+		log.Warn("CheckBatchCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(batchBytes), "compressedBlobBytes", hex.EncodeToString(blobBytes))
+		return false, nil
+	}
+	return true, nil
 }
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.

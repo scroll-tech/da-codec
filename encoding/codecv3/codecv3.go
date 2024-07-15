@@ -252,6 +252,16 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 	return codecv2.EstimateBatchL1CommitBatchSizeAndBlobSize(b)
 }
 
+// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
+func CheckChunkCompressedDataCompatibility(c *encoding.Chunk) (bool, error) {
+	return codecv2.CheckChunkCompressedDataCompatibility(c)
+}
+
+// CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
+func CheckBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
+	return codecv2.CheckBatchCompressedDataCompatibility(b)
+}
+
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
 func EstimateChunkL1CommitCalldataSize(c *encoding.Chunk) uint64 {
 	return codecv2.EstimateChunkL1CommitCalldataSize(c)
