@@ -123,8 +123,8 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
-	// the raw (un-compressed and un-padded) blob payload
-	blobBytes := make([]byte, metadataLength)
+	// batchBytes represents the raw (un-compressed and un-padded) blob payload
+	batchBytes := make([]byte, metadataLength)
 
 	// challenge digest preimage
 	// 1 hash for metadata, 1 hash for each chunk, 1 hash for blob versioned hash
@@ -134,12 +134,12 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	var chunkDataHash common.Hash
 
 	// blob metadata: num_chunks
-	binary.BigEndian.PutUint16(blobBytes[0:], uint16(len(chunks)))
+	binary.BigEndian.PutUint16(batchBytes[0:], uint16(len(chunks)))
 
 	// encode blob metadata and L2 transactions,
 	// and simultaneously also build challenge preimage
 	for chunkID, chunk := range chunks {
-		currentChunkStartIndex := len(blobBytes)
+		currentChunkStartIndex := len(batchBytes)
 
 		for _, block := range chunk.Blocks {
 			for _, tx := range block.Transactions {
@@ -152,17 +152,17 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 				if err != nil {
 					return nil, common.Hash{}, nil, err
 				}
-				blobBytes = append(blobBytes, rlpTxData...)
+				batchBytes = append(batchBytes, rlpTxData...)
 			}
 		}
 
 		// blob metadata: chunki_size
-		if chunkSize := len(blobBytes) - currentChunkStartIndex; chunkSize != 0 {
-			binary.BigEndian.PutUint32(blobBytes[2+4*chunkID:], uint32(chunkSize))
+		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
+			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
 		}
 
 		// challenge: compute chunk data hash
-		chunkDataHash = crypto.Keccak256Hash(blobBytes[currentChunkStartIndex:])
+		chunkDataHash = crypto.Keccak256Hash(batchBytes[currentChunkStartIndex:])
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
 
@@ -175,26 +175,26 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	}
 
 	// challenge: compute metadata hash
-	hash := crypto.Keccak256Hash(blobBytes[0:metadataLength])
+	hash := crypto.Keccak256Hash(batchBytes[0:metadataLength])
 	copy(challengePreimage[0:], hash[:])
 
-	// compress blob bytes
-	compressedBlobBytes, err := compressScrollBatchBytes(blobBytes)
+	// blobBytes represents the compressed blob payload (batchBytes)
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
 
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if !useMockTxData && len(blobBytes) > 131072 {
+	if !useMockTxData && len(batchBytes) > 131072 {
 		// Check compressed data compatibility.
-		if err = encoding.CheckCompressedDataCompatibility(compressedBlobBytes); err != nil {
-			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(blobBytes), "compressedBlobBytes", hex.EncodeToString(compressedBlobBytes))
-			return nil, common.Hash{}, nil, &encoding.CompressedDataCompatibilityError{Err: err}
+		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+			return nil, common.Hash{}, nil, err
 		}
 	}
 
 	// convert raw data to BLSFieldElements
-	blob, err := MakeBlobCanonical(compressedBlobBytes)
+	blob, err := MakeBlobCanonical(blobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
@@ -315,14 +315,6 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 	if err != nil {
 		return 0, 0, err
 	}
-	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) > 131072 {
-		// Check compressed data compatibility.
-		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			log.Warn("EstimateChunkL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(batchBytes), "compressedBlobBytes", hex.EncodeToString(blobBytes))
-			return 0, 0, &encoding.CompressedDataCompatibilityError{Err: err}
-		}
-	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
@@ -336,15 +328,51 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 	if err != nil {
 		return 0, 0, err
 	}
-	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) > 131072 {
-		// Check compressed data compatibility.
-		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			log.Warn("EstimateBatchL1CommitBatchSizeAndBlobSize: compressed data compatibility check failed", "err", err, "uncompressedBlobBytes", hex.EncodeToString(batchBytes), "compressedBlobBytes", hex.EncodeToString(blobBytes))
-			return 0, 0, &encoding.CompressedDataCompatibilityError{Err: err}
-		}
-	}
 	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+}
+
+// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
+func CheckChunkCompressedDataCompatibility(c *encoding.Chunk) (bool, error) {
+	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
+	if err != nil {
+		return false, err
+	}
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return false, err
+	}
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(batchBytes) <= 131072 {
+		return true, nil
+	}
+	if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+		log.Warn("CheckChunkCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+		return false, nil
+	}
+	return true, nil
+}
+
+// CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
+func CheckBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
+	batchBytes, err := constructBatchPayload(b.Chunks)
+	if err != nil {
+		return false, err
+	}
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return false, err
+	}
+	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
+	if len(batchBytes) <= 131072 {
+		return true, nil
+	}
+	if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+		log.Warn("CheckBatchCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+		return false, nil
+	}
+	return true, nil
 }
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
@@ -378,7 +406,7 @@ func constructBatchPayload(chunks []*encoding.Chunk) ([]byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
-	// the raw (un-compressed and un-padded) blob payload
+	// batchBytes represents the raw (un-compressed and un-padded) blob payload
 	batchBytes := make([]byte, metadataLength)
 
 	// batch metadata: num_chunks
