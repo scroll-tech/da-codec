@@ -898,7 +898,8 @@ func TestCodecV3DABatchJSONMarshalUnmarshal(t *testing.T) {
 		assert.Equal(t, common.HexToHash("0x0120096572a3007f75c2a3ff82fa652976eae1c9428ec87ec258a8dcc84f488e"), batch.BlobVersionedHash)
 		assert.Equal(t, common.HexToHash("0xc37d3f6881f0ca6b02b1dc071483e02d0fe88cf2ff3663bb1ba9aa0dc034faee"), batch.ParentBatchHash)
 		assert.Equal(t, uint64(1721130505), batch.LastBlockTimestamp)
-		assert.Equal(t, common.Hex2Bytes("496b144866cffedfd71423639984bf0d9ad4309ff7e35693f1baef3cdaf1471e5eba7d42db109bfa124d1bc4dbcb421944b8aae6eae13a9d55eb460ce402785b"), batch.BlobDataProof[:])
+		assert.Equal(t, common.HexToHash("0x496b144866cffedfd71423639984bf0d9ad4309ff7e35693f1baef3cdaf1471e"), batch.BlobDataProof[0])
+		assert.Equal(t, common.HexToHash("0x5eba7d42db109bfa124d1bc4dbcb421944b8aae6eae13a9d55eb460ce402785b"), batch.BlobDataProof[1])
 
 		batchHash := batch.Hash()
 
@@ -944,7 +945,8 @@ func TestCodecV3DABatchJSONMarshalUnmarshal(t *testing.T) {
 		assert.Equal(t, uint64(1720174236), batch.LastBlockTimestamp)
 		assert.Equal(t, common.HexToHash("0xa1a518fa8e636dcb736629c296ed10341536c4cf850a3bc0a808d8d66d7f1ee6"), batch.DataHash)
 		assert.Equal(t, common.HexToHash("0x01c61b784ba4cd0fd398717fdc3470729d1a28d70632d520174c9e47614c80e1"), batch.BlobVersionedHash)
-		assert.Equal(t, common.Hex2Bytes("1ee03153fd007529c214a68934b2cfd51e8586bd142e157564328946a0fc8899118e196a9432c84c53db5a5a7bfbe13ef1ff8ffdba12fbccaf6360110eb71a10"), batch.BlobDataProof[:])
+		assert.Equal(t, common.HexToHash("0x1ee03153fd007529c214a68934b2cfd51e8586bd142e157564328946a0fc8899"), batch.BlobDataProof[0])
+		assert.Equal(t, common.HexToHash("0x118e196a9432c84c53db5a5a7bfbe13ef1ff8ffdba12fbccaf6360110eb71a10"), batch.BlobDataProof[1])
 
 		batchHash := batch.Hash()
 

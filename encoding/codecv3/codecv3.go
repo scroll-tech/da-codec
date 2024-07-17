@@ -3,7 +3,6 @@ package codecv3
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -28,64 +27,19 @@ type DAChunk = codecv2.DAChunk
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
 	// header
-	Version              uint8       `json:"version"`
-	BatchIndex           uint64      `json:"batch_index"`
-	L1MessagePopped      uint64      `json:"l1_message_popped"`
-	TotalL1MessagePopped uint64      `json:"total_l1_message_popped"`
-	DataHash             common.Hash `json:"data_hash"`
-	BlobVersionedHash    common.Hash `json:"blob_versioned_hash"`
-	ParentBatchHash      common.Hash `json:"parent_batch_hash"`
-	LastBlockTimestamp   uint64      `json:"last_block_timestamp"`
-	BlobDataProof        [64]byte    `json:"-"`
+	Version              uint8          `json:"version"`
+	BatchIndex           uint64         `json:"batch_index"`
+	L1MessagePopped      uint64         `json:"l1_message_popped"`
+	TotalL1MessagePopped uint64         `json:"total_l1_message_popped"`
+	DataHash             common.Hash    `json:"data_hash"`
+	BlobVersionedHash    common.Hash    `json:"blob_versioned_hash"`
+	ParentBatchHash      common.Hash    `json:"parent_batch_hash"`
+	LastBlockTimestamp   uint64         `json:"last_block_timestamp"`
+	BlobDataProof        [2]common.Hash `json:"blob_data_proof"`
 
 	// blob payload
 	blob *kzg4844.Blob
 	z    *kzg4844.Point
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (b *DABatch) MarshalJSON() ([]byte, error) {
-	type Alias DABatch
-	proofHex := hex.EncodeToString(b.BlobDataProof[:])
-	proofArray := []string{
-		"0x" + proofHex[:64],
-		"0x" + proofHex[64:],
-	}
-	return json.Marshal(&struct {
-		*Alias
-		BlobDataProof []string `json:"blob_data_proof"`
-	}{
-		Alias:         (*Alias)(b),
-		BlobDataProof: proofArray,
-	})
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (b *DABatch) UnmarshalJSON(data []byte) error {
-	type Alias DABatch
-	aux := &struct {
-		*Alias
-		BlobDataProof []string `json:"blob_data_proof"`
-	}{
-		Alias: (*Alias)(b),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	if len(aux.BlobDataProof) == 2 {
-		var proofHex string
-		for _, s := range aux.BlobDataProof {
-			if len(s) > 2 {
-				proofHex += s[2:]
-			}
-		}
-		proofBytes, err := hex.DecodeString(proofHex)
-		if err != nil {
-			return err
-		}
-		copy(b.BlobDataProof[:], proofBytes)
-	}
-	return nil
 }
 
 // NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
@@ -184,7 +138,10 @@ func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 		BlobVersionedHash:    common.BytesToHash(data[57:89]),
 		ParentBatchHash:      common.BytesToHash(data[89:121]),
 		LastBlockTimestamp:   binary.BigEndian.Uint64(data[121:129]),
-		BlobDataProof:        [64]byte(data[129:193]),
+		BlobDataProof: [2]common.Hash{
+			common.BytesToHash(data[129:161]),
+			common.BytesToHash(data[161:193]),
+		},
 	}
 
 	return b, nil
@@ -201,7 +158,8 @@ func (b *DABatch) Encode() []byte {
 	copy(batchBytes[57:89], b.BlobVersionedHash[:])
 	copy(batchBytes[89:121], b.ParentBatchHash[:])
 	binary.BigEndian.PutUint64(batchBytes[121:129], b.LastBlockTimestamp)
-	copy(batchBytes[129:193], b.BlobDataProof[:])
+	copy(batchBytes[129:161], b.BlobDataProof[0].Bytes())
+	copy(batchBytes[161:193], b.BlobDataProof[1].Bytes())
 	return batchBytes
 }
 
@@ -212,26 +170,26 @@ func (b *DABatch) Hash() common.Hash {
 }
 
 // blobDataProofForPICircuit computes the abi-encoded blob verification data.
-func (b *DABatch) blobDataProofForPICircuit() ([64]byte, error) {
+func (b *DABatch) blobDataProofForPICircuit() ([2]common.Hash, error) {
 	if b.blob == nil {
-		return [64]byte{}, errors.New("called blobDataProofForPICircuit with empty blob")
+		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty blob")
 	}
 	if b.z == nil {
-		return [64]byte{}, errors.New("called blobDataProofForPICircuit with empty z")
+		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty z")
 	}
 
 	_, y, err := kzg4844.ComputeProof(b.blob, *b.z)
 	if err != nil {
-		return [64]byte{}, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
+		return [2]common.Hash{}, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
 	// Memory layout of result:
 	// | z       | y       |
 	// |---------|---------|
 	// | bytes32 | bytes32 |
-	var result [64]byte
-	copy(result[0:32], b.z[:])
-	copy(result[32:64], y[:])
+	var result [2]common.Hash
+	result[0] = common.BytesToHash(b.z[:])
+	result[1] = common.BytesToHash(y[:])
 
 	return result, nil
 }
