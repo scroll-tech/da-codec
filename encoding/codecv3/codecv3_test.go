@@ -870,9 +870,14 @@ func TestCodecV3ChunkAndBatchCalldataSizeEstimation(t *testing.T) {
 }
 
 func TestCodecV3DABatchJSON(t *testing.T) {
-	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
+	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
-	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
+	originalBatch := &encoding.Batch{
+		Index:                      123,
+		TotalL1MessagePoppedBefore: 1,
+		ParentBatchHash:            common.HexToHash("0x1234"),
+		Chunks:                     []*encoding.Chunk{chunk2},
+	}
 	original, err := NewDABatch(originalBatch)
 	assert.NoError(t, err)
 
@@ -894,15 +899,15 @@ func TestCodecV3DABatchJSON(t *testing.T) {
 	assert.Equal(t, original.BlobDataProof, decoded.BlobDataProof)
 
 	jsonStr := `{
-		"Version": 3,
-		"BatchIndex": 0,
-		"L1MessagePopped": 0,
-		"TotalL1MessagePopped": 0,
-		"DataHash": "0x9f81f6879f121da5b7a37535cdb21b3d53099266de57b1fdf603ce32100ed541",
-		"BlobVersionedHash": "0x01bbc6b98d7d3783730b6208afac839ad37dcf211b9d9e7c83a5f9d02125ddd7",
-		"ParentBatchHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-		"LastBlockTimestamp": 1669364522,
-		"BlobDataProof": [9, 143, 31, 19, 111, 87, 52, 3, 152, 24, 190, 227, 82, 34, 211, 90, 150, 172, 215, 209, 113, 32, 206, 136, 22, 48, 117, 39, 209, 155, 173, 234, 23, 208, 19, 190, 94, 246, 150, 207, 188, 5, 185, 123, 179, 34, 165, 135, 67, 44, 44, 178, 60, 72, 72, 212, 215, 203, 132, 83, 196, 117, 179, 141]
+		"version": 3,
+		"batch_index": 123,
+		"l1_message_popped": 10,
+		"total_l1_message_popped": 11,
+		"data_hash": "0x4d30c9e6c212c09d4cc4c0558801ac65a43c5babe0c6f0b2a849e49ad8009266",
+		"blob_versioned_hash": "0x012e15203534ae3f4cbe1b0f58fe6db6e5c29432115a8ece6ef5550bf2ffce4c",
+		"parent_batch_hash": "0x0000000000000000000000000000000000000000000000000000000000001234",
+		"last_block_timestamp": 1684762131,
+		"blob_data_proof": "0x3e935190ba34184cc7bf61a54e030b0ec229292b3025c14c3ef7672b259521cf27c007dc51295c1fe2e05882128a62ef03fb30aaaa4415505929eac7f35424f2"
 	}`
 
 	var expected DABatch

@@ -3,6 +3,7 @@ package codecv3
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -27,19 +28,53 @@ type DAChunk = codecv2.DAChunk
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
 	// header
-	Version              uint8
-	BatchIndex           uint64
-	L1MessagePopped      uint64
-	TotalL1MessagePopped uint64
-	DataHash             common.Hash
-	BlobVersionedHash    common.Hash
-	ParentBatchHash      common.Hash
-	LastBlockTimestamp   uint64
-	BlobDataProof        [64]byte
+	Version              uint8       `json:"version"`
+	BatchIndex           uint64      `json:"batch_index"`
+	L1MessagePopped      uint64      `json:"l1_message_popped"`
+	TotalL1MessagePopped uint64      `json:"total_l1_message_popped"`
+	DataHash             common.Hash `json:"data_hash"`
+	BlobVersionedHash    common.Hash `json:"blob_versioned_hash"`
+	ParentBatchHash      common.Hash `json:"parent_batch_hash"`
+	LastBlockTimestamp   uint64      `json:"last_block_timestamp"`
+	BlobDataProof        [64]byte    `json:"-"`
 
 	// blob payload
 	blob *kzg4844.Blob
 	z    *kzg4844.Point
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (b *DABatch) MarshalJSON() ([]byte, error) {
+	type Alias DABatch
+	return json.Marshal(&struct {
+		*Alias
+		BlobDataProof string `json:"blob_data_proof"`
+	}{
+		Alias:         (*Alias)(b),
+		BlobDataProof: "0x" + hex.EncodeToString(b.BlobDataProof[:]),
+	})
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (b *DABatch) UnmarshalJSON(data []byte) error {
+	type Alias DABatch
+	aux := &struct {
+		*Alias
+		BlobDataProof string `json:"blob_data_proof"`
+	}{
+		Alias: (*Alias)(b),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if len(aux.BlobDataProof) > 2 {
+		proofBytes, err := hex.DecodeString(aux.BlobDataProof[2:])
+		if err != nil {
+			return err
+		}
+		copy(b.BlobDataProof[:], proofBytes)
+	}
+	return nil
 }
 
 // NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
