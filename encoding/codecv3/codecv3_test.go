@@ -963,6 +963,53 @@ func TestCodecV3DABatchJSONMarshalUnmarshal(t *testing.T) {
 
 		assert.Equal(t, batch, decodedBatch)
 	})
+
+	t.Run("Case 3", func(t *testing.T) {
+		jsonStr := `{
+			"version": 3,
+			"batch_index": 293205,
+			"l1_message_popped": 0,
+			"total_l1_message_popped": 904737,
+			"data_hash": "0x84786e890c015721a37f02a010bd2b84eaf4363cdf04831628a38ddbf497d0bf",
+			"blob_versioned_hash": "0x013c7e2c9ee9cd6511e8952e55ce5568832f8be3864de823d4ead5f6dfd382ae",
+			"parent_batch_hash": "0x053c0f8b8bea2f7f98dd9dcdc743f1059ca664b2b72a21381b7184dd8aa922e0",
+			"last_block_timestamp": 1721129563,
+			"blob_data_proof": [
+				"0x519fb200d451fea8623ea1bdb15d8138cea68712792a92b9cf1f79dae6df5b54",
+				"0x6d50a85330192c8e835cbd6bcdff0f2f23b0b3822e4e0319c92dafd70f0e21da"
+			]
+		}`
+
+		var batch DABatch
+		err := json.Unmarshal([]byte(jsonStr), &batch)
+		require.NoError(t, err)
+
+		assert.Equal(t, uint8(3), batch.Version)
+		assert.Equal(t, uint64(293205), batch.BatchIndex)
+		assert.Equal(t, uint64(0), batch.L1MessagePopped)
+		assert.Equal(t, uint64(904737), batch.TotalL1MessagePopped)
+		assert.Equal(t, common.HexToHash("0x053c0f8b8bea2f7f98dd9dcdc743f1059ca664b2b72a21381b7184dd8aa922e0"), batch.ParentBatchHash)
+		assert.Equal(t, uint64(1721129563), batch.LastBlockTimestamp)
+		assert.Equal(t, common.HexToHash("0x84786e890c015721a37f02a010bd2b84eaf4363cdf04831628a38ddbf497d0bf"), batch.DataHash)
+		assert.Equal(t, common.HexToHash("0x013c7e2c9ee9cd6511e8952e55ce5568832f8be3864de823d4ead5f6dfd382ae"), batch.BlobVersionedHash)
+		assert.Equal(t, common.HexToHash("0x519fb200d451fea8623ea1bdb15d8138cea68712792a92b9cf1f79dae6df5b54"), batch.BlobDataProof[0])
+		assert.Equal(t, common.HexToHash("0x6d50a85330192c8e835cbd6bcdff0f2f23b0b3822e4e0319c92dafd70f0e21da"), batch.BlobDataProof[1])
+
+		batchHash := batch.Hash()
+
+		expectedHash := common.HexToHash("0xe86e067f78b1c29c1cc297f6d9fe670c7beea1eebb226d1b8eeb9616a2bcac7e")
+		assert.Equal(t, expectedHash, batchHash, "Batch hash does not match expected value")
+
+		// Marshal and Unmarshal test
+		data, err := json.Marshal(&batch)
+		require.NoError(t, err)
+
+		var decodedBatch DABatch
+		err = json.Unmarshal(data, &decodedBatch)
+		require.NoError(t, err)
+
+		assert.Equal(t, batch, decodedBatch)
+	})
 }
 
 func readBlockFromJSON(t *testing.T, filename string) *encoding.Block {
