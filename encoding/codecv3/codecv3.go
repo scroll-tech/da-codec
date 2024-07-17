@@ -46,12 +46,17 @@ type DABatch struct {
 // MarshalJSON implements the json.Marshaler interface.
 func (b *DABatch) MarshalJSON() ([]byte, error) {
 	type Alias DABatch
+	proofHex := hex.EncodeToString(b.BlobDataProof[:])
+	proofArray := []string{
+		"0x" + proofHex[:64],
+		"0x" + proofHex[64:],
+	}
 	return json.Marshal(&struct {
 		*Alias
-		BlobDataProof string `json:"blob_data_proof"`
+		BlobDataProof []string `json:"blob_data_proof"`
 	}{
 		Alias:         (*Alias)(b),
-		BlobDataProof: "0x" + hex.EncodeToString(b.BlobDataProof[:]),
+		BlobDataProof: proofArray,
 	})
 }
 
@@ -60,15 +65,21 @@ func (b *DABatch) UnmarshalJSON(data []byte) error {
 	type Alias DABatch
 	aux := &struct {
 		*Alias
-		BlobDataProof string `json:"blob_data_proof"`
+		BlobDataProof []string `json:"blob_data_proof"`
 	}{
 		Alias: (*Alias)(b),
 	}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	if len(aux.BlobDataProof) > 2 {
-		proofBytes, err := hex.DecodeString(aux.BlobDataProof[2:])
+	if len(aux.BlobDataProof) == 2 {
+		var proofHex string
+		for _, s := range aux.BlobDataProof {
+			if len(s) > 2 {
+				proofHex += s[2:]
+			}
+		}
+		proofBytes, err := hex.DecodeString(proofHex)
 		if err != nil {
 			return err
 		}
