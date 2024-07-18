@@ -869,55 +869,147 @@ func TestCodecV3ChunkAndBatchCalldataSizeEstimation(t *testing.T) {
 	assert.Equal(t, uint64(180), batch5CalldataSize)
 }
 
-func TestCodecV3DABatchJSON(t *testing.T) {
-	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
-	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
-	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
-	original, err := NewDABatch(originalBatch)
-	assert.NoError(t, err)
+func TestCodecV3DABatchJSONMarshalUnmarshal(t *testing.T) {
+	t.Run("Case 1", func(t *testing.T) {
+		jsonStr := `{
+			"version": 3,
+			"batch_index": 293212,
+			"l1_message_popped": 7,
+			"total_l1_message_popped": 904750,
+			"data_hash": "0xa261ff31f8f78c19f65d14d6394eb911d53a3a3add9a9691b211caa5809be450",
+			"blob_versioned_hash": "0x0120096572a3007f75c2a3ff82fa652976eae1c9428ec87ec258a8dcc84f488e",
+			"parent_batch_hash": "0xc37d3f6881f0ca6b02b1dc071483e02d0fe88cf2ff3663bb1ba9aa0dc034faee",
+			"last_block_timestamp": 1721130505,
+			"blob_data_proof": [
+				"0x496b144866cffedfd71423639984bf0d9ad4309ff7e35693f1baef3cdaf1471e",
+				"0x5eba7d42db109bfa124d1bc4dbcb421944b8aae6eae13a9d55eb460ce402785b"
+			]
+		}`
 
-	data, err := json.Marshal(original)
-	require.NoError(t, err)
+		var batch DABatch
+		err := json.Unmarshal([]byte(jsonStr), &batch)
+		require.NoError(t, err)
 
-	var decoded DABatch
-	err = json.Unmarshal(data, &decoded)
-	require.NoError(t, err)
+		assert.Equal(t, uint8(3), batch.Version)
+		assert.Equal(t, uint64(293212), batch.BatchIndex)
+		assert.Equal(t, uint64(7), batch.L1MessagePopped)
+		assert.Equal(t, uint64(904750), batch.TotalL1MessagePopped)
+		assert.Equal(t, common.HexToHash("0xa261ff31f8f78c19f65d14d6394eb911d53a3a3add9a9691b211caa5809be450"), batch.DataHash)
+		assert.Equal(t, common.HexToHash("0x0120096572a3007f75c2a3ff82fa652976eae1c9428ec87ec258a8dcc84f488e"), batch.BlobVersionedHash)
+		assert.Equal(t, common.HexToHash("0xc37d3f6881f0ca6b02b1dc071483e02d0fe88cf2ff3663bb1ba9aa0dc034faee"), batch.ParentBatchHash)
+		assert.Equal(t, uint64(1721130505), batch.LastBlockTimestamp)
+		assert.Equal(t, common.HexToHash("0x496b144866cffedfd71423639984bf0d9ad4309ff7e35693f1baef3cdaf1471e"), batch.BlobDataProof[0])
+		assert.Equal(t, common.HexToHash("0x5eba7d42db109bfa124d1bc4dbcb421944b8aae6eae13a9d55eb460ce402785b"), batch.BlobDataProof[1])
 
-	assert.Equal(t, original.Version, decoded.Version)
-	assert.Equal(t, original.BatchIndex, decoded.BatchIndex)
-	assert.Equal(t, original.L1MessagePopped, decoded.L1MessagePopped)
-	assert.Equal(t, original.TotalL1MessagePopped, decoded.TotalL1MessagePopped)
-	assert.Equal(t, original.DataHash, decoded.DataHash)
-	assert.Equal(t, original.BlobVersionedHash, decoded.BlobVersionedHash)
-	assert.Equal(t, original.ParentBatchHash, decoded.ParentBatchHash)
-	assert.Equal(t, original.LastBlockTimestamp, decoded.LastBlockTimestamp)
-	assert.Equal(t, original.BlobDataProof, decoded.BlobDataProof)
+		batchHash := batch.Hash()
 
-	jsonStr := `{
-		"Version": 3,
-		"BatchIndex": 0,
-		"L1MessagePopped": 0,
-		"TotalL1MessagePopped": 0,
-		"DataHash": "0x9f81f6879f121da5b7a37535cdb21b3d53099266de57b1fdf603ce32100ed541",
-		"BlobVersionedHash": "0x01bbc6b98d7d3783730b6208afac839ad37dcf211b9d9e7c83a5f9d02125ddd7",
-		"ParentBatchHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-		"LastBlockTimestamp": 1669364522,
-		"BlobDataProof": [9, 143, 31, 19, 111, 87, 52, 3, 152, 24, 190, 227, 82, 34, 211, 90, 150, 172, 215, 209, 113, 32, 206, 136, 22, 48, 117, 39, 209, 155, 173, 234, 23, 208, 19, 190, 94, 246, 150, 207, 188, 5, 185, 123, 179, 34, 165, 135, 67, 44, 44, 178, 60, 72, 72, 212, 215, 203, 132, 83, 196, 117, 179, 141]
-	}`
+		expectedHash := common.HexToHash("0x6c693817a272efd00dd1323a533a114bd0a8c63b55816fde36c5784a4125441d")
+		assert.Equal(t, expectedHash, batchHash, "Batch hash does not match expected value")
 
-	var expected DABatch
-	err = json.Unmarshal([]byte(jsonStr), &expected)
-	require.NoError(t, err)
+		// Marshal and Unmarshal test
+		data, err := json.Marshal(&batch)
+		require.NoError(t, err)
 
-	assert.Equal(t, expected.Version, decoded.Version)
-	assert.Equal(t, expected.BatchIndex, decoded.BatchIndex)
-	assert.Equal(t, expected.L1MessagePopped, decoded.L1MessagePopped)
-	assert.Equal(t, expected.TotalL1MessagePopped, decoded.TotalL1MessagePopped)
-	assert.Equal(t, expected.DataHash, decoded.DataHash)
-	assert.Equal(t, expected.BlobVersionedHash, decoded.BlobVersionedHash)
-	assert.Equal(t, expected.ParentBatchHash, decoded.ParentBatchHash)
-	assert.Equal(t, expected.LastBlockTimestamp, decoded.LastBlockTimestamp)
-	assert.Equal(t, expected.BlobDataProof, decoded.BlobDataProof)
+		var decodedBatch DABatch
+		err = json.Unmarshal(data, &decodedBatch)
+		require.NoError(t, err)
+
+		assert.Equal(t, batch, decodedBatch)
+	})
+
+	t.Run("Case 2", func(t *testing.T) {
+		jsonStr := `{
+			"version": 4,
+			"batch_index": 123,
+			"l1_message_popped": 0,
+			"total_l1_message_popped": 0,
+			"parent_batch_hash": "0xabacadaeaf000000000000000000000000000000000000000000000000000000",
+			"last_block_timestamp": 1720174236,
+			"data_hash": "0xa1a518fa8e636dcb736629c296ed10341536c4cf850a3bc0a808d8d66d7f1ee6",
+			"blob_versioned_hash": "0x01c61b784ba4cd0fd398717fdc3470729d1a28d70632d520174c9e47614c80e1",
+			"blob_data_proof": [
+				"0x1ee03153fd007529c214a68934b2cfd51e8586bd142e157564328946a0fc8899",
+				"0x118e196a9432c84c53db5a5a7bfbe13ef1ff8ffdba12fbccaf6360110eb71a10"
+			]
+		}`
+
+		var batch DABatch
+		err := json.Unmarshal([]byte(jsonStr), &batch)
+		require.NoError(t, err)
+
+		assert.Equal(t, uint8(4), batch.Version)
+		assert.Equal(t, uint64(123), batch.BatchIndex)
+		assert.Equal(t, uint64(0), batch.L1MessagePopped)
+		assert.Equal(t, uint64(0), batch.TotalL1MessagePopped)
+		assert.Equal(t, common.HexToHash("0xabacadaeaf000000000000000000000000000000000000000000000000000000"), batch.ParentBatchHash)
+		assert.Equal(t, uint64(1720174236), batch.LastBlockTimestamp)
+		assert.Equal(t, common.HexToHash("0xa1a518fa8e636dcb736629c296ed10341536c4cf850a3bc0a808d8d66d7f1ee6"), batch.DataHash)
+		assert.Equal(t, common.HexToHash("0x01c61b784ba4cd0fd398717fdc3470729d1a28d70632d520174c9e47614c80e1"), batch.BlobVersionedHash)
+		assert.Equal(t, common.HexToHash("0x1ee03153fd007529c214a68934b2cfd51e8586bd142e157564328946a0fc8899"), batch.BlobDataProof[0])
+		assert.Equal(t, common.HexToHash("0x118e196a9432c84c53db5a5a7bfbe13ef1ff8ffdba12fbccaf6360110eb71a10"), batch.BlobDataProof[1])
+
+		batchHash := batch.Hash()
+
+		expectedHash := common.HexToHash("0x005661faf2444824b8a3fe1a53958195b197436a0df81b5d1677287bcd1c1923")
+		assert.Equal(t, expectedHash, batchHash, "Batch hash does not match expected value")
+
+		// Marshal and Unmarshal test
+		data, err := json.Marshal(&batch)
+		require.NoError(t, err)
+
+		var decodedBatch DABatch
+		err = json.Unmarshal(data, &decodedBatch)
+		require.NoError(t, err)
+
+		assert.Equal(t, batch, decodedBatch)
+	})
+
+	t.Run("Case 3", func(t *testing.T) {
+		jsonStr := `{
+			"version": 3,
+			"batch_index": 293205,
+			"l1_message_popped": 0,
+			"total_l1_message_popped": 904737,
+			"data_hash": "0x84786e890c015721a37f02a010bd2b84eaf4363cdf04831628a38ddbf497d0bf",
+			"blob_versioned_hash": "0x013c7e2c9ee9cd6511e8952e55ce5568832f8be3864de823d4ead5f6dfd382ae",
+			"parent_batch_hash": "0x053c0f8b8bea2f7f98dd9dcdc743f1059ca664b2b72a21381b7184dd8aa922e0",
+			"last_block_timestamp": 1721129563,
+			"blob_data_proof": [
+				"0x519fb200d451fea8623ea1bdb15d8138cea68712792a92b9cf1f79dae6df5b54",
+				"0x6d50a85330192c8e835cbd6bcdff0f2f23b0b3822e4e0319c92dafd70f0e21da"
+			]
+		}`
+
+		var batch DABatch
+		err := json.Unmarshal([]byte(jsonStr), &batch)
+		require.NoError(t, err)
+
+		assert.Equal(t, uint8(3), batch.Version)
+		assert.Equal(t, uint64(293205), batch.BatchIndex)
+		assert.Equal(t, uint64(0), batch.L1MessagePopped)
+		assert.Equal(t, uint64(904737), batch.TotalL1MessagePopped)
+		assert.Equal(t, common.HexToHash("0x053c0f8b8bea2f7f98dd9dcdc743f1059ca664b2b72a21381b7184dd8aa922e0"), batch.ParentBatchHash)
+		assert.Equal(t, uint64(1721129563), batch.LastBlockTimestamp)
+		assert.Equal(t, common.HexToHash("0x84786e890c015721a37f02a010bd2b84eaf4363cdf04831628a38ddbf497d0bf"), batch.DataHash)
+		assert.Equal(t, common.HexToHash("0x013c7e2c9ee9cd6511e8952e55ce5568832f8be3864de823d4ead5f6dfd382ae"), batch.BlobVersionedHash)
+		assert.Equal(t, common.HexToHash("0x519fb200d451fea8623ea1bdb15d8138cea68712792a92b9cf1f79dae6df5b54"), batch.BlobDataProof[0])
+		assert.Equal(t, common.HexToHash("0x6d50a85330192c8e835cbd6bcdff0f2f23b0b3822e4e0319c92dafd70f0e21da"), batch.BlobDataProof[1])
+
+		batchHash := batch.Hash()
+
+		expectedHash := common.HexToHash("0xe86e067f78b1c29c1cc297f6d9fe670c7beea1eebb226d1b8eeb9616a2bcac7e")
+		assert.Equal(t, expectedHash, batchHash, "Batch hash does not match expected value")
+
+		// Marshal and Unmarshal test
+		data, err := json.Marshal(&batch)
+		require.NoError(t, err)
+
+		var decodedBatch DABatch
+		err = json.Unmarshal(data, &decodedBatch)
+		require.NoError(t, err)
+
+		assert.Equal(t, batch, decodedBatch)
+	})
 }
 
 func readBlockFromJSON(t *testing.T, filename string) *encoding.Block {
