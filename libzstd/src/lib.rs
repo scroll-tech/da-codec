@@ -2,7 +2,7 @@ use core::slice;
 use std::io::Write;
 use std::os::raw::{c_char, c_uchar};
 use std::ptr::null;
-use zstd_encoder::{init_zstd_encoder, N_BLOCK_SIZE_TARGET};
+use zstd_encoder::{init_zstd_encoder};
 
 fn out_as_err(err: &str, out: &mut [u8]) -> *const c_char {
     let msg = if err.len() + 1 > out.len() {
@@ -29,7 +29,7 @@ pub unsafe extern "C" fn compress_scroll_batch_bytes(
     let src = unsafe { slice::from_raw_parts(src, src_size as usize) };
     let out = unsafe { slice::from_raw_parts_mut(output_buf, buf_size as usize) };
 
-    let mut encoder = init_zstd_encoder(N_BLOCK_SIZE_TARGET);
+    let mut encoder = init_zstd_encoder();
     encoder.set_pledged_src_size(Some(src.len() as u64)).expect(
         "compress_scroll_batch_bytes: failed to set pledged src size, should be infallible",
     );

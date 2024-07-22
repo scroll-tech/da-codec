@@ -9,14 +9,11 @@ pub use zstd;
 #[allow(dead_code)]
 pub const CL_WINDOW_LIMIT: usize = 18;
 
-/// zstd block size target.
-pub const N_BLOCK_SIZE_TARGET: u32 = 248 * 1024;
-
 /// Maximum number of blocks that we can expect in the encoded data.
 pub const N_MAX_BLOCKS: u64 = 10;
 
 /// Zstd encoder configuration
-pub fn init_zstd_encoder(target_block_size: u32) -> Encoder<'static, Vec<u8>> {
+pub fn init_zstd_encoder() -> Encoder<'static, Vec<u8>> {
     let mut encoder = Encoder::new(Vec::new(), 0).expect("infallible");
 
     // disable compression of literals, i.e. literals will be raw bytes.
@@ -26,10 +23,6 @@ pub fn init_zstd_encoder(target_block_size: u32) -> Encoder<'static, Vec<u8>> {
     // with a hack in zstd we can set window log <= 18 with single segment kept
     encoder
         .set_parameter(CParameter::WindowLog(18))
-        .expect("infallible");
-    // set target block size to fit within a single block.
-    encoder
-        .set_parameter(CParameter::TargetCBlockSize(target_block_size))
         .expect("infallible");
     // do not include the checksum at the end of the encoded data.
     encoder.include_checksum(false).expect("infallible");
