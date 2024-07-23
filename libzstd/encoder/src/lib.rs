@@ -4,10 +4,10 @@ use zstd::zstd_safe::{CParameter, ParamSwitch};
 // re-export zstd
 pub use zstd;
 
-// we use offset window no more than = 17
+// we use offset window no more than = 22
 // TODO: use for multi-block zstd.
 #[allow(dead_code)]
-pub const CL_WINDOW_LIMIT: usize = 17;
+pub const CL_WINDOW_LIMIT: usize = 22;
 
 /// zstd block size target.
 pub const N_BLOCK_SIZE_TARGET: u32 = 124 * 1024;
@@ -17,7 +17,7 @@ pub const N_MAX_BLOCKS: u64 = 10;
 
 /// Zstd encoder configuration
 pub fn init_zstd_encoder(target_block_size: u32) -> Encoder<'static, Vec<u8>> {
-    let mut encoder = Encoder::new(Vec::new(), 22).expect("infallible");
+    let mut encoder = Encoder::new(Vec::new(), 1).expect("infallible");
 
     // disable compression of literals, i.e. literals will be raw bytes.
     encoder
