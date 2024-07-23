@@ -17,7 +17,7 @@ pub const N_MAX_BLOCKS: u64 = 10;
 
 /// Zstd encoder configuration
 pub fn init_zstd_encoder(target_block_size: u32) -> Encoder<'static, Vec<u8>> {
-    let mut encoder = Encoder::new(Vec::new(), 19).expect("infallible");
+    let mut encoder = Encoder::new(Vec::new(), 23).expect("infallible");
 
     // disable compression of literals, i.e. literals will be raw bytes.
     encoder
