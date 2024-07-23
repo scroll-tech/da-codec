@@ -4,25 +4,32 @@ use zstd::zstd_safe::{CParameter, ParamSwitch};
 // re-export zstd
 pub use zstd;
 
-// we use offset window no more than = 25
+// we use offset window no more than = 17
 // TODO: use for multi-block zstd.
 #[allow(dead_code)]
-pub const CL_WINDOW_LIMIT: usize = 25;
+pub const CL_WINDOW_LIMIT: usize = 17;
+
+/// zstd block size target.
+pub const N_BLOCK_SIZE_TARGET: u32 = 124 * 1024;
 
 /// Maximum number of blocks that we can expect in the encoded data.
 pub const N_MAX_BLOCKS: u64 = 10;
 
 /// Zstd encoder configuration
-pub fn init_zstd_encoder() -> Encoder<'static, Vec<u8>> {
-    let mut encoder = Encoder::new(Vec::new(), 3).expect("infallible");
+pub fn init_zstd_encoder(target_block_size: u32) -> Encoder<'static, Vec<u8>> {
+    let mut encoder = Encoder::new(Vec::new(), 0).expect("infallible");
 
     // disable compression of literals, i.e. literals will be raw bytes.
     encoder
         .set_parameter(CParameter::LiteralCompressionMode(ParamSwitch::Disable))
         .expect("infallible");
-    // with a hack in zstd we can set window log <= 25 with single segment kept
+    // with a hack in zstd we can set window log <= 17 with single segment kept
     encoder
-        .set_parameter(CParameter::WindowLog(25))
+        .set_parameter(CParameter::WindowLog(17))
+        .expect("infallible");
+    // set target block size to fit within a single block.
+    encoder
+        .set_parameter(CParameter::TargetCBlockSize(target_block_size))
         .expect("infallible");
     // do not include the checksum at the end of the encoded data.
     encoder.include_checksum(false).expect("infallible");
