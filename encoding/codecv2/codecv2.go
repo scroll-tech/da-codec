@@ -17,6 +17,7 @@ import (
 	"unsafe"
 
 	"github.com/klauspost/compress/zstd"
+
 	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -42,7 +43,7 @@ type DABlock = codecv1.DABlock
 type DAChunk = codecv1.DAChunk
 
 // DAChunkRawTx groups consecutive DABlocks with their transactions.
-type DAChunkRawTx codecv1.DAChunkRawTx
+type DAChunkRawTx = codecv1.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
