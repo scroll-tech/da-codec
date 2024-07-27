@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"unsafe"
 
+	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
@@ -291,13 +292,12 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 	// |---------|---------|----------------|-----------|
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
-	result := make([]byte, 32+32+48+48)
-	copy(result[0:32], b.z[:])
-	copy(result[32:64], y[:])
-	copy(result[64:112], commitment[:])
-	copy(result[112:160], proof[:])
-
-	return result, nil
+	values := []interface{}{*b.z, y, commitment, proof}
+	blobDataProofArgs, err := GetBlobDataProofArgs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
+	}
+	return blobDataProofArgs.Pack(values...)
 }
 
 // Blob returns the blob of the batch.
@@ -458,4 +458,9 @@ func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
 // where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
 func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 	return codecv1.CalculatePaddedBlobSize(dataSize)
+}
+
+// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
+func GetBlobDataProofArgs() (*abi.Arguments, error) {
+	return codecv1.GetBlobDataProofArgs()
 }
