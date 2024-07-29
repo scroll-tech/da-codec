@@ -73,38 +73,9 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 	return codecv1.NewDAChunk(chunk, totalL1MessagePoppedBefore)
 }
 
-// DecodeDAChunksRawTx takes a byte slice and decodes it into a []DAChunkRawTx.
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
 func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
-	var chunks []*DAChunkRawTx
-	for _, chunk := range bytes {
-		if len(chunk) < 1 {
-			return nil, fmt.Errorf("invalid chunk, length is less than 1")
-		}
-
-		numBlocks := int(chunk[0])
-		if len(chunk) < 1+numBlocks*BlockContextByteSize {
-			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*BlockContextByteSize)
-		}
-
-		blocks := make([]*DABlock, numBlocks)
-		for i := 0; i < numBlocks; i++ {
-			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
-			endIdx := startIdx + BlockContextByteSize
-			blocks[i] = &DABlock{}
-			err := blocks[i].Decode(chunk[startIdx:endIdx])
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		var transactions []types.Transactions
-
-		chunks = append(chunks, &DAChunkRawTx{
-			Blocks:       blocks,
-			Transactions: transactions,
-		})
-	}
-	return chunks, nil
+	return codecv1.DecodeDAChunksRawTx(bytes)
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
@@ -287,7 +258,7 @@ func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 		curIndex := 0
 		for _, block := range chunk.Blocks {
 			var blockTransactions types.Transactions
-			var txNum = int(block.NumTransactions - block.NumL1Messages)
+			txNum := int(block.NumTransactions - block.NumL1Messages)
 			for i := 0; i < txNum; i++ {
 				tx, nextIndex, err := codecv1.GetNextTx(chunkBytes, curIndex)
 				if err != nil {
@@ -564,6 +535,7 @@ func decompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
 	for {
 		i, err := zr.Read(batchOfBytes)
 		res = append(res, batchOfBytes[:i]...) // append already decoded bytes even if we meet error
+		// the error here is supposed to be EOF or similar that indicates that buffer has been read until the
 		if i < readBatchSize || err != nil {
 			break
 		}

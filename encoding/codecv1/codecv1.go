@@ -103,7 +103,7 @@ func (c *DAChunk) Encode() []byte {
 	return chunkBytes
 }
 
-// DecodeDAChunksRawTx takes a byte slice and decodes it into a []DAChunkRawTx.
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
 func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 	var chunks []*DAChunkRawTx
 	for _, chunk := range bytes {
@@ -131,7 +131,7 @@ func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 
 		chunks = append(chunks, &DAChunkRawTx{
 			Blocks:       blocks,
-			Transactions: transactions,
+			Transactions: transactions, // Transactions field is still empty in the phase of DecodeDAChunksRawTx.
 		})
 	}
 	return chunks, nil
@@ -371,7 +371,7 @@ func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 		curIndex := 0
 		for _, block := range chunk.Blocks {
 			var blockTransactions types.Transactions
-			var txNum = int(block.NumTransactions - block.NumL1Messages)
+			txNum := int(block.NumTransactions - block.NumL1Messages)
 			for i := 0; i < txNum; i++ {
 				tx, nextIndex, err := GetNextTx(chunkBytes, curIndex)
 				if err != nil {

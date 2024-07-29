@@ -27,7 +27,7 @@ type DABlock = codecv2.DABlock
 type DAChunk = codecv2.DAChunk
 
 // DAChunkRawTx groups consecutive DABlocks with their transactions.
-type DAChunkRawTx codecv2.DAChunkRawTx
+type DAChunkRawTx = codecv2.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
@@ -57,8 +57,8 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 	return codecv2.NewDAChunk(chunk, totalL1MessagePoppedBefore)
 }
 
-// DecodeDAChunksRawTx takes a byte slice and decodes it into a []DAChunkRawTx.
-func DecodeDAChunksRawTx(bytes [][]byte) ([]*codecv2.DAChunkRawTx, error) {
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
+func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 	return codecv2.DecodeDAChunksRawTx(bytes)
 }
 
@@ -133,7 +133,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 }
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
-func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*codecv2.DAChunkRawTx) error {
+func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	return codecv2.DecodeTxsFromBlob(blob, chunks)
 }
 

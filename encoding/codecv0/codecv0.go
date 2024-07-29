@@ -187,7 +187,7 @@ func (c *DAChunk) Encode() ([]byte, error) {
 	return chunkBytes, nil
 }
 
-// DecodeDAChunksRawTx takes a byte slice and decodes it into a []DAChunkRawTx.
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
 func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 	var chunks []*DAChunkRawTx
 	for _, chunk := range bytes {
@@ -215,7 +215,7 @@ func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 		currentIndex := 1 + numBlocks*BlockContextByteSize
 		for _, block := range blocks {
 			var blockTransactions types.Transactions
-			var txNum int = int(block.NumTransactions - block.NumL1Messages)
+			txNum := int(block.NumTransactions - block.NumL1Messages)
 			for i := 0; i < txNum; i++ {
 				if len(chunk) < currentIndex+4 {
 					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected length: %v", len(chunk), currentIndex+4)
