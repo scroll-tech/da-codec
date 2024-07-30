@@ -185,7 +185,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	}
 
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) > 131072 {
+	if !useMockTxData && len(batchBytes) > 131072 {
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
