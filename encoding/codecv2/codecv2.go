@@ -7,6 +7,7 @@ char* compress_scroll_batch_bytes(uint8_t* src, uint64_t src_size, uint8_t* outp
 import "C"
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -14,6 +15,8 @@ import (
 	"fmt"
 	"math/big"
 	"unsafe"
+
+	"github.com/klauspost/compress/zstd"
 
 	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
@@ -32,11 +35,16 @@ var BLSModulus = codecv1.BLSModulus
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 45
 
+const BlockContextByteSize = codecv1.BlockContextByteSize
+
 // DABlock represents a Data Availability Block.
 type DABlock = codecv1.DABlock
 
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk = codecv1.DAChunk
+
+// DAChunkRawTx groups consecutive DABlocks with their transactions.
+type DAChunkRawTx = codecv1.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
@@ -63,6 +71,11 @@ func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABl
 // NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
 func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
 	return codecv1.NewDAChunk(chunk, totalL1MessagePoppedBefore)
+}
+
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
+func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
+	return codecv1.DecodeDAChunksRawTx(bytes)
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
@@ -220,6 +233,46 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, nil
+}
+
+// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+	compressedBytes := codecv1.BytesFromBlobCanonical(blob)
+	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
+
+	blobBytes, err := decompressScrollBatchBytes(append(magics, compressedBytes[:]...))
+	if err != nil {
+		return err
+	}
+
+	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
+	if numChunks != len(chunks) {
+		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
+	}
+	index := 2 + MaxNumChunks*4
+	for chunkID, chunk := range chunks {
+		var transactions []types.Transactions
+		chunkSize := int(binary.BigEndian.Uint32(blobBytes[2+4*chunkID : 2+4*chunkID+4]))
+
+		chunkBytes := blobBytes[index : index+chunkSize]
+		curIndex := 0
+		for _, block := range chunk.Blocks {
+			var blockTransactions types.Transactions
+			txNum := int(block.NumTransactions - block.NumL1Messages)
+			for i := 0; i < txNum; i++ {
+				tx, nextIndex, err := codecv1.GetNextTx(chunkBytes, curIndex)
+				if err != nil {
+					return fmt.Errorf("couldn't decode next tx from blob bytes: %w, index: %d", err, index+curIndex+4)
+				}
+				curIndex = nextIndex
+				blockTransactions = append(blockTransactions, tx)
+			}
+			transactions = append(transactions, blockTransactions)
+		}
+		chunk.Transactions = transactions
+		index += chunkSize
+	}
+	return nil
 }
 
 // MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
@@ -463,4 +516,33 @@ func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 // GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
 func GetBlobDataProofArgs() (*abi.Arguments, error) {
 	return codecv1.GetBlobDataProofArgs()
+}
+
+// decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
+func decompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
+	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
+	var res []byte
+	readBatchSize := 131072
+	batchOfBytes := make([]byte, readBatchSize)
+
+	r := bytes.NewReader(compressedBytes)
+	zr, err := zstd.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+
+	for {
+		i, err := zr.Read(batchOfBytes)
+		res = append(res, batchOfBytes[:i]...) // append already decoded bytes even if we meet error
+		// the error here is supposed to be EOF or similar that indicates that buffer has been read until the end
+		// we should return all data that read by this moment
+		if i < readBatchSize || err != nil {
+			break
+		}
+	}
+	if len(res) == 0 {
+		return nil, fmt.Errorf("failed to decompress blob bytes")
+	}
+	return res, nil
 }
