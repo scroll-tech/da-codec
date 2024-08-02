@@ -26,7 +26,7 @@ var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 15
 
-const BlockContextByteSize = 60
+const BlockContextByteSize = codecv0.BlockContextByteSize
 
 // DABlock represents a Data Availability Block.
 type DABlock = codecv0.DABlock

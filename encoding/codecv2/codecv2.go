@@ -35,7 +35,7 @@ var BLSModulus = codecv1.BLSModulus
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 45
 
-const BlockContextByteSize = 60
+const BlockContextByteSize = codecv1.BlockContextByteSize
 
 // DABlock represents a Data Availability Block.
 type DABlock = codecv1.DABlock
