@@ -89,7 +89,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
+	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, false /* no conditional encode */, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore u
 }
 
 // ConstructBlobPayload constructs the 4844 blob payload.
-func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+func ConstructBlobPayload(chunks []*encoding.Chunk, conditionalEncode bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -182,6 +182,20 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	blobBytes, err := compressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
+	}
+
+	if conditionalEncode {
+		encoded := len(blobBytes) < len(batchBytes)
+		if encoded {
+			blobBytes = append([]byte{1}, blobBytes...)
+		} else {
+			blobBytes = append([]byte{0}, batchBytes...)
+		}
+	}
+
+	if len(blobBytes) > 126976 {
+		log.Error("ConstructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
+		return nil, common.Hash{}, nil, errors.New("Blob payload exceeds maximum size")
 	}
 
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
@@ -306,7 +320,7 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 }
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
-func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint64, error) {
+func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk, conditionalEncode bool) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
 	if err != nil {
 		return 0, 0, err
@@ -315,11 +329,15 @@ func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint6
 	if err != nil {
 		return 0, 0, err
 	}
-	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	blobBytesLen := uint64(len(blobBytes))
+	if conditionalEncode {
+		blobBytesLen += 1
+	}
+	return uint64(len(batchBytes)), CalculatePaddedBlobSize(blobBytesLen), nil
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
-func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint64, error) {
+func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch, conditionalEncode bool) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayload(b.Chunks)
 	if err != nil {
 		return 0, 0, err
@@ -328,7 +346,11 @@ func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint6
 	if err != nil {
 		return 0, 0, err
 	}
-	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	blobBytesLen := uint64(len(blobBytes))
+	if conditionalEncode {
+		blobBytesLen += 1
+	}
+	return uint64(len(batchBytes)), CalculatePaddedBlobSize(blobBytesLen), nil
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.

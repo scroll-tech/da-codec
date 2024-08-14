@@ -674,7 +674,7 @@ func TestCodecV2BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, true /* use mock */)
+		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, false /* no conditional encode */, true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
@@ -870,52 +870,52 @@ func TestCodecV2BatchSkipBitmap(t *testing.T) {
 func TestCodecV2ChunkAndBatchBlobSizeEstimation(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
-	chunk2BatchBytesSize, chunk2BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk2)
+	chunk2BatchBytesSize, chunk2BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk2, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(412), chunk2BatchBytesSize)
 	assert.Equal(t, uint64(237), chunk2BlobSize)
 	batch2 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
-	batch2BatchBytesSize, batch2BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch2)
+	batch2BatchBytesSize, batch2BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch2, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(412), batch2BatchBytesSize)
 	assert.Equal(t, uint64(237), batch2BlobSize)
 
 	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
 	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{trace3}}
-	chunk3BatchBytesSize, chunk3BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk3)
+	chunk3BatchBytesSize, chunk3BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk3, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(5863), chunk3BatchBytesSize)
 	assert.Equal(t, uint64(2933), chunk3BlobSize)
 	batch3 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
-	batch3BatchBytesSize, batch3BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch3)
+	batch3BatchBytesSize, batch3BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch3, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(5863), batch3BatchBytesSize)
 	assert.Equal(t, uint64(2933), batch3BlobSize)
 
 	trace4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
 	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
-	chunk4BatchBytesSize, chunk4BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk4)
+	chunk4BatchBytesSize, chunk4BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk4, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(214), chunk4BatchBytesSize)
 	assert.Equal(t, uint64(54), chunk4BlobSize)
 	batch4 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
-	blob4BatchBytesSize, batch4BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch4)
+	blob4BatchBytesSize, batch4BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch4, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(214), blob4BatchBytesSize)
 	assert.Equal(t, uint64(54), batch4BlobSize)
 
 	chunk5 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3}}
-	chunk5BatchBytesSize, chunk5BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk5)
+	chunk5BatchBytesSize, chunk5BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk5, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(6093), chunk5BatchBytesSize)
 	assert.Equal(t, uint64(3149), chunk5BlobSize)
 	chunk6 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
-	chunk6BatchBytesSize, chunk6BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk6)
+	chunk6BatchBytesSize, chunk6BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk6, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(214), chunk6BatchBytesSize)
 	assert.Equal(t, uint64(54), chunk6BlobSize)
 	batch5 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk5, chunk6}}
-	batch5BatchBytesSize, batch5BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch5)
+	batch5BatchBytesSize, batch5BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch5, false /* no conditional encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(6125), batch5BatchBytesSize)
 	assert.Equal(t, uint64(3186), batch5BlobSize)
