@@ -65,7 +65,7 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
-func NewDABatch(batch *encoding.Batch, enableEncoding bool) (*DABatch, error) {
+func NewDABatch(batch *encoding.Batch, enableEncode bool) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > MaxNumChunks {
 		return nil, errors.New("too many chunks in batch")
@@ -92,7 +92,7 @@ func NewDABatch(batch *encoding.Batch, enableEncoding bool) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, enableEncoding, false /* no mock */)
+	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, enableEncode, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore u
 }
 
 // ConstructBlobPayload constructs the 4844 blob payload.
-func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncoding bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncode bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -190,7 +190,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncoding bool, useMock
 	copy(challengePreimage[0:], hash[:])
 
 	var blobBytes []byte
-	if enableEncoding {
+	if enableEncode {
 		// blobBytes represents the compressed blob payload (batchBytes)
 		var err error
 		blobBytes, err = compressScrollBatchBytes(batchBytes)
