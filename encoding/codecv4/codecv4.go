@@ -1,4 +1,4 @@
-package codecv2
+package codecv4
 
 /*
 #include <stdint.h>
@@ -24,28 +24,30 @@ import (
 
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
+	"github.com/scroll-tech/da-codec/encoding/codecv3"
 )
 
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
-const MaxNumChunks = 45
+const MaxNumChunks = codecv3.MaxNumChunks
 
 // DABlock represents a Data Availability Block.
-type DABlock = codecv1.DABlock
+type DABlock = codecv3.DABlock
 
 // DAChunk groups consecutive DABlocks with their transactions.
-type DAChunk = codecv1.DAChunk
+type DAChunk = codecv3.DAChunk
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
 	// header
-	Version                uint8
-	BatchIndex             uint64
-	L1MessagePopped        uint64
-	TotalL1MessagePopped   uint64
-	DataHash               common.Hash
-	BlobVersionedHash      common.Hash
-	ParentBatchHash        common.Hash
-	SkippedL1MessageBitmap []byte
+	Version              uint8          `json:"version"`
+	BatchIndex           uint64         `json:"batch_index"`
+	L1MessagePopped      uint64         `json:"l1_message_popped"`
+	TotalL1MessagePopped uint64         `json:"total_l1_message_popped"`
+	DataHash             common.Hash    `json:"data_hash"`
+	BlobVersionedHash    common.Hash    `json:"blob_versioned_hash"`
+	ParentBatchHash      common.Hash    `json:"parent_batch_hash"`
+	LastBlockTimestamp   uint64         `json:"last_block_timestamp"`
+	BlobDataProof        [2]common.Hash `json:"blob_data_proof"`
 
 	// blob payload
 	blob *kzg4844.Blob
@@ -54,16 +56,16 @@ type DABatch struct {
 
 // NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
 func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
-	return codecv1.NewDABlock(block, totalL1MessagePoppedBefore)
+	return codecv3.NewDABlock(block, totalL1MessagePoppedBefore)
 }
 
 // NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
 func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
-	return codecv1.NewDAChunk(chunk, totalL1MessagePoppedBefore)
+	return codecv3.NewDAChunk(chunk, totalL1MessagePoppedBefore)
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
-func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
+func NewDABatch(batch *encoding.Batch, enableEncoding bool) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > MaxNumChunks {
 		return nil, errors.New("too many chunks in batch")
@@ -73,6 +75,10 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 		return nil, errors.New("too few chunks in batch")
 	}
 
+	if len(batch.Chunks[len(batch.Chunks)-1].Blocks) == 0 {
+		return nil, errors.New("too few blocks in last chunk of the batch")
+	}
+
 	// batch data hash
 	dataHash, err := ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
@@ -80,28 +86,36 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// skipped L1 messages bitmap
-	bitmapBytes, totalL1MessagePoppedAfter, err := encoding.ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	_, totalL1MessagePoppedAfter, err := encoding.ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
+	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, enableEncoding, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
 
+	lastChunk := batch.Chunks[len(batch.Chunks)-1]
+	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
+
 	daBatch := DABatch{
-		Version:                uint8(encoding.CodecV2),
-		BatchIndex:             batch.Index,
-		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-		DataHash:               dataHash,
-		BlobVersionedHash:      blobVersionedHash,
-		ParentBatchHash:        batch.ParentBatchHash,
-		SkippedL1MessageBitmap: bitmapBytes,
-		blob:                   blob,
-		z:                      z,
+		Version:              uint8(encoding.CodecV4),
+		BatchIndex:           batch.Index,
+		L1MessagePopped:      totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
+		TotalL1MessagePopped: totalL1MessagePoppedAfter,
+		DataHash:             dataHash,
+		BlobVersionedHash:    blobVersionedHash,
+		ParentBatchHash:      batch.ParentBatchHash,
+		LastBlockTimestamp:   lastBlock.Header.Time,
+		blob:                 blob,
+		z:                    z,
+	}
+
+	daBatch.BlobDataProof, err = daBatch.blobDataProofForPICircuit()
+	if err != nil {
+		return nil, err
 	}
 
 	return &daBatch, nil
@@ -112,11 +126,11 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 // the former is used for identifying a badge in the contracts,
 // the latter is used in the public input to the provers.
 func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
-	return codecv1.ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
+	return codecv3.ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
 }
 
 // ConstructBlobPayload constructs the 4844 blob payload.
-func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncoding bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -175,19 +189,25 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	hash := crypto.Keccak256Hash(batchBytes[0:metadataLength])
 	copy(challengePreimage[0:], hash[:])
 
-	// blobBytes represents the compressed blob payload (batchBytes)
-	blobBytes, err := compressScrollBatchBytes(batchBytes)
-	if err != nil {
-		return nil, common.Hash{}, nil, err
-	}
-
-	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if !useMockTxData && len(batchBytes) > 131072 {
-		// Check compressed data compatibility.
-		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
-			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+	var blobBytes []byte
+	if enableEncoding {
+		// blobBytes represents the compressed blob payload (batchBytes)
+		var err error
+		blobBytes, err = compressScrollBatchBytes(batchBytes)
+		if err != nil {
 			return nil, common.Hash{}, nil, err
 		}
+		if !useMockTxData {
+			// Check compressed data compatibility.
+			if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+				log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+				return nil, common.Hash{}, nil, err
+			}
+		}
+		blobBytes = append([]byte{1}, blobBytes...)
+	} else {
+		blobBytes = batchBytes
+		blobBytes = append([]byte{0}, batchBytes...)
 	}
 
 	if len(blobBytes) > 126976 {
@@ -224,27 +244,26 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	return blob, blobVersionedHash, &z, nil
 }
 
-// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
-func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
-	return codecv1.MakeBlobCanonical(blobBytes)
-}
-
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func NewDABatchFromBytes(data []byte) (*DABatch, error) {
-	if len(data) < 121 {
-		return nil, fmt.Errorf("insufficient data for DABatch, expected at least 121 bytes but got %d", len(data))
+	if len(data) != 193 {
+		return nil, fmt.Errorf("invalid data length for DABatch, expected 193 bytes but got %d", len(data))
 	}
 
 	b := &DABatch{
-		Version:                data[0],
-		BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
-		L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
-		TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
-		DataHash:               common.BytesToHash(data[25:57]),
-		BlobVersionedHash:      common.BytesToHash(data[57:89]),
-		ParentBatchHash:        common.BytesToHash(data[89:121]),
-		SkippedL1MessageBitmap: data[121:],
+		Version:              data[0],
+		BatchIndex:           binary.BigEndian.Uint64(data[1:9]),
+		L1MessagePopped:      binary.BigEndian.Uint64(data[9:17]),
+		TotalL1MessagePopped: binary.BigEndian.Uint64(data[17:25]),
+		DataHash:             common.BytesToHash(data[25:57]),
+		BlobVersionedHash:    common.BytesToHash(data[57:89]),
+		ParentBatchHash:      common.BytesToHash(data[89:121]),
+		LastBlockTimestamp:   binary.BigEndian.Uint64(data[121:129]),
+		BlobDataProof: [2]common.Hash{
+			common.BytesToHash(data[129:161]),
+			common.BytesToHash(data[161:193]),
+		},
 	}
 
 	return b, nil
@@ -252,15 +271,17 @@ func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 
 // Encode serializes the DABatch into bytes.
 func (b *DABatch) Encode() []byte {
-	batchBytes := make([]byte, 121+len(b.SkippedL1MessageBitmap))
+	batchBytes := make([]byte, 193)
 	batchBytes[0] = b.Version
-	binary.BigEndian.PutUint64(batchBytes[1:], b.BatchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:], b.L1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:], b.TotalL1MessagePopped)
-	copy(batchBytes[25:], b.DataHash[:])
-	copy(batchBytes[57:], b.BlobVersionedHash[:])
-	copy(batchBytes[89:], b.ParentBatchHash[:])
-	copy(batchBytes[121:], b.SkippedL1MessageBitmap[:])
+	binary.BigEndian.PutUint64(batchBytes[1:9], b.BatchIndex)
+	binary.BigEndian.PutUint64(batchBytes[9:17], b.L1MessagePopped)
+	binary.BigEndian.PutUint64(batchBytes[17:25], b.TotalL1MessagePopped)
+	copy(batchBytes[25:57], b.DataHash[:])
+	copy(batchBytes[57:89], b.BlobVersionedHash[:])
+	copy(batchBytes[89:121], b.ParentBatchHash[:])
+	binary.BigEndian.PutUint64(batchBytes[121:129], b.LastBlockTimestamp)
+	copy(batchBytes[129:161], b.BlobDataProof[0].Bytes())
+	copy(batchBytes[161:193], b.BlobDataProof[1].Bytes())
 	return batchBytes
 }
 
@@ -270,13 +291,38 @@ func (b *DABatch) Hash() common.Hash {
 	return crypto.Keccak256Hash(bytes)
 }
 
-// BlobDataProof computes the abi-encoded blob verification data.
-func (b *DABatch) BlobDataProof() ([]byte, error) {
+// blobDataProofForPICircuit computes the abi-encoded blob verification data.
+func (b *DABatch) blobDataProofForPICircuit() ([2]common.Hash, error) {
 	if b.blob == nil {
-		return nil, errors.New("called BlobDataProof with empty blob")
+		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty blob")
 	}
 	if b.z == nil {
-		return nil, errors.New("called BlobDataProof with empty z")
+		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty z")
+	}
+
+	_, y, err := kzg4844.ComputeProof(b.blob, *b.z)
+	if err != nil {
+		return [2]common.Hash{}, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
+	}
+
+	// Memory layout of result:
+	// | z       | y       |
+	// |---------|---------|
+	// | bytes32 | bytes32 |
+	var result [2]common.Hash
+	result[0] = common.BytesToHash(b.z[:])
+	result[1] = common.BytesToHash(y[:])
+
+	return result, nil
+}
+
+// BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
+func (b *DABatch) BlobDataProofForPointEvaluation() ([]byte, error) {
+	if b.blob == nil {
+		return nil, errors.New("called BlobDataProofForPointEvaluation with empty blob")
+	}
+	if b.z == nil {
+		return nil, errors.New("called BlobDataProofForPointEvaluation with empty z")
 	}
 
 	commitment, err := kzg4844.BlobToCommitment(b.blob)
@@ -308,33 +354,44 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 }
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
-func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint64, error) {
+func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk, enableEncode bool) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
 	if err != nil {
 		return 0, 0, err
 	}
-	blobBytes, err := compressScrollBatchBytes(batchBytes)
-	if err != nil {
-		return 0, 0, err
+	var blobBytesLength uint64
+	if enableEncode {
+		blobBytes, err := compressScrollBatchBytes(batchBytes)
+		if err != nil {
+			return 0, 0, err
+		}
+		blobBytesLength = 1 + uint64(len(blobBytes))
+	} else {
+		blobBytesLength = 1 + uint64(len(batchBytes))
 	}
-	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), CalculatePaddedBlobSize(blobBytesLength), nil
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
-func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint64, error) {
+func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch, enableEncode bool) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayload(b.Chunks)
 	if err != nil {
 		return 0, 0, err
 	}
-	blobBytes, err := compressScrollBatchBytes(batchBytes)
-	if err != nil {
-		return 0, 0, err
+	var blobBytesLength uint64
+	if enableEncode {
+		blobBytes, err := compressScrollBatchBytes(batchBytes)
+		if err != nil {
+			return 0, 0, err
+		}
+		blobBytesLength = 1 + uint64(len(blobBytes))
+	} else {
+		blobBytesLength = 1 + uint64(len(batchBytes))
 	}
-	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), CalculatePaddedBlobSize(blobBytesLength), nil
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
-// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
 func CheckChunkCompressedDataCompatibility(c *encoding.Chunk) (bool, error) {
 	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
 	if err != nil {
@@ -344,10 +401,6 @@ func CheckChunkCompressedDataCompatibility(c *encoding.Chunk) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) <= 131072 {
-		return true, nil
-	}
 	if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 		log.Warn("CheckChunkCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return false, nil
@@ -356,7 +409,6 @@ func CheckChunkCompressedDataCompatibility(c *encoding.Chunk) (bool, error) {
 }
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
-// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
 func CheckBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
 	batchBytes, err := constructBatchPayload(b.Chunks)
 	if err != nil {
@@ -365,10 +417,6 @@ func CheckBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
 	blobBytes, err := compressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return false, err
-	}
-	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) <= 131072 {
-		return true, nil
 	}
 	if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 		log.Warn("CheckBatchCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
@@ -379,27 +427,45 @@ func CheckBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
 func EstimateChunkL1CommitCalldataSize(c *encoding.Chunk) uint64 {
-	return codecv1.EstimateChunkL1CommitCalldataSize(c)
+	return codecv3.EstimateChunkL1CommitCalldataSize(c)
 }
 
 // EstimateBatchL1CommitCalldataSize calculates the calldata size in l1 commit for this batch approximately.
 func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
-	return codecv1.EstimateBatchL1CommitCalldataSize(b)
-}
-
-// EstimateBlockL1CommitGas calculates the total L1 commit gas for this block approximately.
-func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
-	return codecv1.EstimateBlockL1CommitGas(b)
+	return codecv3.EstimateBatchL1CommitCalldataSize(b)
 }
 
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
 func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
-	return codecv1.EstimateChunkL1CommitGas(c)
+	return codecv3.EstimateChunkL1CommitGas(c)
 }
 
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
 func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
-	return codecv1.EstimateBatchL1CommitGas(b)
+	return codecv3.EstimateBatchL1CommitGas(b)
+}
+
+// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
+func GetBlobDataProofArgs() (*abi.Arguments, error) {
+	return codecv3.GetBlobDataProofArgs()
+}
+
+// checkBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
+func checkBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
+	batchBytes, err := constructBatchPayload(b.Chunks)
+	if err != nil {
+		return false, err
+	}
+	blobBytes, err := compressScrollBatchBytes(batchBytes)
+	if err != nil {
+		return false, err
+	}
+	if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
+		log.Warn("CheckBatchCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+		return false, nil
+	}
+	return true, nil
 }
 
 // constructBatchPayload constructs the batch payload.
@@ -456,13 +522,13 @@ func compressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
 	return outbuf[:int(outbufSize)], nil
 }
 
+// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
+func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
+	return codecv1.MakeBlobCanonical(blobBytes)
+}
+
 // CalculatePaddedBlobSize calculates the required size on blob storage
 // where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
 func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 	return codecv1.CalculatePaddedBlobSize(dataSize)
-}
-
-// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
-func GetBlobDataProofArgs() (*abi.Arguments, error) {
-	return codecv1.GetBlobDataProofArgs()
 }

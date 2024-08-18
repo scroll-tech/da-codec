@@ -53,7 +53,7 @@ func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DACh
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
-func NewDABatch(batch *encoding.Batch, conditionalEncode bool) (*DABatch, error) {
+func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > MaxNumChunks {
 		return nil, errors.New("too many chunks in batch")
@@ -80,7 +80,7 @@ func NewDABatch(batch *encoding.Batch, conditionalEncode bool) (*DABatch, error)
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, conditionalEncode, false /* no mock */)
+	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +118,8 @@ func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore u
 }
 
 // ConstructBlobPayload constructs the 4844 blob payload.
-func ConstructBlobPayload(chunks []*encoding.Chunk, conditionalEncode bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
-	return codecv2.ConstructBlobPayload(chunks, conditionalEncode, useMockTxData)
+func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+	return codecv2.ConstructBlobPayload(chunks, useMockTxData)
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
@@ -232,13 +232,13 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 }
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
-func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk, conditionalEncode bool) (uint64, uint64, error) {
-	return codecv2.EstimateChunkL1CommitBatchSizeAndBlobSize(c, conditionalEncode)
+func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint64, error) {
+	return codecv2.EstimateChunkL1CommitBatchSizeAndBlobSize(c)
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
-func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch, conditionalEncode bool) (uint64, uint64, error) {
-	return codecv2.EstimateBatchL1CommitBatchSizeAndBlobSize(b, conditionalEncode)
+func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint64, error) {
+	return codecv2.EstimateBatchL1CommitBatchSizeAndBlobSize(b)
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.

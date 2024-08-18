@@ -2,11 +2,15 @@ package encoding
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 )
+
+// BLSModulus is the BLS modulus defined in EIP-4844.
+var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
 
 // CodecVersion defines the version of encoder and decoder.
 type CodecVersion uint8
@@ -23,6 +27,9 @@ const (
 
 	// CodecV3 represents the version 3 of the encoder and decoder.
 	CodecV3
+
+	// CodecV4 represents the version 4 of the encoder and decoder.
+	CodecV4
 )
 
 // Block represents an L2 block.

@@ -20,9 +20,6 @@ import (
 	"github.com/scroll-tech/da-codec/encoding/codecv0"
 )
 
-// BLSModulus is the BLS modulus defined in EIP-4844.
-var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
-
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 15
 
@@ -280,7 +277,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), BLSModulus)
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), encoding.BLSModulus)
 	pointBytes := pointBigInt.Bytes()
 
 	// the challenge point z
