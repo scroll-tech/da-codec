@@ -52,6 +52,9 @@ type DABatch struct {
 	// blob payload
 	blob *kzg4844.Blob
 	z    *kzg4844.Point
+
+	// for batch task
+	blobBytes []byte
 }
 
 // NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
@@ -92,7 +95,7 @@ func NewDABatch(batch *encoding.Batch, enableEncode bool) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, enableEncode, false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := ConstructBlobPayload(batch.Chunks, enableEncode, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +114,7 @@ func NewDABatch(batch *encoding.Batch, enableEncode bool) (*DABatch, error) {
 		LastBlockTimestamp:   lastBlock.Header.Time,
 		blob:                 blob,
 		z:                    z,
+		blobBytes:            blobBytes,
 	}
 
 	daBatch.BlobDataProof, err = daBatch.blobDataProofForPICircuit()
@@ -130,7 +134,7 @@ func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore u
 }
 
 // ConstructBlobPayload constructs the 4844 blob payload.
-func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncode bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncode bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -161,7 +165,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncode bool, useMockTx
 				// encode L2 txs into blob payload
 				rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx, useMockTxData)
 				if err != nil {
-					return nil, common.Hash{}, nil, err
+					return nil, common.Hash{}, nil, nil, err
 				}
 				batchBytes = append(batchBytes, rlpTxData...)
 			}
@@ -195,13 +199,13 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncode bool, useMockTx
 		var err error
 		blobBytes, err = compressScrollBatchBytes(batchBytes)
 		if err != nil {
-			return nil, common.Hash{}, nil, err
+			return nil, common.Hash{}, nil, nil, err
 		}
 		if !useMockTxData {
 			// Check compressed data compatibility.
 			if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 				log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-				return nil, common.Hash{}, nil, err
+				return nil, common.Hash{}, nil, nil, err
 			}
 		}
 		blobBytes = append([]byte{1}, blobBytes...)
@@ -212,19 +216,19 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncode bool, useMockTx
 
 	if len(blobBytes) > 126976 {
 		log.Error("ConstructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
-		return nil, common.Hash{}, nil, errors.New("Blob payload exceeds maximum size")
+		return nil, common.Hash{}, nil, nil, errors.New("Blob payload exceeds maximum size")
 	}
 
 	// convert raw data to BLSFieldElements
 	blob, err := MakeBlobCanonical(blobBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, err
+		return nil, common.Hash{}, nil, nil, err
 	}
 
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, errors.New("failed to create blob commitment")
+		return nil, common.Hash{}, nil, nil, errors.New("failed to create blob commitment")
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
@@ -241,7 +245,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, enableEncode bool, useMockTx
 	start := 32 - len(pointBytes)
 	copy(z[start:], pointBytes)
 
-	return blob, blobVersionedHash, &z, nil
+	return blob, blobVersionedHash, &z, blobBytes, nil
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
@@ -353,33 +357,9 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 	return b.blob
 }
 
-// ConvertBlobToBlobBytes converts the canonical blob representation into DA blob bytes.
-func (b *DABatch) ConvertBlobToBlobBytes() ([]byte, error) {
-	var blobBytes [126976]byte
-
-	for from := 0; from < len(b.blob); from += 32 {
-		copy(blobBytes[from/32*31:], b.blob[from+1:from+32])
-	}
-
-	startIndex := 1 // Skip the flag byte in codecv4
-	metadataLength := startIndex + 2 + MaxNumChunks*4
-	numChunks := binary.BigEndian.Uint16(blobBytes[startIndex : startIndex+2])
-
-	if numChunks > MaxNumChunks {
-		return nil, fmt.Errorf("number of chunks (%d) exceeds maximum allowed chunks (%d)", numChunks, MaxNumChunks)
-	}
-
-	totalSize := metadataLength
-	for i := 0; i < int(numChunks); i++ {
-		chunkSize := binary.BigEndian.Uint32(blobBytes[startIndex+2+4*i:])
-		totalSize += int(chunkSize)
-
-		if totalSize > len(blobBytes) {
-			return nil, fmt.Errorf("calculated total size (%d) exceeds the length of blobBytes (%d)", totalSize, len(blobBytes))
-		}
-	}
-
-	return blobBytes[:totalSize], nil
+// BlobBytes returns the blob bytes of the batch.
+func (b *DABatch) BlobBytes() []byte {
+	return b.blobBytes
 }
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.

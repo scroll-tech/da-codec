@@ -480,7 +480,7 @@ func TestCodecV4BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, true /* enble encode */, true /* use mock */)
+		blob, blobVersionedHash, z, _, err := ConstructBlobPayload(chunks, true /* enble encode */, true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)

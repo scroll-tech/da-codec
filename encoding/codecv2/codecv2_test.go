@@ -674,7 +674,7 @@ func TestCodecV2BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, true /* use mock */)
+		blob, blobVersionedHash, z, _, err := ConstructBlobPayload(chunks, true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)

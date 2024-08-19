@@ -86,7 +86,7 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
+	blob, blobVersionedHash, z, _, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore u
 }
 
 // ConstructBlobPayload constructs the 4844 blob payload.
-func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -147,7 +147,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 				// encode L2 txs into blob payload
 				rlpTxData, err := encoding.ConvertTxDataToRLPEncoding(tx, useMockTxData)
 				if err != nil {
-					return nil, common.Hash{}, nil, err
+					return nil, common.Hash{}, nil, nil, err
 				}
 				batchBytes = append(batchBytes, rlpTxData...)
 			}
@@ -178,7 +178,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	// blobBytes represents the compressed blob payload (batchBytes)
 	blobBytes, err := compressScrollBatchBytes(batchBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, err
+		return nil, common.Hash{}, nil, nil, err
 	}
 
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
@@ -186,25 +186,25 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 		// Check compressed data compatibility.
 		if err = encoding.CheckCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-			return nil, common.Hash{}, nil, err
+			return nil, common.Hash{}, nil, nil, err
 		}
 	}
 
 	if len(blobBytes) > 126976 {
 		log.Error("ConstructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
-		return nil, common.Hash{}, nil, errors.New("Blob payload exceeds maximum size")
+		return nil, common.Hash{}, nil, nil, errors.New("Blob payload exceeds maximum size")
 	}
 
 	// convert raw data to BLSFieldElements
 	blob, err := MakeBlobCanonical(blobBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, err
+		return nil, common.Hash{}, nil, nil, err
 	}
 
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, errors.New("failed to create blob commitment")
+		return nil, common.Hash{}, nil, nil, errors.New("failed to create blob commitment")
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
@@ -221,7 +221,7 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	start := 32 - len(pointBytes)
 	copy(z[start:], pointBytes)
 
-	return blob, blobVersionedHash, &z, nil
+	return blob, blobVersionedHash, &z, blobBytes, nil
 }
 
 // MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
