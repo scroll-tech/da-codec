@@ -353,6 +353,35 @@ func (b *DABatch) Blob() *kzg4844.Blob {
 	return b.blob
 }
 
+// ConvertBlobToBlobBytes converts the canonical blob representation into DA blob bytes.
+func (b *DABatch) ConvertBlobToBlobBytes() ([]byte, error) {
+	var blobBytes [126976]byte
+
+	for from := 0; from < len(b.blob); from += 32 {
+		copy(blobBytes[from/32*31:], b.blob[from+1:from+32])
+	}
+
+	startIndex := 1 // Skip the flag byte in codecv4
+	metadataLength := startIndex + 2 + MaxNumChunks*4
+	numChunks := binary.BigEndian.Uint16(blobBytes[startIndex : startIndex+2])
+
+	if numChunks > MaxNumChunks {
+		return nil, fmt.Errorf("number of chunks (%d) exceeds maximum allowed chunks (%d)", numChunks, MaxNumChunks)
+	}
+
+	totalSize := metadataLength
+	for i := 0; i < int(numChunks); i++ {
+		chunkSize := binary.BigEndian.Uint32(blobBytes[startIndex+2+4*i:])
+		totalSize += int(chunkSize)
+
+		if totalSize > len(blobBytes) {
+			return nil, fmt.Errorf("calculated total size (%d) exceeds the length of blobBytes (%d)", totalSize, len(blobBytes))
+		}
+	}
+
+	return blobBytes[:totalSize], nil
+}
+
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
 func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk, enableEncode bool) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayload([]*encoding.Chunk{c})
