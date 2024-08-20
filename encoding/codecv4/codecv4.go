@@ -202,7 +202,6 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, enableCompress bool, useMock
 		}
 		blobBytes = append([]byte{1}, blobBytes...)
 	} else {
-		blobBytes = batchBytes
 		blobBytes = append([]byte{0}, batchBytes...)
 	}
 
