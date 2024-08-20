@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
@@ -223,7 +222,7 @@ func (b *DABatch) BlobDataProofForPointEvaluation() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := GetBlobDataProofArgs()
+	blobDataProofArgs, err := encoding.GetBlobDataProofArgs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
 	}
@@ -278,9 +277,4 @@ func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
 func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
 	return codecv2.EstimateBatchL1CommitGas(b) + 50000 // plus 50000 for the point-evaluation precompile call.
-}
-
-// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
-func GetBlobDataProofArgs() (*abi.Arguments, error) {
-	return codecv2.GetBlobDataProofArgs()
 }

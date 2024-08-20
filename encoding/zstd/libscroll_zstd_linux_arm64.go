@@ -1,7 +1,7 @@
 //go:build !musl
 // +build !musl
 
-package codecv2
+package zstd
 
 /*
 #cgo LDFLAGS: ${SRCDIR}/libscroll_zstd_linux_arm64.a
