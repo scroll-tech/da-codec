@@ -16,6 +16,9 @@ import (
 // BLSModulus is the BLS modulus defined in EIP-4844.
 var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
 
+// CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
+const CalldataNonZeroByteGas = 16
+
 // CodecVersion defines the version of encoder and decoder.
 type CodecVersion uint8
 
@@ -445,4 +448,16 @@ func ConstructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, 
 		}
 	}
 	return batchBytes, nil
+}
+
+// GetKeccak256Gas calculates the gas cost for computing the keccak256 hash of a given size.
+func GetKeccak256Gas(size uint64) uint64 {
+	return GetMemoryExpansionCost(size) + 30 + 6*((size+31)/32)
+}
+
+// GetMemoryExpansionCost calculates the cost of memory expansion for a given memoryByteSize.
+func GetMemoryExpansionCost(memoryByteSize uint64) uint64 {
+	memorySizeWord := (memoryByteSize + 31) / 32
+	memoryCost := (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
+	return memoryCost
 }

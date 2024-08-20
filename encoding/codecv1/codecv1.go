@@ -406,21 +406,6 @@ func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
 	return dataSize, nil
 }
 
-// CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
-const CalldataNonZeroByteGas = 16
-
-// GetKeccak256Gas calculates the gas cost for computing the keccak256 hash of a given size.
-func GetKeccak256Gas(size uint64) uint64 {
-	return GetMemoryExpansionCost(size) + 30 + 6*((size+31)/32)
-}
-
-// GetMemoryExpansionCost calculates the cost of memory expansion for a given memoryByteSize.
-func GetMemoryExpansionCost(memoryByteSize uint64) uint64 {
-	memorySizeWord := (memoryByteSize + 31) / 32
-	memoryCost := (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
-	return memoryCost
-}
-
 // EstimateBlockL1CommitGas calculates the total L1 commit gas for this block approximately.
 func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
 	var total uint64
@@ -433,7 +418,7 @@ func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
 	}
 
 	// 60 bytes BlockContext calldata
-	total += CalldataNonZeroByteGas * 60
+	total += encoding.CalldataNonZeroByteGas * 60
 
 	// sload
 	total += 2100 * numL1Messages // numL1Messages times cold sload in L1MessageQueue
@@ -467,10 +452,10 @@ func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
 	}
 
 	numBlocks := uint64(len(c.Blocks))
-	totalL1CommitGas += 100 * numBlocks        // numBlocks times warm sload
-	totalL1CommitGas += CalldataNonZeroByteGas // numBlocks field of chunk encoding in calldata
+	totalL1CommitGas += 100 * numBlocks                 // numBlocks times warm sload
+	totalL1CommitGas += encoding.CalldataNonZeroByteGas // numBlocks field of chunk encoding in calldata
 
-	totalL1CommitGas += GetKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
+	totalL1CommitGas += encoding.GetKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
 	return totalL1CommitGas
 }
 
@@ -479,22 +464,22 @@ func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
 	var totalL1CommitGas uint64
 
 	// Add extra gas costs
-	totalL1CommitGas += 100000                 // constant to account for ops like _getAdmin, _implementation, _requireNotPaused, etc
-	totalL1CommitGas += 4 * 2100               // 4 one-time cold sload for commitBatch
-	totalL1CommitGas += 20000                  // 1 time sstore
-	totalL1CommitGas += 21000                  // base fee for tx
-	totalL1CommitGas += CalldataNonZeroByteGas // version in calldata
+	totalL1CommitGas += 100000                          // constant to account for ops like _getAdmin, _implementation, _requireNotPaused, etc
+	totalL1CommitGas += 4 * 2100                        // 4 one-time cold sload for commitBatch
+	totalL1CommitGas += 20000                           // 1 time sstore
+	totalL1CommitGas += 21000                           // base fee for tx
+	totalL1CommitGas += encoding.CalldataNonZeroByteGas // version in calldata
 
 	// adjusting gas:
 	// add 1 time cold sload (2100 gas) for L1MessageQueue
 	// add 1 time cold address access (2600 gas) for L1MessageQueue
 	// minus 1 time warm sload (100 gas) & 1 time warm address access (100 gas)
 	totalL1CommitGas += (2100 + 2600 - 100 - 100)
-	totalL1CommitGas += GetKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
-	totalL1CommitGas += CalldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
+	totalL1CommitGas += encoding.GetKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
+	totalL1CommitGas += encoding.CalldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
 
 	// adjust batch data hash gas cost
-	totalL1CommitGas += GetKeccak256Gas(uint64(32 * len(b.Chunks)))
+	totalL1CommitGas += encoding.GetKeccak256Gas(uint64(32 * len(b.Chunks)))
 
 	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
 
@@ -505,11 +490,11 @@ func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
 		totalL1MessagePoppedInChunk := chunk.NumL1Messages(totalL1MessagePoppedBefore)
 		totalL1MessagePoppedBefore += totalL1MessagePoppedInChunk
 
-		totalL1CommitGas += CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
-		totalL1CommitGas += GetKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
+		totalL1CommitGas += encoding.CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
+		totalL1CommitGas += encoding.GetKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
 
 		totalL1CommitCalldataSize := EstimateChunkL1CommitCalldataSize(chunk)
-		totalL1CommitGas += GetMemoryExpansionCost(totalL1CommitCalldataSize)
+		totalL1CommitGas += encoding.GetMemoryExpansionCost(totalL1CommitCalldataSize)
 	}
 
 	return totalL1CommitGas
