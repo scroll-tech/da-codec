@@ -244,35 +244,7 @@ func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	if err != nil {
 		return err
 	}
-
-	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
-	if numChunks != len(chunks) {
-		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
-	}
-	index := 2 + MaxNumChunks*4
-	for chunkID, chunk := range chunks {
-		var transactions []types.Transactions
-		chunkSize := int(binary.BigEndian.Uint32(blobBytes[2+4*chunkID : 2+4*chunkID+4]))
-
-		chunkBytes := blobBytes[index : index+chunkSize]
-		curIndex := 0
-		for _, block := range chunk.Blocks {
-			var blockTransactions types.Transactions
-			txNum := int(block.NumTransactions - block.NumL1Messages)
-			for i := 0; i < txNum; i++ {
-				tx, nextIndex, err := codecv1.GetNextTx(chunkBytes, curIndex)
-				if err != nil {
-					return fmt.Errorf("couldn't decode next tx from blob bytes: %w, index: %d", err, index+curIndex+4)
-				}
-				curIndex = nextIndex
-				blockTransactions = append(blockTransactions, tx)
-			}
-			transactions = append(transactions, blockTransactions)
-		}
-		chunk.Transactions = transactions
-		index += chunkSize
-	}
-	return nil
+	return codecv1.DecodeTxsFromBytes(blobBytes, chunks)
 }
 
 // MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.

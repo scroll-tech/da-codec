@@ -17,6 +17,7 @@ import (
 )
 
 const BlockContextByteSize = 60
+const TxLenByteSize = 4
 
 // DABlock represents a Data Availability Block.
 type DABlock struct {
@@ -34,7 +35,7 @@ type DAChunk struct {
 	Transactions [][]*types.TransactionData
 }
 
-// DAChunkRawTx groups consecutive DABlocks with their transactions.
+// DAChunkRawTx groups consecutive DABlocks with their L2 transactions, L1 msgs are loaded in another place.
 type DAChunkRawTx struct {
 	Blocks       []*DABlock
 	Transactions []types.Transactions
@@ -215,23 +216,24 @@ func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 		currentIndex := 1 + numBlocks*BlockContextByteSize
 		for _, block := range blocks {
 			var blockTransactions types.Transactions
+			// ignore L1 msg transactions from the block, consider only L2 transactions
 			txNum := int(block.NumTransactions - block.NumL1Messages)
 			for i := 0; i < txNum; i++ {
-				if len(chunk) < currentIndex+4 {
-					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected length: %v", len(chunk), currentIndex+4)
+				if len(chunk) < currentIndex+TxLenByteSize {
+					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+TxLenByteSize, i)
 				}
-				txLen := int(binary.BigEndian.Uint32(chunk[currentIndex : currentIndex+4]))
-				if len(chunk) < currentIndex+4+txLen {
-					return nil, fmt.Errorf("chunk size doesn't match with next tx length, byte length of chunk: %v, expected length: %v", len(chunk), currentIndex+4+txLen)
+				txLen := int(binary.BigEndian.Uint32(chunk[currentIndex : currentIndex+TxLenByteSize]))
+				if len(chunk) < currentIndex+TxLenByteSize+txLen {
+					return nil, fmt.Errorf("chunk size doesn't match with next tx length, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+TxLenByteSize+txLen, i)
 				}
-				txData := chunk[currentIndex+4 : currentIndex+4+txLen]
+				txData := chunk[currentIndex+TxLenByteSize : currentIndex+TxLenByteSize+txLen]
 				tx := &types.Transaction{}
 				err := tx.UnmarshalBinary(txData)
 				if err != nil {
-					return nil, fmt.Errorf("failed to unmarshal tx, err: %w", err)
+					return nil, fmt.Errorf("failed to unmarshal tx, pos of tx in chunk bytes: %d. tx num without l1 msgs: %d, err: %w", currentIndex, i, err)
 				}
 				blockTransactions = append(blockTransactions, tx)
-				currentIndex += 4 + txLen
+				currentIndex += TxLenByteSize + txLen
 			}
 			transactions = append(transactions, blockTransactions)
 		}

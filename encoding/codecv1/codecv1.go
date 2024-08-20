@@ -104,6 +104,7 @@ func (c *DAChunk) Encode() []byte {
 }
 
 // DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
+// From codecv1 tx data posted to blobs, not to chunk bytes in calldata
 func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 	var chunks []*DAChunkRawTx
 	for _, chunk := range bytes {
@@ -131,7 +132,7 @@ func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 
 		chunks = append(chunks, &DAChunkRawTx{
 			Blocks:       blocks,
-			Transactions: transactions, // Transactions field is still empty in the phase of DecodeDAChunksRawTx.
+			Transactions: transactions, // Transactions field is still empty in the phase of DecodeDAChunksRawTx, because txs moved to bobs and filled in DecodeTxsFromBlob method.
 		})
 	}
 	return chunks, nil
@@ -355,9 +356,8 @@ func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	return &blob, nil
 }
 
-// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
-func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	blobBytes := BytesFromBlobCanonical(blob)
+// DecodeTxsFromBytes decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx) error {
 	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
 	if numChunks != len(chunks) {
 		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
@@ -388,6 +388,12 @@ func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	return nil
 }
 
+// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+	blobBytes := BytesFromBlobCanonical(blob)
+	return DecodeTxsFromBytes(blobBytes[:], chunks)
+}
+
 var errSmallLength error = fmt.Errorf("length of blob bytes is too small")
 
 // GetNextTx parses blob bytes to find length of payload of next Tx and decode it
@@ -402,7 +408,6 @@ func GetNextTx(bytes []byte, index int) (*types.Transaction, int, error) {
 		// the first byte is transaction type, rlp encoding begins from next byte
 		txBytes = append(txBytes, bytes[index])
 		index++
-
 	}
 	if length < index+1 {
 		return nil, 0, errSmallLength
