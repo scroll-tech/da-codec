@@ -244,7 +244,7 @@ func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	if err != nil {
 		return err
 	}
-	return codecv1.DecodeTxsFromBytes(blobBytes, chunks)
+	return codecv1.DecodeTxsFromBytes(blobBytes, chunks, MaxNumChunks)
 }
 
 // MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.

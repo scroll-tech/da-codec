@@ -104,7 +104,7 @@ func (c *DAChunk) Encode() []byte {
 }
 
 // DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
-// From codecv1 tx data posted to blobs, not to chunk bytes in calldata
+// Beginning from codecv1 tx data posted to blobs, not to chunk bytes in calldata
 func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
 	var chunks []*DAChunkRawTx
 	for _, chunk := range bytes {
@@ -357,12 +357,12 @@ func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 }
 
 // DecodeTxsFromBytes decodes txs from blob bytes and writes to chunks
-func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx) error {
+func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks int) error {
 	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
 	if numChunks != len(chunks) {
 		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
 	}
-	index := 2 + MaxNumChunks*4
+	index := 2 + maxNumChunks*4
 	for chunkID, chunk := range chunks {
 		var transactions []types.Transactions
 		chunkSize := int(binary.BigEndian.Uint32(blobBytes[2+4*chunkID : 2+4*chunkID+4]))
@@ -391,7 +391,7 @@ func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx) error {
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	blobBytes := BytesFromBlobCanonical(blob)
-	return DecodeTxsFromBytes(blobBytes[:], chunks)
+	return DecodeTxsFromBytes(blobBytes[:], chunks, MaxNumChunks)
 }
 
 var errSmallLength error = fmt.Errorf("length of blob bytes is too small")
