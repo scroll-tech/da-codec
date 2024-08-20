@@ -1,4 +1,4 @@
-package codecv3
+package encoding
 
 import (
 	"encoding/binary"
@@ -9,22 +9,21 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-
-	"github.com/scroll-tech/da-codec/encoding"
-	"github.com/scroll-tech/da-codec/encoding/codecv2"
 )
 
-// MaxNumChunks is the maximum number of chunks that a batch can contain.
-const MaxNumChunks = codecv2.MaxNumChunks
+type DACodecV3 struct{}
 
-// DABlock represents a Data Availability Block.
-type DABlock = codecv2.DABlock
+// Codecv3MaxNumChunks is the maximum number of chunks that a batch can contain.
+const Codecv3MaxNumChunks = 45
 
-// DAChunk groups consecutive DABlocks with their transactions.
-type DAChunk = codecv2.DAChunk
+// DABlockV3 represents a Data Availability Block.
+type DABlockV3 = DABlockV2
 
-// DABatch contains metadata about a batch of DAChunks.
-type DABatch struct {
+// DAChunkV3 groups consecutive DABlocks with their transactions.
+type DAChunkV3 = DAChunkV2
+
+// DABatchV3 contains metadata about a batch of DAChunks.
+type DABatchV3 struct {
 	// header
 	Version              uint8          `json:"version"`
 	BatchIndex           uint64         `json:"batch_index"`
@@ -44,20 +43,20 @@ type DABatch struct {
 	blobBytes []byte
 }
 
-// NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
-func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
-	return codecv2.NewDABlock(block, totalL1MessagePoppedBefore)
+// NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
+func (o *DACodecV3) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
+	return (&DACodecV2{}).NewDABlock(block, totalL1MessagePoppedBefore)
 }
 
-// NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
-func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
-	return codecv2.NewDAChunk(chunk, totalL1MessagePoppedBefore)
+// NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
+func (o *DACodecV3) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
+	return (&DACodecV2{}).NewDAChunk(chunk, totalL1MessagePoppedBefore)
 }
 
-// NewDABatch creates a DABatch from the provided encoding.Batch.
-func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
+// NewDABatch creates a DABatch from the provided Batch.
+func (o *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > MaxNumChunks {
+	if len(batch.Chunks) > Codecv3MaxNumChunks {
 		return nil, errors.New("too many chunks in batch")
 	}
 
@@ -70,19 +69,19 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	}
 
 	// batch data hash
-	dataHash, err := ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := o.ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
 
 	// skipped L1 messages bitmap
-	_, totalL1MessagePoppedAfter, err := encoding.ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	_, totalL1MessagePoppedAfter, err := ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, blobBytes, err := ConstructBlobPayload(batch.Chunks, false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := o.ConstructBlobPayload(batch.Chunks, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +89,8 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 	lastChunk := batch.Chunks[len(batch.Chunks)-1]
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
-	daBatch := DABatch{
-		Version:              uint8(encoding.CodecV3),
+	daBatch := DABatchV3{
+		Version:              uint8(CodecV3),
 		BatchIndex:           batch.Index,
 		L1MessagePopped:      totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
 		TotalL1MessagePopped: totalL1MessagePoppedAfter,
@@ -116,23 +115,23 @@ func NewDABatch(batch *encoding.Batch) (*DABatch, error) {
 // Note: The batch hash and batch data hash are two different hashes,
 // the former is used for identifying a badge in the contracts,
 // the latter is used in the public input to the provers.
-func ComputeBatchDataHash(chunks []*encoding.Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
-	return codecv2.ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
+func (o *DACodecV3) ComputeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+	return (&DACodecV2{}).ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
 }
 
 // ConstructBlobPayload constructs the 4844 blob payload.
-func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
-	return codecv2.ConstructBlobPayload(chunks, useMockTxData)
+func (o *DACodecV3) ConstructBlobPayload(chunks []*Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
+	return (&DACodecV2{}).ConstructBlobPayload(chunks, useMockTxData)
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
-func NewDABatchFromBytes(data []byte) (*DABatch, error) {
+func (o *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	if len(data) != 193 {
 		return nil, fmt.Errorf("invalid data length for DABatch, expected 193 bytes but got %d", len(data))
 	}
 
-	b := &DABatch{
+	b := &DABatchV3{
 		Version:              data[0],
 		BatchIndex:           binary.BigEndian.Uint64(data[1:9]),
 		L1MessagePopped:      binary.BigEndian.Uint64(data[9:17]),
@@ -151,7 +150,7 @@ func NewDABatchFromBytes(data []byte) (*DABatch, error) {
 }
 
 // Encode serializes the DABatch into bytes.
-func (b *DABatch) Encode() []byte {
+func (b *DABatchV3) Encode() []byte {
 	batchBytes := make([]byte, 193)
 	batchBytes[0] = b.Version
 	binary.BigEndian.PutUint64(batchBytes[1:9], b.BatchIndex)
@@ -167,13 +166,13 @@ func (b *DABatch) Encode() []byte {
 }
 
 // Hash computes the hash of the serialized DABatch.
-func (b *DABatch) Hash() common.Hash {
+func (b *DABatchV3) Hash() common.Hash {
 	bytes := b.Encode()
 	return crypto.Keccak256Hash(bytes)
 }
 
 // blobDataProofForPICircuit computes the abi-encoded blob verification data.
-func (b *DABatch) blobDataProofForPICircuit() ([2]common.Hash, error) {
+func (b *DABatchV3) blobDataProofForPICircuit() ([2]common.Hash, error) {
 	if b.blob == nil {
 		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty blob")
 	}
@@ -198,7 +197,7 @@ func (b *DABatch) blobDataProofForPICircuit() ([2]common.Hash, error) {
 }
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatch) BlobDataProofForPointEvaluation() ([]byte, error) {
+func (b *DABatchV3) BlobDataProofForPointEvaluation() ([]byte, error) {
 	if b.blob == nil {
 		return nil, errors.New("called BlobDataProofForPointEvaluation with empty blob")
 	}
@@ -222,7 +221,7 @@ func (b *DABatch) BlobDataProofForPointEvaluation() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := encoding.GetBlobDataProofArgs()
+	blobDataProofArgs, err := GetBlobDataProofArgs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
 	}
@@ -230,51 +229,62 @@ func (b *DABatch) BlobDataProofForPointEvaluation() ([]byte, error) {
 }
 
 // Blob returns the blob of the batch.
-func (b *DABatch) Blob() *kzg4844.Blob {
+func (b *DABatchV3) Blob() *kzg4844.Blob {
 	return b.blob
 }
 
 // BlobBytes returns the blob bytes of the batch.
-func (b *DABatch) BlobBytes() []byte {
+func (b *DABatchV3) BlobBytes() []byte {
 	return b.blobBytes
 }
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
-func EstimateChunkL1CommitBatchSizeAndBlobSize(c *encoding.Chunk) (uint64, uint64, error) {
-	return codecv2.EstimateChunkL1CommitBatchSizeAndBlobSize(c)
+func (o *DACodecV3) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
+	return (&DACodecV2{}).EstimateChunkL1CommitBatchSizeAndBlobSize(c)
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
-func EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch) (uint64, uint64, error) {
-	return codecv2.EstimateBatchL1CommitBatchSizeAndBlobSize(b)
+func (o *DACodecV3) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
+	return (&DACodecV2{}).EstimateBatchL1CommitBatchSizeAndBlobSize(b)
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
-func CheckChunkCompressedDataCompatibility(c *encoding.Chunk) (bool, error) {
-	return codecv2.CheckChunkCompressedDataCompatibility(c)
+func (o *DACodecV3) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+	return (&DACodecV2{}).CheckChunkCompressedDataCompatibility(c)
 }
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
-func CheckBatchCompressedDataCompatibility(b *encoding.Batch) (bool, error) {
-	return codecv2.CheckBatchCompressedDataCompatibility(b)
+func (o *DACodecV3) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
+	return (&DACodecV2{}).CheckBatchCompressedDataCompatibility(b)
 }
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
-func EstimateChunkL1CommitCalldataSize(c *encoding.Chunk) uint64 {
-	return codecv2.EstimateChunkL1CommitCalldataSize(c)
+func (o *DACodecV3) EstimateChunkL1CommitCalldataSize(c *Chunk) (uint64, error) {
+	return (&DACodecV2{}).EstimateChunkL1CommitCalldataSize(c)
 }
 
 // EstimateBatchL1CommitCalldataSize calculates the calldata size in l1 commit for this batch approximately.
-func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
-	return codecv2.EstimateBatchL1CommitCalldataSize(b)
+func (o *DACodecV3) EstimateBatchL1CommitCalldataSize(b *Batch) (uint64, error) {
+	return (&DACodecV2{}).EstimateBatchL1CommitCalldataSize(b)
 }
 
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
-func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
-	return codecv2.EstimateChunkL1CommitGas(c) + 50000 // plus 50000 for the point-evaluation precompile call.
+func (o *DACodecV3) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
+	chunkL1CommitGas, err := (&DACodecV2{}).EstimateChunkL1CommitGas(c)
+	if err != nil {
+		return 0, err
+	}
+	return chunkL1CommitGas + 50000, nil // plus 50000 for the point-evaluation precompile call.
 }
 
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
-func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
-	return codecv2.EstimateBatchL1CommitGas(b) + 50000 // plus 50000 for the point-evaluation precompile call.
+func (o *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
+	batchL1CommitGas, err := (&DACodecV2{}).EstimateBatchL1CommitGas(b)
+	if err != nil {
+		return 0, err
+	}
+	return batchL1CommitGas + 50000, nil // plus 50000 for the point-evaluation precompile call.
 }
+
+// SetCompression enables or disables compression.
+func (o *DACodecV3) SetCompression(enable bool) {}

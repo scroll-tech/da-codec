@@ -19,26 +19,6 @@ var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80
 // CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
 const CalldataNonZeroByteGas = 16
 
-// CodecVersion defines the version of encoder and decoder.
-type CodecVersion uint8
-
-const (
-	// CodecV0 represents the version 0 of the encoder and decoder.
-	CodecV0 CodecVersion = iota
-
-	// CodecV1 represents the version 1 of the encoder and decoder.
-	CodecV1
-
-	// CodecV2 represents the version 2 of the encoder and decoder.
-	CodecV2
-
-	// CodecV3 represents the version 3 of the encoder and decoder.
-	CodecV3
-
-	// CodecV4 represents the version 4 of the encoder and decoder.
-	CodecV4
-)
-
 // Block represents an L2 block.
 type Block struct {
 	Header         *types.Header
@@ -460,4 +440,12 @@ func GetMemoryExpansionCost(memoryByteSize uint64) uint64 {
 	memorySizeWord := (memoryByteSize + 31) / 32
 	memoryCost := (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
 	return memoryCost
+}
+
+func GetTxPayloadLength(txData *types.TransactionData) (uint64, error) {
+	rlpTxData, err := ConvertTxDataToRLPEncoding(txData, false /* no mock */)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(len(rlpTxData)), nil
 }
