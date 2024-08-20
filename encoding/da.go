@@ -1,12 +1,16 @@
 package encoding
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/big"
+	"sync"
 
+	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
 // BLSModulus is the BLS modulus defined in EIP-4844.
@@ -325,4 +329,120 @@ func CheckCompressedDataCompatibility(data []byte) error {
 	}
 
 	return nil
+}
+
+// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
+func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
+	// blob contains 131072 bytes but we can only utilize 31/32 of these
+	if len(blobBytes) > 126976 {
+		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
+	}
+
+	// the canonical (padded) blob payload
+	var blob kzg4844.Blob
+
+	// encode blob payload by prepending every 31 bytes with 1 zero byte
+	index := 0
+
+	for from := 0; from < len(blobBytes); from += 31 {
+		to := from + 31
+		if to > len(blobBytes) {
+			to = len(blobBytes)
+		}
+		copy(blob[index+1:], blobBytes[from:to])
+		index += 32
+	}
+
+	return &blob, nil
+}
+
+var (
+	blobDataProofArgs         *abi.Arguments
+	initBlobDataProofArgsOnce sync.Once
+)
+
+// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
+func GetBlobDataProofArgs() (*abi.Arguments, error) {
+	var initError error
+
+	initBlobDataProofArgsOnce.Do(func() {
+		// Initialize bytes32 type
+		bytes32Type, err := abi.NewType("bytes32", "bytes32", nil)
+		if err != nil {
+			initError = fmt.Errorf("failed to initialize abi type bytes32: %w", err)
+			return
+		}
+
+		// Initialize bytes48 type
+		bytes48Type, err := abi.NewType("bytes48", "bytes48", nil)
+		if err != nil {
+			initError = fmt.Errorf("failed to initialize abi type bytes48: %w", err)
+			return
+		}
+
+		// Successfully create the argument list
+		blobDataProofArgs = &abi.Arguments{
+			{Type: bytes32Type, Name: "z"},
+			{Type: bytes32Type, Name: "y"},
+			{Type: bytes48Type, Name: "kzg_commitment"},
+			{Type: bytes48Type, Name: "kzg_proof"},
+		}
+	})
+
+	if initError != nil {
+		return nil, initError
+	}
+
+	return blobDataProofArgs, nil
+}
+
+// CalculatePaddedBlobSize calculates the required size on blob storage
+// where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
+func CalculatePaddedBlobSize(dataSize uint64) uint64 {
+	paddedSize := (dataSize / 31) * 32
+
+	if dataSize%31 != 0 {
+		paddedSize += 1 + dataSize%31 // Add 1 byte for the first empty byte plus the remainder bytes
+	}
+
+	return paddedSize
+}
+
+// ConstructBatchPayloadInBlob constructs the batch payload.
+// This function is only used in compressed batch payload length estimation.
+func ConstructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, error) {
+	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
+	metadataLength := 2 + MaxNumChunks*4
+
+	// batchBytes represents the raw (un-compressed and un-padded) blob payload
+	batchBytes := make([]byte, metadataLength)
+
+	// batch metadata: num_chunks
+	binary.BigEndian.PutUint16(batchBytes[0:], uint16(len(chunks)))
+
+	// encode batch metadata and L2 transactions,
+	for chunkID, chunk := range chunks {
+		currentChunkStartIndex := len(batchBytes)
+
+		for _, block := range chunk.Blocks {
+			for _, tx := range block.Transactions {
+				if tx.Type == types.L1MessageTxType {
+					continue
+				}
+
+				// encode L2 txs into batch payload
+				rlpTxData, err := ConvertTxDataToRLPEncoding(tx, false /* no mock */)
+				if err != nil {
+					return nil, err
+				}
+				batchBytes = append(batchBytes, rlpTxData...)
+			}
+		}
+
+		// batch metadata: chunki_size
+		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
+			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
+		}
+	}
+	return batchBytes, nil
 }

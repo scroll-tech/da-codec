@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"sync"
 
-	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
@@ -260,7 +258,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(challengePreimage[0:], hash[:])
 
 	// convert raw data to BLSFieldElements
-	blob, err := MakeBlobCanonical(blobBytes)
+	blob, err := encoding.MakeBlobCanonical(blobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
@@ -286,31 +284,6 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, nil
-}
-
-// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
-func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
-	// blob contains 131072 bytes but we can only utilize 31/32 of these
-	if len(blobBytes) > 126976 {
-		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
-	}
-
-	// the canonical (padded) blob payload
-	var blob kzg4844.Blob
-
-	// encode blob payload by prepending every 31 bytes with 1 zero byte
-	index := 0
-
-	for from := 0; from < len(blobBytes); from += 31 {
-		to := from + 31
-		if to > len(blobBytes) {
-			to = len(blobBytes)
-		}
-		copy(blob[index+1:], blobBytes[from:to])
-		index += 32
-	}
-
-	return &blob, nil
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
@@ -379,7 +352,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 	// | bytes32 | bytes32 | bytes48        | bytes48   |
 
 	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := GetBlobDataProofArgs()
+	blobDataProofArgs, err := encoding.GetBlobDataProofArgs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
 	}
@@ -398,7 +371,7 @@ func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return CalculatePaddedBlobSize(metadataSize + chunkDataSize), nil
+	return encoding.CalculatePaddedBlobSize(metadataSize + chunkDataSize), nil
 }
 
 // EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
@@ -412,7 +385,7 @@ func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
 		}
 		batchDataSize += chunkDataSize
 	}
-	return CalculatePaddedBlobSize(metadataSize + batchDataSize), nil
+	return encoding.CalculatePaddedBlobSize(metadataSize + batchDataSize), nil
 }
 
 func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
@@ -549,56 +522,4 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
 		totalL1CommitCalldataSize += EstimateChunkL1CommitCalldataSize(chunk)
 	}
 	return totalL1CommitCalldataSize
-}
-
-// CalculatePaddedBlobSize calculates the required size on blob storage
-// where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
-func CalculatePaddedBlobSize(dataSize uint64) uint64 {
-	paddedSize := (dataSize / 31) * 32
-
-	if dataSize%31 != 0 {
-		paddedSize += 1 + dataSize%31 // Add 1 byte for the first empty byte plus the remainder bytes
-	}
-
-	return paddedSize
-}
-
-var (
-	blobDataProofArgs         *abi.Arguments
-	initBlobDataProofArgsOnce sync.Once
-)
-
-// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
-func GetBlobDataProofArgs() (*abi.Arguments, error) {
-	var initError error
-
-	initBlobDataProofArgsOnce.Do(func() {
-		// Initialize bytes32 type
-		bytes32Type, err := abi.NewType("bytes32", "bytes32", nil)
-		if err != nil {
-			initError = fmt.Errorf("failed to initialize abi type bytes32: %w", err)
-			return
-		}
-
-		// Initialize bytes48 type
-		bytes48Type, err := abi.NewType("bytes48", "bytes48", nil)
-		if err != nil {
-			initError = fmt.Errorf("failed to initialize abi type bytes48: %w", err)
-			return
-		}
-
-		// Successfully create the argument list
-		blobDataProofArgs = &abi.Arguments{
-			{Type: bytes32Type, Name: "z"},
-			{Type: bytes32Type, Name: "y"},
-			{Type: bytes48Type, Name: "kzg_commitment"},
-			{Type: bytes48Type, Name: "kzg_proof"},
-		}
-	})
-
-	if initError != nil {
-		return nil, initError
-	}
-
-	return blobDataProofArgs, nil
 }
