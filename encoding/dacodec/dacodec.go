@@ -45,4 +45,6 @@ type Codec interface {
 	EstimateChunkL1CommitGas(*encoding.Chunk) uint64
 	EstimateBatchL1CommitGas(*encoding.Batch) uint64
 	EstimateBatchL1CommitCalldataSize(*encoding.Batch) uint64
+
+	SetCompression(enable bool) // only used for codecv4
 }
