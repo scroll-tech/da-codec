@@ -427,11 +427,11 @@ func EstimateBlockL1CommitGas(b *encoding.Block) uint64 {
 	total += 100 * numL1Messages // numL1Messages times call to L1MessageQueue
 	total += 100 * numL1Messages // numL1Messages times warm address access to L1MessageQueue
 
-	total += GetMemoryExpansionCost(36) * numL1Messages // staticcall to proxy
-	total += 100 * numL1Messages                        // read admin in proxy
-	total += 100 * numL1Messages                        // read impl in proxy
-	total += 100 * numL1Messages                        // access impl
-	total += GetMemoryExpansionCost(36) * numL1Messages // delegatecall to impl
+	total += encoding.GetMemoryExpansionCost(36) * numL1Messages // staticcall to proxy
+	total += 100 * numL1Messages                                 // read admin in proxy
+	total += 100 * numL1Messages                                 // read impl in proxy
+	total += 100 * numL1Messages                                 // access impl
+	total += encoding.GetMemoryExpansionCost(36) * numL1Messages // delegatecall to impl
 
 	return total
 }
