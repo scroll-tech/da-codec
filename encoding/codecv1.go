@@ -391,3 +391,28 @@ func (o *DACodecV1) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 
 // SetCompression enables or disables compression.
 func (o *DACodecV1) SetCompression(enable bool) {}
+
+// computeBatchDataHash computes the data hash of the batch.
+// Note: The batch hash and batch data hash are two different hashes,
+// the former is used for identifying a badge in the contracts,
+// the latter is used in the public input to the provers.
+func (o *DACodecV1) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+	var dataBytes []byte
+	totalL1MessagePoppedBeforeChunk := totalL1MessagePoppedBefore
+
+	for _, chunk := range chunks {
+		daChunk, err := o.NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		totalL1MessagePoppedBeforeChunk += chunk.NumL1Messages(totalL1MessagePoppedBeforeChunk)
+		chunkHash, err := daChunk.Hash()
+		if err != nil {
+			return common.Hash{}, err
+		}
+		dataBytes = append(dataBytes, chunkHash.Bytes()...)
+	}
+
+	dataHash := crypto.Keccak256Hash(dataBytes)
+	return dataHash, nil
+}

@@ -51,7 +51,7 @@ func (o *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// batch data hash
-	dataHash, err := computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := o.computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -336,4 +336,12 @@ func (o *DACodecV4) SetCompression(enable bool) {
 	} else {
 		atomic.StoreUint32(&o.enableCompress, 0)
 	}
+}
+
+// computeBatchDataHash computes the data hash of the batch.
+// Note: The batch hash and batch data hash are two different hashes,
+// the former is used for identifying a badge in the contracts,
+// the latter is used in the public input to the provers.
+func (o *DACodecV4) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+	return (&DACodecV3{}).computeBatchDataHash(chunks, totalL1MessagePoppedBefore)
 }
