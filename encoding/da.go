@@ -10,6 +10,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
@@ -448,4 +449,29 @@ func GetTxPayloadLength(txData *types.TransactionData) (uint64, error) {
 		return 0, err
 	}
 	return uint64(len(rlpTxData)), nil
+}
+
+// computeBatchDataHash computes the data hash of the batch.
+// Note: The batch hash and batch data hash are two different hashes,
+// the former is used for identifying a badge in the contracts,
+// the latter is used in the public input to the provers.
+func computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+	var dataBytes []byte
+	totalL1MessagePoppedBeforeChunk := totalL1MessagePoppedBefore
+
+	for _, chunk := range chunks {
+		daChunk, err := o.NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		totalL1MessagePoppedBeforeChunk += chunk.NumL1Messages(totalL1MessagePoppedBeforeChunk)
+		chunkHash, err := daChunk.Hash()
+		if err != nil {
+			return common.Hash{}, err
+		}
+		dataBytes = append(dataBytes, chunkHash.Bytes()...)
+	}
+
+	dataHash := crypto.Keccak256Hash(dataBytes)
+	return dataHash, nil
 }

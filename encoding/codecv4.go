@@ -25,27 +25,6 @@ type DACodecV4 struct {
 // Codecv4MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv4MaxNumChunks = 45
 
-// DABatchV4 contains metadata about a batch of DAChunks.
-type DABatchV4 struct {
-	// header
-	Version              uint8          `json:"version"`
-	BatchIndex           uint64         `json:"batch_index"`
-	L1MessagePopped      uint64         `json:"l1_message_popped"`
-	TotalL1MessagePopped uint64         `json:"total_l1_message_popped"`
-	DataHash             common.Hash    `json:"data_hash"`
-	BlobVersionedHash    common.Hash    `json:"blob_versioned_hash"`
-	ParentBatchHash      common.Hash    `json:"parent_batch_hash"`
-	LastBlockTimestamp   uint64         `json:"last_block_timestamp"`
-	BlobDataProof        [2]common.Hash `json:"blob_data_proof"`
-
-	// blob payload
-	blob *kzg4844.Blob
-	z    *kzg4844.Point
-
-	// for batch task
-	blobBytes []byte
-}
-
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (o *DACodecV4) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
 	return (&DACodecV3{}).NewDABlock(block, totalL1MessagePoppedBefore)
@@ -72,7 +51,7 @@ func (o *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// batch data hash
-	dataHash, err := o.ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +63,7 @@ func (o *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, blobBytes, err := o.ConstructBlobPayload(batch.Chunks, false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := o.constructBlobPayload(batch.Chunks, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -114,16 +93,8 @@ func (o *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	return &daBatch, nil
 }
 
-// ComputeBatchDataHash computes the data hash of the batch.
-// Note: The batch hash and batch data hash are two different hashes,
-// the former is used for identifying a badge in the contracts,
-// the latter is used in the public input to the provers.
-func (o *DACodecV4) ComputeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
-	return (&DACodecV3{}).ComputeBatchDataHash(chunks, totalL1MessagePoppedBefore)
-}
-
-// ConstructBlobPayload constructs the 4844 blob payload.
-func (o *DACodecV4) ConstructBlobPayload(chunks []*Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
+// constructBlobPayload constructs the 4844 blob payload.
+func (o *DACodecV4) constructBlobPayload(chunks []*Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + Codecv4MaxNumChunks*4
 
@@ -193,7 +164,7 @@ func (o *DACodecV4) ConstructBlobPayload(chunks []*Chunk, useMockTxData bool) (*
 		if !useMockTxData {
 			// Check compressed data compatibility.
 			if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
-				log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+				log.Error("constructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 				return nil, common.Hash{}, nil, nil, err
 			}
 		}
@@ -203,7 +174,7 @@ func (o *DACodecV4) ConstructBlobPayload(chunks []*Chunk, useMockTxData bool) (*
 	}
 
 	if len(blobBytes) > 126976 {
-		log.Error("ConstructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
+		log.Error("constructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return nil, common.Hash{}, nil, nil, errors.New("Blob payload exceeds maximum size")
 	}
 
@@ -259,95 +230,6 @@ func (o *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	return b, nil
-}
-
-// Encode serializes the DABatch into bytes.
-func (b *DABatchV4) Encode() []byte {
-	batchBytes := make([]byte, 193)
-	batchBytes[0] = b.Version
-	binary.BigEndian.PutUint64(batchBytes[1:9], b.BatchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:17], b.L1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:25], b.TotalL1MessagePopped)
-	copy(batchBytes[25:57], b.DataHash[:])
-	copy(batchBytes[57:89], b.BlobVersionedHash[:])
-	copy(batchBytes[89:121], b.ParentBatchHash[:])
-	binary.BigEndian.PutUint64(batchBytes[121:129], b.LastBlockTimestamp)
-	copy(batchBytes[129:161], b.BlobDataProof[0].Bytes())
-	copy(batchBytes[161:193], b.BlobDataProof[1].Bytes())
-	return batchBytes
-}
-
-// Hash computes the hash of the serialized DABatch.
-func (b *DABatchV4) Hash() common.Hash {
-	bytes := b.Encode()
-	return crypto.Keccak256Hash(bytes)
-}
-
-// blobDataProofForPICircuit computes the abi-encoded blob verification data.
-func (b *DABatchV4) blobDataProofForPICircuit() ([2]common.Hash, error) {
-	if b.blob == nil {
-		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty blob")
-	}
-	if b.z == nil {
-		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty z")
-	}
-
-	_, y, err := kzg4844.ComputeProof(b.blob, *b.z)
-	if err != nil {
-		return [2]common.Hash{}, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
-	}
-
-	// Memory layout of result:
-	// | z       | y       |
-	// |---------|---------|
-	// | bytes32 | bytes32 |
-	var result [2]common.Hash
-	result[0] = common.BytesToHash(b.z[:])
-	result[1] = common.BytesToHash(y[:])
-
-	return result, nil
-}
-
-// BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatchV4) BlobDataProofForPointEvaluation() ([]byte, error) {
-	if b.blob == nil {
-		return nil, errors.New("called BlobDataProofForPointEvaluation with empty blob")
-	}
-	if b.z == nil {
-		return nil, errors.New("called BlobDataProofForPointEvaluation with empty z")
-	}
-
-	commitment, err := kzg4844.BlobToCommitment(b.blob)
-	if err != nil {
-		return nil, errors.New("failed to create blob commitment")
-	}
-
-	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
-	}
-
-	// Memory layout of ``_blobDataProof``:
-	// | z       | y       | kzg_commitment | kzg_proof |
-	// |---------|---------|----------------|-----------|
-	// | bytes32 | bytes32 | bytes48        | bytes48   |
-
-	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := GetBlobDataProofArgs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
-	}
-	return blobDataProofArgs.Pack(values...)
-}
-
-// Blob returns the blob of the batch.
-func (b *DABatchV4) Blob() *kzg4844.Blob {
-	return b.blob
-}
-
-// BlobBytes returns the blob bytes of the batch.
-func (b *DABatchV4) BlobBytes() []byte {
-	return b.blobBytes
 }
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.

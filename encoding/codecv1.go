@@ -3,7 +3,6 @@ package encoding
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -18,23 +17,6 @@ type DACodecV1 struct{}
 
 // Codecv1MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv1MaxNumChunks = 15
-
-// DABatchV1 contains metadata about a batch of DAChunks.
-type DABatchV1 struct {
-	// header
-	Version                uint8
-	BatchIndex             uint64
-	L1MessagePopped        uint64
-	TotalL1MessagePopped   uint64
-	DataHash               common.Hash
-	BlobVersionedHash      common.Hash
-	ParentBatchHash        common.Hash
-	SkippedL1MessageBitmap []byte
-
-	// blob payload
-	blob *kzg4844.Blob
-	z    *kzg4844.Point
-}
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (o *DACodecV1) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
@@ -84,7 +66,7 @@ func (o *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// batch data hash
-	dataHash, err := o.ComputeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	dataHash, err := computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -115,31 +97,6 @@ func (o *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	return &daBatch, nil
-}
-
-// ComputeBatchDataHash computes the data hash of the batch.
-// Note: The batch hash and batch data hash are two different hashes,
-// the former is used for identifying a badge in the contracts,
-// the latter is used in the public input to the provers.
-func (o *DACodecV1) ComputeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
-	var dataBytes []byte
-	totalL1MessagePoppedBeforeChunk := totalL1MessagePoppedBefore
-
-	for _, chunk := range chunks {
-		daChunk, err := o.NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		totalL1MessagePoppedBeforeChunk += chunk.NumL1Messages(totalL1MessagePoppedBeforeChunk)
-		chunkHash, err := daChunk.Hash()
-		if err != nil {
-			return common.Hash{}, err
-		}
-		dataBytes = append(dataBytes, chunkHash.Bytes()...)
-	}
-
-	dataHash := crypto.Keccak256Hash(dataBytes)
-	return dataHash, nil
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
@@ -250,73 +207,6 @@ func (o *DACodecV1) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	return b, nil
-}
-
-// Encode serializes the DABatch into bytes.
-func (b *DABatchV1) Encode() []byte {
-	batchBytes := make([]byte, 121+len(b.SkippedL1MessageBitmap))
-	batchBytes[0] = b.Version
-	binary.BigEndian.PutUint64(batchBytes[1:], b.BatchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:], b.L1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:], b.TotalL1MessagePopped)
-	copy(batchBytes[25:], b.DataHash[:])
-	copy(batchBytes[57:], b.BlobVersionedHash[:])
-	copy(batchBytes[89:], b.ParentBatchHash[:])
-	copy(batchBytes[121:], b.SkippedL1MessageBitmap[:])
-	return batchBytes
-}
-
-// Hash computes the hash of the serialized DABatch.
-func (b *DABatchV1) Hash() common.Hash {
-	bytes := b.Encode()
-	return crypto.Keccak256Hash(bytes)
-}
-
-// BlobDataProof computes the abi-encoded blob verification data.
-func (b *DABatchV1) BlobDataProof() ([]byte, error) {
-	if b.blob == nil {
-		return nil, errors.New("called BlobDataProof with empty blob")
-	}
-	if b.z == nil {
-		return nil, errors.New("called BlobDataProof with empty z")
-	}
-
-	commitment, err := kzg4844.BlobToCommitment(b.blob)
-	if err != nil {
-		return nil, errors.New("failed to create blob commitment")
-	}
-
-	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
-	}
-
-	// Memory layout of ``_blobDataProof``:
-	// | z       | y       | kzg_commitment | kzg_proof |
-	// |---------|---------|----------------|-----------|
-	// | bytes32 | bytes32 | bytes48        | bytes48   |
-
-	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := GetBlobDataProofArgs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
-	}
-	return blobDataProofArgs.Pack(values...)
-}
-
-// Blob returns the blob of the batch.
-func (b *DABatchV1) Blob() *kzg4844.Blob {
-	return b.blob
-}
-
-// BlobBytes returns the blob bytes of the batch.
-func (b *DABatchV1) BlobBytes() []byte {
-	return nil
-}
-
-// BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
-	return nil, nil
 }
 
 // EstimateChunkL1CommitBlobSize estimates the size of the L1 commit blob for a single chunk.

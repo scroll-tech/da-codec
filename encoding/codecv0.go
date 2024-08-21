@@ -9,21 +9,9 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
-	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
 type DACodecV0 struct{}
-
-// DABatch contains metadata about a batch of DAChunks.
-type DABatchV0 struct {
-	Version                uint8
-	BatchIndex             uint64
-	L1MessagePopped        uint64
-	TotalL1MessagePopped   uint64
-	DataHash               common.Hash
-	ParentBatchHash        common.Hash
-	SkippedL1MessageBitmap []byte
-}
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
@@ -150,40 +138,6 @@ func (o *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	return b, nil
-}
-
-// Encode serializes the DABatch into bytes.
-func (b *DABatchV0) Encode() []byte {
-	batchBytes := make([]byte, 89+len(b.SkippedL1MessageBitmap))
-	batchBytes[0] = b.Version
-	binary.BigEndian.PutUint64(batchBytes[1:], b.BatchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:], b.L1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:], b.TotalL1MessagePopped)
-	copy(batchBytes[25:], b.DataHash[:])
-	copy(batchBytes[57:], b.ParentBatchHash[:])
-	copy(batchBytes[89:], b.SkippedL1MessageBitmap[:])
-	return batchBytes
-}
-
-// Hash computes the hash of the serialized DABatch.
-func (b *DABatchV0) Hash() common.Hash {
-	bytes := b.Encode()
-	return crypto.Keccak256Hash(bytes)
-}
-
-// Blob returns the blob of the batch.
-func (b *DABatchV0) Blob() *kzg4844.Blob {
-	return nil
-}
-
-// BlobBytes returns the blob bytes of the batch.
-func (b *DABatchV0) BlobBytes() []byte {
-	return nil
-}
-
-// BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
-	return nil, nil
 }
 
 // EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.
