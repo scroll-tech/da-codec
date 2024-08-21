@@ -3,7 +3,7 @@ module github.com/scroll-tech/da-codec
 go 1.21
 
 require (
-	github.com/scroll-tech/go-ethereum v1.10.14-0.20240607130425-e2becce6a1a4
+	github.com/scroll-tech/go-ethereum v1.10.14-0.20240821074444-b3fa00861e5e
 	github.com/stretchr/testify v1.9.0
 )
 

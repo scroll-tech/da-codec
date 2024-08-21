@@ -152,7 +152,7 @@ func (o *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) 
 			continue
 		}
 		size += 4 // 4 bytes payload length
-		txPayloadLength, err := GetTxPayloadLength(txData)
+		txPayloadLength, err := getTxPayloadLength(txData)
 		if err != nil {
 			return 0, err
 		}
@@ -172,7 +172,7 @@ func (o *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 			continue
 		}
 
-		txPayloadLength, err := GetTxPayloadLength(txData)
+		txPayloadLength, err := getTxPayloadLength(txData)
 		if err != nil {
 			return 0, err
 		}
