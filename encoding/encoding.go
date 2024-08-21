@@ -20,6 +20,7 @@ type DABatch interface {
 	BlobDataProofForPointEvaluation() ([]byte, error)
 	Blob() *kzg4844.Blob
 	BlobBytes() []byte
+	BlobVersionedHashes() []common.Hash
 }
 
 // Codec represents the interface for encoding and decoding DA-related structures.

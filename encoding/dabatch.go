@@ -51,6 +51,11 @@ func (b *DABatchV0) Blob() *kzg4844.Blob {
 	return nil
 }
 
+// BlobVersionedHashes returns the blob versioned hashes of the batch.
+func (b *DABatchV0) BlobVersionedHashes() []common.Hash {
+	return nil
+}
+
 // BlobBytes returns the blob bytes of the batch.
 func (b *DABatchV0) BlobBytes() []byte {
 	return nil
@@ -127,6 +132,11 @@ func (b *DABatchV1) BlobDataProof() ([]byte, error) {
 // Blob returns the blob of the batch.
 func (b *DABatchV1) Blob() *kzg4844.Blob {
 	return b.blob
+}
+
+// BlobVersionedHashes returns the blob versioned hashes of the batch.
+func (b *DABatchV1) BlobVersionedHashes() []common.Hash {
+	return []common.Hash{b.BlobVersionedHash}
 }
 
 // BlobBytes returns the blob bytes of the batch.
@@ -239,6 +249,11 @@ func (b *DABatchV3) BlobDataProofForPointEvaluation() ([]byte, error) {
 // Blob returns the blob of the batch.
 func (b *DABatchV3) Blob() *kzg4844.Blob {
 	return b.blob
+}
+
+// BlobVersionedHashes returns the blob versioned hashes of the batch.
+func (b *DABatchV3) BlobVersionedHashes() []common.Hash {
+	return []common.Hash{b.BlobVersionedHash}
 }
 
 // BlobBytes returns the blob bytes of the batch.
