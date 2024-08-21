@@ -7,12 +7,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
-// DABlock represents a Data Availability Block.
-type DABlock interface {
-	Encode() []byte
-	Decode([]byte) error
-}
-
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk interface {
 	Encode() ([]byte, error)

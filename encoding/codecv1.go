@@ -20,9 +20,6 @@ type DACodecV1 struct{}
 // Codecv1MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv1MaxNumChunks = 15
 
-// DABlockV1 represents a Data Availability Block.
-type DABlockV1 = DABlockV0
-
 // DAChunkV1 groups consecutive DABlocks with their transactions.
 type DAChunkV1 DAChunkV0
 
@@ -44,7 +41,7 @@ type DABatchV1 struct {
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
-func (o *DACodecV1) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
+func (o *DACodecV1) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
 	return (&DACodecV0{}).NewDABlock(block, totalL1MessagePoppedBefore)
 }
 
@@ -58,7 +55,7 @@ func (o *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of blocks exceeds 1 byte")
 	}
 
-	var blocks []*DABlockV1
+	var blocks []*DABlock
 	var txs [][]*types.TransactionData
 
 	for _, block := range chunk.Blocks {
@@ -66,11 +63,7 @@ func (o *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		if err != nil {
 			return nil, err
 		}
-		blockData, ok := b.(*DABlockV1)
-		if !ok {
-			return nil, errors.New("failed to cast block data")
-		}
-		blocks = append(blocks, blockData)
+		blocks = append(blocks, b)
 		totalL1MessagePoppedBefore += block.NumL1Messages(totalL1MessagePoppedBefore)
 		txs = append(txs, block.Transactions)
 	}

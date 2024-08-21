@@ -22,9 +22,6 @@ type DACodecV2 struct{}
 // Codecv2MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv2MaxNumChunks = 45
 
-// DABlockV2 represents a Data Availability Block.
-type DABlockV2 = DABlockV1
-
 // DAChunkV2 groups consecutive DABlocks with their transactions.
 type DAChunkV2 = DAChunkV1
 
@@ -46,7 +43,7 @@ type DABatchV2 struct {
 }
 
 // NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
-func (o *DACodecV2) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
+func (o *DACodecV2) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
 	return (&DACodecV1{}).NewDABlock(block, totalL1MessagePoppedBefore)
 }
 
