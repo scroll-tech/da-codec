@@ -72,7 +72,7 @@ func (o *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// skipped L1 messages bitmap
-	bitmapBytes, totalL1MessagePoppedAfter, err := ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -84,16 +84,18 @@ func (o *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	daBatch := DABatchV1{
-		Version:                uint8(CodecV1),
-		BatchIndex:             batch.Index,
-		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-		DataHash:               dataHash,
-		BlobVersionedHash:      blobVersionedHash,
-		ParentBatchHash:        batch.ParentBatchHash,
-		SkippedL1MessageBitmap: bitmapBytes,
-		blob:                   blob,
-		z:                      z,
+		DABatchBase: DABatchBase{
+			Version:                uint8(CodecV1),
+			BatchIndex:             batch.Index,
+			L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
+			TotalL1MessagePopped:   totalL1MessagePoppedAfter,
+			DataHash:               dataHash,
+			ParentBatchHash:        batch.ParentBatchHash,
+			SkippedL1MessageBitmap: bitmapBytes,
+		},
+		BlobVersionedHash: blobVersionedHash,
+		blob:              blob,
+		z:                 z,
 	}
 
 	return &daBatch, nil
@@ -196,14 +198,16 @@ func (o *DACodecV1) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	b := &DABatchV1{
-		Version:                data[0],
-		BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
-		L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
-		TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
-		DataHash:               common.BytesToHash(data[25:57]),
-		BlobVersionedHash:      common.BytesToHash(data[57:89]),
-		ParentBatchHash:        common.BytesToHash(data[89:121]),
-		SkippedL1MessageBitmap: data[121:],
+		DABatchBase: DABatchBase{
+			Version:                data[0],
+			BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
+			L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
+			TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
+			DataHash:               common.BytesToHash(data[25:57]),
+			ParentBatchHash:        common.BytesToHash(data[89:121]),
+			SkippedL1MessageBitmap: data[121:],
+		},
+		BlobVersionedHash: common.BytesToHash(data[57:89]),
 	}
 
 	return b, nil

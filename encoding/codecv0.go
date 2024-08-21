@@ -103,19 +103,21 @@ func (o *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	dataHash := crypto.Keccak256Hash(dataBytes)
 
 	// skipped L1 messages bitmap
-	bitmapBytes, totalL1MessagePoppedAfter, err := ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
 
 	daBatch := DABatchV0{
-		Version:                uint8(CodecV0),
-		BatchIndex:             batch.Index,
-		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-		DataHash:               dataHash,
-		ParentBatchHash:        batch.ParentBatchHash,
-		SkippedL1MessageBitmap: bitmapBytes,
+		DABatchBase: DABatchBase{
+			Version:                uint8(CodecV0),
+			BatchIndex:             batch.Index,
+			L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
+			TotalL1MessagePopped:   totalL1MessagePoppedAfter,
+			DataHash:               dataHash,
+			ParentBatchHash:        batch.ParentBatchHash,
+			SkippedL1MessageBitmap: bitmapBytes,
+		},
 	}
 
 	return &daBatch, nil
@@ -128,13 +130,15 @@ func (o *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	b := &DABatchV0{
-		Version:                data[0],
-		BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
-		L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
-		TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
-		DataHash:               common.BytesToHash(data[25:57]),
-		ParentBatchHash:        common.BytesToHash(data[57:89]),
-		SkippedL1MessageBitmap: data[89:],
+		DABatchBase: DABatchBase{
+			Version:                data[0],
+			BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
+			L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
+			TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
+			DataHash:               common.BytesToHash(data[25:57]),
+			ParentBatchHash:        common.BytesToHash(data[57:89]),
+			SkippedL1MessageBitmap: data[89:],
+		},
 	}
 
 	return b, nil

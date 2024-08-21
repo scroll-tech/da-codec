@@ -46,7 +46,7 @@ func (o *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// skipped L1 messages bitmap
-	_, totalL1MessagePoppedAfter, err := ConstructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -61,17 +61,20 @@ func (o *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
 	daBatch := DABatchV3{
-		Version:              uint8(CodecV3),
-		BatchIndex:           batch.Index,
-		L1MessagePopped:      totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-		TotalL1MessagePopped: totalL1MessagePoppedAfter,
-		DataHash:             dataHash,
-		BlobVersionedHash:    blobVersionedHash,
-		ParentBatchHash:      batch.ParentBatchHash,
-		LastBlockTimestamp:   lastBlock.Header.Time,
-		blob:                 blob,
-		z:                    z,
-		blobBytes:            blobBytes,
+		DABatchBase: DABatchBase{
+			Version:                uint8(CodecV3),
+			BatchIndex:             batch.Index,
+			L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
+			TotalL1MessagePopped:   totalL1MessagePoppedAfter,
+			DataHash:               dataHash,
+			ParentBatchHash:        batch.ParentBatchHash,
+			SkippedL1MessageBitmap: bitmapBytes,
+		},
+		BlobVersionedHash:  blobVersionedHash,
+		LastBlockTimestamp: lastBlock.Header.Time,
+		blob:               blob,
+		z:                  z,
+		blobBytes:          blobBytes,
 	}
 
 	daBatch.BlobDataProof, err = daBatch.blobDataProofForPICircuit()
@@ -88,21 +91,23 @@ func (o *DACodecV3) constructBlobPayload(chunks []*Chunk, useMockTxData bool) (*
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
-// Note: This function only populates the batch header, it leaves the blob-related fields empty.
+// Note: This function only populates the batch header, it leaves the blob-related fields and skipped L1 message bitmap empty.
 func (o *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	if len(data) != 193 {
 		return nil, fmt.Errorf("invalid data length for DABatch, expected 193 bytes but got %d", len(data))
 	}
 
 	b := &DABatchV3{
-		Version:              data[0],
-		BatchIndex:           binary.BigEndian.Uint64(data[1:9]),
-		L1MessagePopped:      binary.BigEndian.Uint64(data[9:17]),
-		TotalL1MessagePopped: binary.BigEndian.Uint64(data[17:25]),
-		DataHash:             common.BytesToHash(data[25:57]),
-		BlobVersionedHash:    common.BytesToHash(data[57:89]),
-		ParentBatchHash:      common.BytesToHash(data[89:121]),
-		LastBlockTimestamp:   binary.BigEndian.Uint64(data[121:129]),
+		DABatchBase: DABatchBase{
+			Version:              data[0],
+			BatchIndex:           binary.BigEndian.Uint64(data[1:9]),
+			L1MessagePopped:      binary.BigEndian.Uint64(data[9:17]),
+			TotalL1MessagePopped: binary.BigEndian.Uint64(data[17:25]),
+			DataHash:             common.BytesToHash(data[25:57]),
+			ParentBatchHash:      common.BytesToHash(data[89:121]),
+		},
+		BlobVersionedHash:  common.BytesToHash(data[57:89]),
+		LastBlockTimestamp: binary.BigEndian.Uint64(data[121:129]),
 		BlobDataProof: [2]common.Hash{
 			common.BytesToHash(data[129:161]),
 			common.BytesToHash(data[161:193]),

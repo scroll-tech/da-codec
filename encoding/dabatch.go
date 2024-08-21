@@ -11,8 +11,8 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
-// DABatch contains metadata about a batch of DAChunks.
-type DABatchV0 struct {
+// DABatchBase contains common metadata for all versions of DABatch
+type DABatchBase struct {
 	Version                uint8
 	BatchIndex             uint64
 	L1MessagePopped        uint64
@@ -20,6 +20,11 @@ type DABatchV0 struct {
 	DataHash               common.Hash
 	ParentBatchHash        common.Hash
 	SkippedL1MessageBitmap []byte
+}
+
+// DABatchV0 contains metadata about a batch of DAChunks.
+type DABatchV0 struct {
+	DABatchBase
 }
 
 // Encode serializes the DABatch into bytes.
@@ -58,15 +63,9 @@ func (b *DABatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
 
 // DABatchV1 contains metadata about a batch of DAChunks.
 type DABatchV1 struct {
-	// header
-	Version                uint8
-	BatchIndex             uint64
-	L1MessagePopped        uint64
-	TotalL1MessagePopped   uint64
-	DataHash               common.Hash
-	BlobVersionedHash      common.Hash
-	ParentBatchHash        common.Hash
-	SkippedL1MessageBitmap []byte
+	DABatchBase
+
+	BlobVersionedHash common.Hash
 
 	// blob payload
 	blob *kzg4844.Blob
@@ -144,16 +143,11 @@ type DABatchV2 = DABatchV1
 
 // DABatchV3 contains metadata about a batch of DAChunks.
 type DABatchV3 struct {
-	// header
-	Version              uint8          `json:"version"`
-	BatchIndex           uint64         `json:"batch_index"`
-	L1MessagePopped      uint64         `json:"l1_message_popped"`
-	TotalL1MessagePopped uint64         `json:"total_l1_message_popped"`
-	DataHash             common.Hash    `json:"data_hash"`
-	BlobVersionedHash    common.Hash    `json:"blob_versioned_hash"`
-	ParentBatchHash      common.Hash    `json:"parent_batch_hash"`
-	LastBlockTimestamp   uint64         `json:"last_block_timestamp"`
-	BlobDataProof        [2]common.Hash `json:"blob_data_proof"`
+	DABatchBase
+
+	BlobVersionedHash  common.Hash    `json:"blob_versioned_hash"`
+	LastBlockTimestamp uint64         `json:"last_block_timestamp"`
+	BlobDataProof      [2]common.Hash `json:"blob_data_proof"`
 
 	// blob payload
 	blob *kzg4844.Blob
