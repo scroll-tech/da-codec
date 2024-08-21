@@ -16,9 +16,6 @@ type DACodecV3 struct{}
 // Codecv3MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv3MaxNumChunks = 45
 
-// DAChunkV3 groups consecutive DABlocks with their transactions.
-type DAChunkV3 = DAChunkV2
-
 // DABatchV3 contains metadata about a batch of DAChunks.
 type DABatchV3 struct {
 	// header

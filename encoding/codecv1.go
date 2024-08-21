@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -19,9 +18,6 @@ type DACodecV1 struct{}
 
 // Codecv1MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv1MaxNumChunks = 15
-
-// DAChunkV1 groups consecutive DABlocks with their transactions.
-type DAChunkV1 DAChunkV0
 
 // DABatchV1 contains metadata about a batch of DAChunks.
 type DABatchV1 struct {
@@ -74,53 +70,6 @@ func (o *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	}
 
 	return &daChunk, nil
-}
-
-// Encode serializes the DAChunk into a slice of bytes.
-func (c *DAChunkV1) Encode() ([]byte, error) {
-	var chunkBytes []byte
-	chunkBytes = append(chunkBytes, byte(len(c.Blocks)))
-
-	for _, block := range c.Blocks {
-		blockBytes := block.Encode()
-		chunkBytes = append(chunkBytes, blockBytes...)
-	}
-
-	return chunkBytes, nil
-}
-
-// Hash computes the hash of the DAChunk data.
-func (c *DAChunkV1) Hash() (common.Hash, error) {
-	var dataBytes []byte
-
-	// concatenate block contexts
-	for _, block := range c.Blocks {
-		encodedBlock := block.Encode()
-		// only the first 58 bytes are used in the hashing process
-		dataBytes = append(dataBytes, encodedBlock[:58]...)
-	}
-
-	// concatenate l1 tx hashes
-	for _, blockTxs := range c.Transactions {
-		for _, txData := range blockTxs {
-			if txData.Type != types.L1MessageTxType {
-				continue
-			}
-
-			txHash := strings.TrimPrefix(txData.TxHash, "0x")
-			hashBytes, err := hex.DecodeString(txHash)
-			if err != nil {
-				return common.Hash{}, err
-			}
-			if len(hashBytes) != 32 {
-				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
-			}
-			dataBytes = append(dataBytes, hashBytes...)
-		}
-	}
-
-	hash := crypto.Keccak256Hash(dataBytes)
-	return hash, nil
 }
 
 // NewDABatch creates a DABatch from the provided Batch.

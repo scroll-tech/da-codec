@@ -25,9 +25,6 @@ type DACodecV4 struct {
 // Codecv4MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv4MaxNumChunks = 45
 
-// DAChunkV4 groups consecutive DABlocks with their transactions.
-type DAChunkV4 = DAChunkV3
-
 // DABatchV4 contains metadata about a batch of DAChunks.
 type DABatchV4 struct {
 	// header

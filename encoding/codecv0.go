@@ -2,11 +2,9 @@ package encoding
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -15,12 +13,6 @@ import (
 )
 
 type DACodecV0 struct{}
-
-// DAChunk groups consecutive DABlocks with their transactions.
-type DAChunkV0 struct {
-	Blocks       []*DABlock
-	Transactions [][]*types.TransactionData
-}
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatchV0 struct {
@@ -97,89 +89,6 @@ func (o *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	}
 
 	return &daChunk, nil
-}
-
-// Encode serializes the DAChunk into a slice of bytes.
-func (c *DAChunkV0) Encode() ([]byte, error) {
-	if len(c.Blocks) == 0 {
-		return nil, errors.New("number of blocks is 0")
-	}
-
-	if len(c.Blocks) > 255 {
-		return nil, errors.New("number of blocks exceeds 1 byte")
-	}
-
-	var chunkBytes []byte
-	chunkBytes = append(chunkBytes, byte(len(c.Blocks)))
-
-	var l2TxDataBytes []byte
-
-	for _, block := range c.Blocks {
-		chunkBytes = append(chunkBytes, block.Encode()...)
-	}
-
-	for _, blockTxs := range c.Transactions {
-		for _, txData := range blockTxs {
-			if txData.Type == types.L1MessageTxType {
-				continue
-			}
-
-			var txLen [4]byte
-			rlpTxData, err := ConvertTxDataToRLPEncoding(txData, false /* no mock */)
-			if err != nil {
-				return nil, err
-			}
-			binary.BigEndian.PutUint32(txLen[:], uint32(len(rlpTxData)))
-			l2TxDataBytes = append(l2TxDataBytes, txLen[:]...)
-			l2TxDataBytes = append(l2TxDataBytes, rlpTxData...)
-		}
-	}
-
-	chunkBytes = append(chunkBytes, l2TxDataBytes...)
-	return chunkBytes, nil
-}
-
-// Hash computes the hash of the DAChunk data.
-func (c *DAChunkV0) Hash() (common.Hash, error) {
-	chunkBytes, err := c.Encode()
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	if len(chunkBytes) == 0 {
-		return common.Hash{}, errors.New("chunk data is empty and cannot be processed")
-	}
-	numBlocks := chunkBytes[0]
-
-	// concatenate block contexts
-	var dataBytes []byte
-	for i := 0; i < int(numBlocks); i++ {
-		// only the first 58 bytes of each BlockContext are needed for the hashing process
-		dataBytes = append(dataBytes, chunkBytes[1+60*i:60*i+59]...)
-	}
-
-	// concatenate l1 and l2 tx hashes
-	for _, blockTxs := range c.Transactions {
-		var l1TxHashes []byte
-		var l2TxHashes []byte
-		for _, txData := range blockTxs {
-			txHash := strings.TrimPrefix(txData.TxHash, "0x")
-			hashBytes, err := hex.DecodeString(txHash)
-			if err != nil {
-				return common.Hash{}, fmt.Errorf("failed to decode tx hash from TransactionData: hash=%v, err=%w", txData.TxHash, err)
-			}
-			if txData.Type == types.L1MessageTxType {
-				l1TxHashes = append(l1TxHashes, hashBytes...)
-			} else {
-				l2TxHashes = append(l2TxHashes, hashBytes...)
-			}
-		}
-		dataBytes = append(dataBytes, l1TxHashes...)
-		dataBytes = append(dataBytes, l2TxHashes...)
-	}
-
-	hash := crypto.Keccak256Hash(dataBytes)
-	return hash, nil
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
