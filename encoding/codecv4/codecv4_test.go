@@ -216,7 +216,7 @@ func TestCodecV4BatchEncode(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
-	batch, err := NewDABatch(originalBatch, true /* enble encode */)
+	batch, err := NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
 	assert.Equal(t, "040000000000000000000000000000000000000000000000009f81f6879f121da5b7a37535cdb21b3d53099266de57b1fdf603ce32100ed54101e5c897e0f98f6addd6c99bb51ff927cde93851b0d407aae3d7d5de75a31f2900000000000000000000000000000000000000000000000000000000000000000000000063807b2a26451ed31542ed15543973f8bc8c3b6382ba0cba5650a7faf14625377029203c1b6db22aa24613cb68dee10ca50bbbc88fc15b8a6abf9dcf3ad382a2642e480d", encoded)
