@@ -4,9 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"sync"
 
-	"github.com/scroll-tech/go-ethereum/accounts/abi"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -340,46 +338,6 @@ func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	return &blob, nil
 }
 
-var (
-	blobDataProofArgs         *abi.Arguments
-	initBlobDataProofArgsOnce sync.Once
-)
-
-// GetBlobDataProofArgs gets the blob data proof arguments for batch commitment and returns error if initialization fails.
-func GetBlobDataProofArgs() (*abi.Arguments, error) {
-	var initError error
-
-	initBlobDataProofArgsOnce.Do(func() {
-		// Initialize bytes32 type
-		bytes32Type, err := abi.NewType("bytes32", "bytes32", nil)
-		if err != nil {
-			initError = fmt.Errorf("failed to initialize abi type bytes32: %w", err)
-			return
-		}
-
-		// Initialize bytes48 type
-		bytes48Type, err := abi.NewType("bytes48", "bytes48", nil)
-		if err != nil {
-			initError = fmt.Errorf("failed to initialize abi type bytes48: %w", err)
-			return
-		}
-
-		// Successfully create the argument list
-		blobDataProofArgs = &abi.Arguments{
-			{Type: bytes32Type, Name: "z"},
-			{Type: bytes32Type, Name: "y"},
-			{Type: bytes48Type, Name: "kzg_commitment"},
-			{Type: bytes48Type, Name: "kzg_proof"},
-		}
-	})
-
-	if initError != nil {
-		return nil, initError
-	}
-
-	return blobDataProofArgs, nil
-}
-
 // CalculatePaddedBlobSize calculates the required size on blob storage
 // where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
 func CalculatePaddedBlobSize(dataSize uint64) uint64 {
@@ -465,4 +423,21 @@ func GetCodecVersion(chainCfg *params.ChainConfig, startBlockNumber *big.Int, st
 	default:
 		return CodecV4 // codecv4: batches after DarwinV2
 	}
+}
+
+// BlobDataProofFromValues creates the blob data proof from the given values.
+// Memory layout of ``_blobDataProof``:
+// | z       | y       | kzg_commitment | kzg_proof |
+// |---------|---------|----------------|-----------|
+// | bytes32 | bytes32 | bytes48        | bytes48   |
+
+func BlobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg4844.Commitment, proof kzg4844.Proof) []byte {
+	result := make([]byte, 32+32+48+48)
+
+	copy(result[0:32], z[:])
+	copy(result[32:64], y[:])
+	copy(result[64:112], commitment[:])
+	copy(result[112:160], proof[:])
+
+	return result
 }
