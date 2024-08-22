@@ -224,7 +224,7 @@ func TestCodecV4BatchEncode(t *testing.T) {
 	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
 	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{trace3}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
 	assert.Equal(t, "04000000000000000000000000000000000000000000000000d46d19f6d48083dc7905a68e6a20ea6a8fbcd445d56b549b324a8485b5b574a601ad8c8eee24cc98ab1ca9c0a4c92bf20f488f06dedbc22f1312bd389df7105000000000000000000000000000000000000000000000000000000000000000000000000063807b2d30702c0ea39553a0601a9c6fc5b27c076ddfc1044001fb0a8ad1fd9016304a61233de2770e0fb9a5578e5f633846ef9fa4c2ab8b80b8f9a30f09be07cda8d725", encoded)
@@ -232,7 +232,7 @@ func TestCodecV4BatchEncode(t *testing.T) {
 	trace4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
 	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
 	assert.Equal(t, "040000000000000000000000000000000b000000000000000bcaece1705bf2ce5e94154469d910ffe8d102419c5eb3152c0c6d237cf35c885f01c6a9a7d06425dbfad42697e4ce5bc8562d7c5ffe1f62d57fcb51240e33af93000000000000000000000000000000000000000000000000000000000000000000000000646b6e1338122423f3cebb92645f9ac93c8ee50edb75ea93a951f278007e721a7b9f995824895b00195499dfe77d201cf3627050d866abb2685f87e10466c4fcaf3a8588", encoded)
@@ -262,7 +262,7 @@ func TestCodecV4BatchEncode(t *testing.T) {
 	assert.Equal(t, "04000000000000000000000000000001010000000000000101899a411a3309c6491701b7b955c7b1115ac015414bbb71b59a0ca561668d5208016ac24dabb9e1bbb3ec3c65b50a829564c2f56160ba92fbdb03ed7e4a0c439a000000000000000000000000000000000000000000000000000000000000000000000000646b6ed004e124536a56f650b0994e58647e59087bf99ecadbd7bc730ad6290f229fb0715885a06aad250ef3594c65a7a6a0e282175b1ad4d8b4063dac48e282bb5a9213", encoded)
 
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk2, chunk3, chunk4, chunk5}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
 	assert.Equal(t, "040000000000000000000000000000002a000000000000002ae7740182b0948139505b6b296d0c6c6f7717708323e6e687917acad823b559d80113ba3d5c53a035f4b4ec6f8a2ba9ab521bccab9f90e3a713ab5fffc0adec57000000000000000000000000000000000000000000000000000000000000000000000000646b6ed012e49b70b64652e5cab5dfdd1f58958d863de1d7fcb959e09f147a98b0b895171560f81b17ec3a2fe1c8ed2d308ca5bf002d7e3c18db9682a8d0f5379bf213aa", encoded)
@@ -270,7 +270,7 @@ func TestCodecV4BatchEncode(t *testing.T) {
 	chunk8 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3, trace4}}
 	chunk9 := &encoding.Chunk{Blocks: []*encoding.Block{trace5}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk8, chunk9}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(batch.Encode())
 	assert.Equal(t, "040000000000000000000000000000002a000000000000002a9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e1347670121388d141bd439af8447db5d00bacbfe1587fea6581f795e98588d95ba7f26000000000000000000000000000000000000000000000000000000000000000000000000646b6ed046aedf214a661b6b37b9c325fef4484ff3613a6fb52719609bf02a66bc7ba23b6e9b7bcbe3be0ba95654f16f715bf7e39ef87a84199340423f6487cf56058085", encoded)
@@ -284,21 +284,21 @@ func TestCodecV4BatchHash(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
-	batch, err := NewDABatch(originalBatch, true /* enble encode */)
+	batch, err := NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, "0x53d6da35c9b6f0413b6ebb80f4a8c19b0e3279481ddf602398a54d3b4e5d4f2c", batch.Hash().Hex())
 
 	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
 	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{trace3}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, "0x08feefdb19215bb0f51f85a3b02a0954ac7da67681e274db49b9102f4c6e0857", batch.Hash().Hex())
 
 	trace4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
 	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, "0xc56c5e51993342232193d1d93124bae30a5b1444eebf49b2dd5f2c5962d4d54d", batch.Hash().Hex())
 
@@ -324,14 +324,14 @@ func TestCodecV4BatchHash(t *testing.T) {
 	assert.Equal(t, "0x53765a37bbd72655df586b530d79cb4ad0fb814d72ddc95e01e0ede579f45117", batch.Hash().Hex())
 
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk2, chunk3, chunk4, chunk5}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, "0x74ccf9cc265f423cc6e6e53ed294000637a832cdc93c76485855289bebb6764a", batch.Hash().Hex())
 
 	chunk8 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3, trace4}}
 	chunk9 := &encoding.Chunk{Blocks: []*encoding.Block{trace5}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk8, chunk9}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, "0x8d5ee00a80d7dbdc083d0cdedd35c2cb722e5944f9d88f7450c9186f3ef3da44", batch.Hash().Hex())
 }
@@ -480,7 +480,7 @@ func TestCodecV4BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, _, err := ConstructBlobPayload(chunks, true /* enble encode */, true /* use mock */)
+		blob, blobVersionedHash, z, _, err := ConstructBlobPayload(chunks, true /* enable encode */, true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
@@ -522,7 +522,7 @@ func TestCodecV4BatchL1MessagePopped(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
 	originalBatch := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
-	batch, err := NewDABatch(originalBatch, true /* enble encode */)
+	batch, err := NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, int(batch.L1MessagePopped))
 	assert.Equal(t, 0, int(batch.TotalL1MessagePopped))
@@ -530,7 +530,7 @@ func TestCodecV4BatchL1MessagePopped(t *testing.T) {
 	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
 	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{trace3}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, int(batch.L1MessagePopped))
 	assert.Equal(t, 0, int(batch.TotalL1MessagePopped))
@@ -538,7 +538,7 @@ func TestCodecV4BatchL1MessagePopped(t *testing.T) {
 	trace4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
 	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, 11, int(batch.L1MessagePopped)) // skip 10, include 1
 	assert.Equal(t, 11, int(batch.TotalL1MessagePopped))
@@ -582,13 +582,13 @@ func TestCodecV4BatchL1MessagePopped(t *testing.T) {
 	chunk8 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3, trace4}} // queue index 10
 	chunk9 := &encoding.Chunk{Blocks: []*encoding.Block{trace5}}                 // queue index 37-41
 	originalBatch = &encoding.Batch{Chunks: []*encoding.Chunk{chunk8, chunk9}}
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, 42, int(batch.L1MessagePopped))
 	assert.Equal(t, 42, int(batch.TotalL1MessagePopped))
 
 	originalBatch.TotalL1MessagePoppedBefore = 10
-	batch, err = NewDABatch(originalBatch, true /* enble encode */)
+	batch, err = NewDABatch(originalBatch, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, 32, int(batch.L1MessagePopped))
 	assert.Equal(t, 42, int(batch.TotalL1MessagePopped))
@@ -597,52 +597,52 @@ func TestCodecV4BatchL1MessagePopped(t *testing.T) {
 func TestCodecV4ChunkAndBatchBlobSizeEstimation(t *testing.T) {
 	trace2 := readBlockFromJSON(t, "../testdata/blockTrace_02.json")
 	chunk2 := &encoding.Chunk{Blocks: []*encoding.Block{trace2}}
-	chunk2BatchBytesSize, chunk2BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk2, true /* enble encode */)
+	chunk2BatchBytesSize, chunk2BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk2, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(412), chunk2BatchBytesSize)
 	assert.Equal(t, uint64(238), chunk2BlobSize)
 	batch2 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk2}}
-	batch2BatchBytesSize, batch2BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch2, true /* enble encode */)
+	batch2BatchBytesSize, batch2BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch2, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(412), batch2BatchBytesSize)
 	assert.Equal(t, uint64(238), batch2BlobSize)
 
 	trace3 := readBlockFromJSON(t, "../testdata/blockTrace_03.json")
 	chunk3 := &encoding.Chunk{Blocks: []*encoding.Block{trace3}}
-	chunk3BatchBytesSize, chunk3BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk3, true /* enble encode */)
+	chunk3BatchBytesSize, chunk3BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk3, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(5863), chunk3BatchBytesSize)
 	assert.Equal(t, uint64(2934), chunk3BlobSize)
 	batch3 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk3}}
-	batch3BatchBytesSize, batch3BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch3, true /* enble encode */)
+	batch3BatchBytesSize, batch3BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch3, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(5863), batch3BatchBytesSize)
 	assert.Equal(t, uint64(2934), batch3BlobSize)
 
 	trace4 := readBlockFromJSON(t, "../testdata/blockTrace_04.json")
 	chunk4 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
-	chunk4BatchBytesSize, chunk4BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk4, true /* enble encode */)
+	chunk4BatchBytesSize, chunk4BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk4, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(214), chunk4BatchBytesSize)
 	assert.Equal(t, uint64(55), chunk4BlobSize)
 	batch4 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk4}}
-	blob4BatchBytesSize, batch4BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch4, true /* enble encode */)
+	blob4BatchBytesSize, batch4BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch4, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(214), blob4BatchBytesSize)
 	assert.Equal(t, uint64(55), batch4BlobSize)
 
 	chunk5 := &encoding.Chunk{Blocks: []*encoding.Block{trace2, trace3}}
-	chunk5BatchBytesSize, chunk5BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk5, true /* enble encode */)
+	chunk5BatchBytesSize, chunk5BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk5, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(6093), chunk5BatchBytesSize)
 	assert.Equal(t, uint64(3150), chunk5BlobSize)
 	chunk6 := &encoding.Chunk{Blocks: []*encoding.Block{trace4}}
-	chunk6BatchBytesSize, chunk6BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk6, true /* enble encode */)
+	chunk6BatchBytesSize, chunk6BlobSize, err := EstimateChunkL1CommitBatchSizeAndBlobSize(chunk6, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(214), chunk6BatchBytesSize)
 	assert.Equal(t, uint64(55), chunk6BlobSize)
 	batch5 := &encoding.Batch{Chunks: []*encoding.Chunk{chunk5, chunk6}}
-	batch5BatchBytesSize, batch5BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch5, true /* enble encode */)
+	batch5BatchBytesSize, batch5BlobSize, err := EstimateBatchL1CommitBatchSizeAndBlobSize(batch5, true /* enable encode */)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(6125), batch5BatchBytesSize)
 	assert.Equal(t, uint64(3187), batch5BlobSize)
