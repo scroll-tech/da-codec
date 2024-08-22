@@ -18,9 +18,6 @@ import (
 	"github.com/scroll-tech/da-codec/encoding/codecv0"
 )
 
-// BLSModulus is the BLS modulus defined in EIP-4844.
-var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
-
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 15
 
@@ -261,7 +258,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(challengePreimage[0:], hash[:])
 
 	// convert raw data to BLSFieldElements
-	blob, err := MakeBlobCanonical(blobBytes)
+	blob, err := encoding.MakeBlobCanonical(blobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, err
 	}
@@ -278,7 +275,7 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), BLSModulus)
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), encoding.BLSModulus)
 	pointBytes := pointBigInt.Bytes()
 
 	// the challenge point z
@@ -287,31 +284,6 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, nil
-}
-
-// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
-func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
-	// blob contains 131072 bytes but we can only utilize 31/32 of these
-	if len(blobBytes) > 126976 {
-		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
-	}
-
-	// the canonical (padded) blob payload
-	var blob kzg4844.Blob
-
-	// encode blob payload by prepending every 31 bytes with 1 zero byte
-	index := 0
-
-	for from := 0; from < len(blobBytes); from += 31 {
-		to := from + 31
-		if to > len(blobBytes) {
-			to = len(blobBytes)
-		}
-		copy(blob[index+1:], blobBytes[from:to])
-		index += 32
-	}
-
-	return &blob, nil
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
@@ -374,24 +346,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
-	return BlobDataProofFromValues(*b.z, y, commitment, proof), nil
-}
-
-// BlobDataProofFromValues creates the blob data proof from the given values.
-// Memory layout of ``_blobDataProof``:
-// | z       | y       | kzg_commitment | kzg_proof |
-// |---------|---------|----------------|-----------|
-// | bytes32 | bytes32 | bytes48        | bytes48   |
-
-func BlobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg4844.Commitment, proof kzg4844.Proof) []byte {
-	result := make([]byte, 32+32+48+48)
-
-	copy(result[0:32], z[:])
-	copy(result[32:64], y[:])
-	copy(result[64:112], commitment[:])
-	copy(result[112:160], proof[:])
-
-	return result
+	return encoding.BlobDataProofFromValues(*b.z, y, commitment, proof), nil
 }
 
 // Blob returns the blob of the batch.
@@ -406,7 +361,7 @@ func EstimateChunkL1CommitBlobSize(c *encoding.Chunk) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return CalculatePaddedBlobSize(metadataSize + chunkDataSize), nil
+	return encoding.CalculatePaddedBlobSize(metadataSize + chunkDataSize), nil
 }
 
 // EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
@@ -420,7 +375,7 @@ func EstimateBatchL1CommitBlobSize(b *encoding.Batch) (uint64, error) {
 		}
 		batchDataSize += chunkDataSize
 	}
-	return CalculatePaddedBlobSize(metadataSize + batchDataSize), nil
+	return encoding.CalculatePaddedBlobSize(metadataSize + batchDataSize), nil
 }
 
 func chunkL1CommitBlobDataSize(c *encoding.Chunk) (uint64, error) {
@@ -557,16 +512,4 @@ func EstimateBatchL1CommitCalldataSize(b *encoding.Batch) uint64 {
 		totalL1CommitCalldataSize += EstimateChunkL1CommitCalldataSize(chunk)
 	}
 	return totalL1CommitCalldataSize
-}
-
-// CalculatePaddedBlobSize calculates the required size on blob storage
-// where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
-func CalculatePaddedBlobSize(dataSize uint64) uint64 {
-	paddedSize := (dataSize / 31) * 32
-
-	if dataSize%31 != 0 {
-		paddedSize += 1 + dataSize%31 // Add 1 byte for the first empty byte plus the remainder bytes
-	}
-
-	return paddedSize
 }
