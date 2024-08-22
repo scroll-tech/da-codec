@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"sync/atomic"
 
 	"github.com/scroll-tech/go-ethereum/common"
@@ -94,6 +95,26 @@ func (o *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	return &daBatch, nil
+}
+
+// NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
+// It also checks if the blob versioned hashes are as expected.
+func (o *DACodecV4) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hashes []common.Hash) (DABatch, error) {
+	o.SetCompression(true)
+	daBatch, err := o.NewDABatch(batch)
+	if err != nil || reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
+		o.SetCompression(false)
+		daBatch, err = o.NewDABatch(batch)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
+		return nil, fmt.Errorf("blob versioned hashes do not match, expected %v, got %v", hashes, daBatch.BlobVersionedHashes())
+	}
+
+	return daBatch, nil
 }
 
 // constructBlobPayload constructs the 4844 blob payload.

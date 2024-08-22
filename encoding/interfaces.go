@@ -29,6 +29,7 @@ type Codec interface {
 	NewDAChunk(*Chunk, uint64) (DAChunk, error)
 	NewDABatch(*Batch) (DABatch, error)
 	NewDABatchFromBytes([]byte) (DABatch, error)
+	NewDABatchWithExpectedBlobVersionedHashes(*Batch, []common.Hash) (DABatch, error)
 
 	EstimateChunkL1CommitBatchSizeAndBlobSize(*Chunk) (uint64, uint64, error)
 	EstimateBatchL1CommitBatchSizeAndBlobSize(*Batch) (uint64, uint64, error)

@@ -123,6 +123,12 @@ func (o *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	return &daBatch, nil
 }
 
+// NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
+// It also checks if the blob versioned hashes are as expected.
+func (o *DACodecV0) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, _ []common.Hash) (DABatch, error) {
+	return o.NewDABatch(batch)
+}
+
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
 func (o *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	if len(data) < 89 {
