@@ -277,17 +277,7 @@ func (b *DABatch) BlobDataProof() ([]byte, error) {
 		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
-	// Memory layout of ``_blobDataProof``:
-	// | z       | y       | kzg_commitment | kzg_proof |
-	// |---------|---------|----------------|-----------|
-	// | bytes32 | bytes32 | bytes48        | bytes48   |
-
-	values := []interface{}{*b.z, y, commitment, proof}
-	blobDataProofArgs, err := encoding.GetBlobDataProofArgs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get blob data proof args, err: %w", err)
-	}
-	return blobDataProofArgs.Pack(values...)
+	return encoding.BlobDataProofFromValues(*b.z, y, commitment, proof), nil
 }
 
 // Blob returns the blob of the batch.
