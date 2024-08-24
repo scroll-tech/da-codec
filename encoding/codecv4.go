@@ -102,7 +102,7 @@ func (o *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 func (o *DACodecV4) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hashes []common.Hash) (DABatch, error) {
 	o.SetCompression(true)
 	daBatch, err := o.NewDABatch(batch)
-	if err != nil || reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
+	if err != nil || !reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
 		o.SetCompression(false)
 		daBatch, err = o.NewDABatch(batch)
 		if err != nil {
@@ -110,7 +110,7 @@ func (o *DACodecV4) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hash
 		}
 	}
 
-	if reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
+	if !reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
 		return nil, fmt.Errorf("blob versioned hashes do not match, expected %v, got %v", hashes, daBatch.BlobVersionedHashes())
 	}
 

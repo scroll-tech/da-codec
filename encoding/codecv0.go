@@ -132,7 +132,7 @@ func (o *DACodecV0) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hash
 		return nil, err
 	}
 
-	if reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
+	if !reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
 		return nil, errors.New("blob versioned hashes do not match")
 	}
 
