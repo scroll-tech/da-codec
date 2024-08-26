@@ -17,6 +17,7 @@ import (
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv0"
 	"github.com/scroll-tech/da-codec/encoding/codecv1"
+	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
 func TestCodecV2BlockEncode(t *testing.T) {
@@ -60,17 +61,17 @@ func TestCodecV2BlockEncode(t *testing.T) {
 	encoded = hex.EncodeToString(block.Encode())
 	assert.Equal(t, "000000000000001100000000646b6ed0000000000000000000000000000000000000000000000000000000000000000000000000007a120001010101", encoded)
 
-	// sanity check: v0 and v1 block encodings are identical
+	// sanity check: v0 and v2 block encodings are identical
 	for _, trace := range []*encoding.Block{trace2, trace3, trace4, trace5, trace6, trace7} {
 		blockv0, err := codecv0.NewDABlock(trace, 0)
 		assert.NoError(t, err)
 		encodedv0 := hex.EncodeToString(blockv0.Encode())
 
-		blockv1, err := NewDABlock(trace, 0)
+		blockv2, err := NewDABlock(trace, 0)
 		assert.NoError(t, err)
-		encodedv1 := hex.EncodeToString(blockv1.Encode())
+		encodedv2 := hex.EncodeToString(blockv2.Encode())
 
-		assert.Equal(t, encodedv0, encodedv1)
+		assert.Equal(t, encodedv0, encodedv2)
 	}
 }
 
@@ -401,10 +402,10 @@ func TestCompressDecompress(t *testing.T) {
 	blobBytes, err := hex.DecodeString(blobString)
 	assert.NoError(t, err)
 
-	compressed, err := compressScrollBatchBytes(blobBytes)
+	compressed, err := zstd.CompressScrollBatchBytes(blobBytes)
 	assert.NoError(t, err)
 
-	blob, err := codecv1.MakeBlobCanonical(compressed)
+	blob, err := encoding.MakeBlobCanonical(compressed)
 	assert.NoError(t, err)
 
 	res := codecv1.BytesFromBlobCanonical(blob)
@@ -755,7 +756,7 @@ func TestCodecV2BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := ConstructBlobPayload(chunks, true /* use mock */)
+		blob, blobVersionedHash, z, _, err := ConstructBlobPayload(chunks, true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
