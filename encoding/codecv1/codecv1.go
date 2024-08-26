@@ -29,7 +29,7 @@ type DABlock = codecv0.DABlock
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk codecv0.DAChunk
 
-// DAChunkRawTx groups consecutive DABlocks with their transactions.
+// DAChunkRawTx groups consecutive DABlocks with their L2 transactions, L1 msgs are loaded in another place.
 type DAChunkRawTx = codecv0.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
@@ -326,7 +326,6 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	return blob, blobVersionedHash, &z, nil
 }
 
-
 // DecodeTxsFromBytes decodes txs from blob bytes and writes to chunks
 func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks int) error {
 	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
@@ -361,7 +360,7 @@ func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks i
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	blobBytes := BytesFromBlobCanonical(blob)
+	blobBytes := encoding.BytesFromBlobCanonical(blob)
 	return DecodeTxsFromBytes(blobBytes[:], chunks, MaxNumChunks)
 }
 
@@ -418,15 +417,6 @@ func GetNextTx(bytes []byte, index int) (*types.Transaction, int, error) {
 		return nil, 0, fmt.Errorf("failed to unmarshal tx, err: %w", err)
 	}
 	return tx, nextIndex, nil
-}
-
-// BytesFromBlobCanonical converts the canonical blob representation into the raw blob data
-func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
-	var blobBytes [126976]byte
-	for from := 0; from < len(blob); from += 32 {
-		copy(blobBytes[from/32*31:], blob[from+1:from+32])
-	}
-	return blobBytes
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.

@@ -17,15 +17,13 @@ import (
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = codecv2.MaxNumChunks
 
-const BlockContextByteSize = codecv2.BlockContextByteSize
-
 // DABlock represents a Data Availability Block.
 type DABlock = codecv2.DABlock
 
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk = codecv2.DAChunk
 
-// DAChunkRawTx groups consecutive DABlocks with their transactions.
+// DAChunkRawTx groups consecutive DABlocks with their L2 transactions, L1 msgs are loaded in another place.
 type DAChunkRawTx = codecv2.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.

@@ -1,9 +1,12 @@
 package encoding
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math/big"
+
+	"github.com/klauspost/compress/zstd"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
@@ -352,6 +355,44 @@ func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	}
 
 	return &blob, nil
+}
+
+// BytesFromBlobCanonical converts the canonical blob representation into the raw blob data
+func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
+	var blobBytes [126976]byte
+	for from := 0; from < len(blob); from += 32 {
+		copy(blobBytes[from/32*31:], blob[from+1:from+32])
+	}
+	return blobBytes
+}
+
+// DecompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
+func DecompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
+	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
+	var res []byte
+	readBatchSize := 131072
+	batchOfBytes := make([]byte, readBatchSize)
+
+	r := bytes.NewReader(compressedBytes)
+	zr, err := zstd.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+
+	for {
+		i, err := zr.Read(batchOfBytes)
+		res = append(res, batchOfBytes[:i]...) // append already decoded bytes even if we meet error
+		// the error here is supposed to be EOF or similar that indicates that buffer has been read until the end
+		// we should return all data that read by this moment
+		if i < readBatchSize || err != nil {
+			break
+		}
+	}
+	if len(res) == 0 {
+		return nil, fmt.Errorf("failed to decompress blob bytes")
+	}
+	return res, nil
 }
 
 // CalculatePaddedBlobSize calculates the required size on blob storage

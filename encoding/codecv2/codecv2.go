@@ -1,15 +1,12 @@
 package codecv2
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
-
-	zstd1 "github.com/klauspost/compress/zstd"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -33,7 +30,7 @@ type DABlock = codecv1.DABlock
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk = codecv1.DAChunk
 
-// DAChunkRawTx groups consecutive DABlocks with their transactions.
+// DAChunkRawTx groups consecutive DABlocks with their L2 transactions, L1 msgs are loaded in another place.
 type DAChunkRawTx = codecv1.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
@@ -232,10 +229,10 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	compressedBytes := codecv1.BytesFromBlobCanonical(blob)
+	compressedBytes := encoding.BytesFromBlobCanonical(blob)
 	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
 
-	blobBytes, err := decompressScrollBatchBytes(append(magics, compressedBytes[:]...))
+	blobBytes, err := encoding.DecompressScrollBatchBytes(append(magics, compressedBytes[:]...))
 	if err != nil {
 		return err
 	}
@@ -403,33 +400,4 @@ func EstimateChunkL1CommitGas(c *encoding.Chunk) uint64 {
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
 func EstimateBatchL1CommitGas(b *encoding.Batch) uint64 {
 	return codecv1.EstimateBatchL1CommitGas(b)
-}
-
-// decompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
-func decompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
-	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
-	var res []byte
-	readBatchSize := 131072
-	batchOfBytes := make([]byte, readBatchSize)
-
-	r := bytes.NewReader(compressedBytes)
-	zr, err := zstd1.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-	defer zr.Close()
-
-	for {
-		i, err := zr.Read(batchOfBytes)
-		res = append(res, batchOfBytes[:i]...) // append already decoded bytes even if we meet error
-		// the error here is supposed to be EOF or similar that indicates that buffer has been read until the end
-		// we should return all data that read by this moment
-		if i < readBatchSize || err != nil {
-			break
-		}
-	}
-	if len(res) == 0 {
-		return nil, fmt.Errorf("failed to decompress blob bytes")
-	}
-	return res, nil
 }

@@ -7,16 +7,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/da-codec/encoding/codecv0"
-	"github.com/scroll-tech/da-codec/encoding/codecv1"
 	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
@@ -395,7 +395,7 @@ func TestCodecV2BatchDataHash(t *testing.T) {
 	assert.Equal(t, "0x9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e134767", batch.DataHash.Hex())
 }
 
-func TestCompressDecompress(t *testing.T) {
+func TestCodecV2CompressDecompress(t *testing.T) {
 	blobString := "00" + "0001" + "000000e6" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00" + "00" + "000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" + "00000000" +
 		// tx payload
 		"00f87180843b9aec2e8307a12094c0c4c8baea3f6acb49b6e1fb9e2adeceeacb000ca28a152d02c7e14af60000008083019ecea0ab07ae99c67aa78e7ba5cf670081e90cc32b219b1de102513d56548a41e86df514a034cbd19feacd73e8ce6400d00c4d1996b9b5243c578fd7f51bfaec288bbaf42a8bf87101843b9aec2e830007a1209401bae6bf68e9a03fb2bc0615b1bf0d69ce9411ed8a152d02c7e14a00f60000008083019ecea0f039985866d8256f10c1be4f7b2cace28d8f20bde2007e2604393eb095b7f77316a05a3e6e81065f2b4604bcec5bd4aba68483599600fc3f879380aac1c09c6eed32f1"
@@ -408,12 +408,12 @@ func TestCompressDecompress(t *testing.T) {
 	blob, err := encoding.MakeBlobCanonical(compressed)
 	assert.NoError(t, err)
 
-	res := codecv1.BytesFromBlobCanonical(blob)
+	res := encoding.BytesFromBlobCanonical(blob)
 	compressedBytes := res[:]
 	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
 	compressedBytes = append(magics, compressedBytes...)
 
-	decompressedBlobBytes, err := decompressScrollBatchBytes(compressedBytes)
+	decompressedBlobBytes, err := encoding.DecompressScrollBatchBytes(compressedBytes)
 
 	assert.NoError(t, err)
 	assert.Equal(t, blobBytes, decompressedBlobBytes)
