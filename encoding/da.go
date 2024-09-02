@@ -366,8 +366,8 @@ func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
 	return blobBytes
 }
 
-// DecompressScrollBatchBytes decompresses the given bytes into scroll batch bytes
-func DecompressScrollBatchBytes(compressedBytes []byte) ([]byte, error) {
+// DecompressScrollBlobToBatch decompresses the given blob bytes into scroll batch bytes
+func DecompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
 	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
 	var res []byte
 	readBatchSize := 131072

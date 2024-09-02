@@ -255,11 +255,11 @@ func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	// if first byte is 1 - data compressed, 0 - not compressed
 	if rawBytes[0] == 0x1 {
 		magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
-		blobBytes, err := encoding.DecompressScrollBatchBytes(append(magics, rawBytes[1:]...))
+		batchBytes, err := encoding.DecompressScrollBlobToBatch(append(magics, rawBytes[1:]...))
 		if err != nil {
 			return err
 		}
-		return codecv1.DecodeTxsFromBytes(blobBytes, chunks, MaxNumChunks)
+		return codecv1.DecodeTxsFromBytes(batchBytes, chunks, MaxNumChunks)
 	} else {
 		return codecv1.DecodeTxsFromBytes(rawBytes[1:], chunks, MaxNumChunks)
 	}

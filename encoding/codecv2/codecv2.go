@@ -232,11 +232,11 @@ func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	compressedBytes := encoding.BytesFromBlobCanonical(blob)
 	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
 
-	blobBytes, err := encoding.DecompressScrollBatchBytes(append(magics, compressedBytes[:]...))
+	batchBytes, err := encoding.DecompressScrollBlobToBatch(append(magics, compressedBytes[:]...))
 	if err != nil {
 		return err
 	}
-	return codecv1.DecodeTxsFromBytes(blobBytes, chunks, MaxNumChunks)
+	return codecv1.DecodeTxsFromBytes(batchBytes, chunks, MaxNumChunks)
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.

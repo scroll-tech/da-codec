@@ -360,8 +360,8 @@ func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks i
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	blobBytes := encoding.BytesFromBlobCanonical(blob)
-	return DecodeTxsFromBytes(blobBytes[:], chunks, MaxNumChunks)
+	batchBytes := encoding.BytesFromBlobCanonical(blob)
+	return DecodeTxsFromBytes(batchBytes[:], chunks, MaxNumChunks)
 }
 
 var errSmallLength error = fmt.Errorf("length of blob bytes is too small")

@@ -413,7 +413,7 @@ func TestCodecV2CompressDecompress(t *testing.T) {
 	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
 	compressedBytes = append(magics, compressedBytes...)
 
-	decompressedBlobBytes, err := encoding.DecompressScrollBatchBytes(compressedBytes)
+	decompressedBlobBytes, err := encoding.DecompressScrollBlobToBatch(compressedBytes)
 
 	assert.NoError(t, err)
 	assert.Equal(t, blobBytes, decompressedBlobBytes)
