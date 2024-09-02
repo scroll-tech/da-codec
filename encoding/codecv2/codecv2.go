@@ -22,11 +22,16 @@ import (
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 45
 
+const BlockContextByteSize = codecv1.BlockContextByteSize
+
 // DABlock represents a Data Availability Block.
 type DABlock = codecv1.DABlock
 
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk = codecv1.DAChunk
+
+// DAChunkRawTx groups consecutive DABlocks with their L2 transactions, L1 msgs are loaded in another place.
+type DAChunkRawTx = codecv1.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
@@ -53,6 +58,11 @@ func NewDABlock(block *encoding.Block, totalL1MessagePoppedBefore uint64) (*DABl
 // NewDAChunk creates a new DAChunk from the given encoding.Chunk and the total number of L1 messages popped before.
 func NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore uint64) (*DAChunk, error) {
 	return codecv1.NewDAChunk(chunk, totalL1MessagePoppedBefore)
+}
+
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
+func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
+	return codecv1.DecodeDAChunksRawTx(bytes)
 }
 
 // NewDABatch creates a DABatch from the provided encoding.Batch.
@@ -215,6 +225,18 @@ func ConstructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, blobBytes, nil
+}
+
+// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+	compressedBytes := encoding.BytesFromBlobCanonical(blob)
+	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
+
+	batchBytes, err := encoding.DecompressScrollBlobToBatch(append(magics, compressedBytes[:]...))
+	if err != nil {
+		return err
+	}
+	return codecv1.DecodeTxsFromBytes(batchBytes, chunks, MaxNumChunks)
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.

@@ -21,11 +21,16 @@ import (
 // MaxNumChunks is the maximum number of chunks that a batch can contain.
 const MaxNumChunks = 15
 
+const BlockContextByteSize = codecv0.BlockContextByteSize
+
 // DABlock represents a Data Availability Block.
 type DABlock = codecv0.DABlock
 
 // DAChunk groups consecutive DABlocks with their transactions.
 type DAChunk codecv0.DAChunk
+
+// DAChunkRawTx groups consecutive DABlocks with their L2 transactions, L1 msgs are loaded in another place.
+type DAChunkRawTx = codecv0.DAChunkRawTx
 
 // DABatch contains metadata about a batch of DAChunks.
 type DABatch struct {
@@ -91,6 +96,41 @@ func (c *DAChunk) Encode() []byte {
 	}
 
 	return chunkBytes
+}
+
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
+// Beginning from codecv1 tx data posted to blobs, not to chunk bytes in calldata
+func DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
+	var chunks []*DAChunkRawTx
+	for _, chunk := range bytes {
+		if len(chunk) < 1 {
+			return nil, fmt.Errorf("invalid chunk, length is less than 1")
+		}
+
+		numBlocks := int(chunk[0])
+		if len(chunk) < 1+numBlocks*BlockContextByteSize {
+			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*BlockContextByteSize)
+		}
+
+		blocks := make([]*DABlock, numBlocks)
+		for i := 0; i < numBlocks; i++ {
+			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
+			endIdx := startIdx + BlockContextByteSize
+			blocks[i] = &DABlock{}
+			err := blocks[i].Decode(chunk[startIdx:endIdx])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var transactions []types.Transactions
+
+		chunks = append(chunks, &DAChunkRawTx{
+			Blocks:       blocks,
+			Transactions: transactions, // Transactions field is still empty in the phase of DecodeDAChunksRawTx, because txs moved to bobs and filled in DecodeTxsFromBlob method.
+		})
+	}
+	return chunks, nil
 }
 
 // Hash computes the hash of the DAChunk data.
@@ -284,6 +324,99 @@ func constructBlobPayload(chunks []*encoding.Chunk, useMockTxData bool) (*kzg484
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, nil
+}
+
+// DecodeTxsFromBytes decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks int) error {
+	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
+	if numChunks != len(chunks) {
+		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
+	}
+	index := 2 + maxNumChunks*4
+	for chunkID, chunk := range chunks {
+		var transactions []types.Transactions
+		chunkSize := int(binary.BigEndian.Uint32(blobBytes[2+4*chunkID : 2+4*chunkID+4]))
+
+		chunkBytes := blobBytes[index : index+chunkSize]
+		curIndex := 0
+		for _, block := range chunk.Blocks {
+			var blockTransactions types.Transactions
+			txNum := int(block.NumTransactions - block.NumL1Messages)
+			for i := 0; i < txNum; i++ {
+				tx, nextIndex, err := GetNextTx(chunkBytes, curIndex)
+				if err != nil {
+					return fmt.Errorf("couldn't decode next tx from blob bytes: %w, index: %d", err, index+curIndex+4)
+				}
+				curIndex = nextIndex
+				blockTransactions = append(blockTransactions, tx)
+			}
+			transactions = append(transactions, blockTransactions)
+		}
+		chunk.Transactions = transactions
+		index += chunkSize
+	}
+	return nil
+}
+
+// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+	batchBytes := encoding.BytesFromBlobCanonical(blob)
+	return DecodeTxsFromBytes(batchBytes[:], chunks, MaxNumChunks)
+}
+
+var errSmallLength error = fmt.Errorf("length of blob bytes is too small")
+
+// GetNextTx parses blob bytes to find length of payload of next Tx and decode it
+func GetNextTx(bytes []byte, index int) (*types.Transaction, int, error) {
+	var nextIndex int
+	length := len(bytes)
+	if length < index+1 {
+		return nil, 0, errSmallLength
+	}
+	var txBytes []byte
+	if bytes[index] <= 0x7f {
+		// the first byte is transaction type, rlp encoding begins from next byte
+		txBytes = append(txBytes, bytes[index])
+		index++
+	}
+	if length < index+1 {
+		return nil, 0, errSmallLength
+	}
+	if bytes[index] >= 0xc0 && bytes[index] <= 0xf7 {
+		// length of payload is simply bytes[index] - 0xc0
+		payloadLen := int(bytes[index] - 0xc0)
+		if length < index+1+payloadLen {
+			return nil, 0, errSmallLength
+		}
+		txBytes = append(txBytes, bytes[index:index+1+payloadLen]...)
+		nextIndex = index + 1 + payloadLen
+	} else if bytes[index] > 0xf7 {
+		// the length of payload is encoded in next bytes[index] - 0xf7 bytes
+		// length of bytes representation of length of payload
+		lenPayloadLen := int(bytes[index] - 0xf7)
+		if length < index+1+lenPayloadLen {
+			return nil, 0, errSmallLength
+		}
+		lenBytes := bytes[index+1 : index+1+lenPayloadLen]
+		for len(lenBytes) < 8 {
+			lenBytes = append([]byte{0x0}, lenBytes...)
+		}
+		payloadLen := binary.BigEndian.Uint64(lenBytes)
+
+		if length < index+1+lenPayloadLen+int(payloadLen) {
+			return nil, 0, errSmallLength
+		}
+		txBytes = append(txBytes, bytes[index:index+1+lenPayloadLen+int(payloadLen)]...)
+		nextIndex = index + 1 + lenPayloadLen + int(payloadLen)
+	} else {
+		return nil, 0, fmt.Errorf("incorrect format of rlp encoding")
+	}
+	tx := &types.Transaction{}
+	err := tx.UnmarshalBinary(txBytes)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to unmarshal tx, err: %w", err)
+	}
+	return tx, nextIndex, nil
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
