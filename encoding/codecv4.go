@@ -238,6 +238,10 @@ func (o *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("invalid data length for DABatch, expected 193 bytes but got %d", len(data))
 	}
 
+	if CodecVersion(data[0]) != CodecV4 {
+		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV4)
+	}
+
 	b := &DABatchV4{
 		DABatchBase: DABatchBase{
 			Version:              data[0],
