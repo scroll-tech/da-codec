@@ -32,7 +32,7 @@ func (o *DACodecV4) Version() CodecVersion {
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
-func (o *DACodecV4) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
+func (o *DACodecV4) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
 	return (&DACodecV3{}).NewDABlock(block, totalL1MessagePoppedBefore)
 }
 

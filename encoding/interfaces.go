@@ -35,7 +35,7 @@ type DABatch interface {
 type Codec interface {
 	Version() CodecVersion
 
-	NewDABlock(*Block, uint64) (*DABlock, error)
+	NewDABlock(*Block, uint64) (DABlock, error)
 	NewDAChunk(*Chunk, uint64) (DAChunk, error)
 	NewDABatch(*Batch) (DABatch, error)
 	NewDABatchFromBytes([]byte) (DABatch, error)
