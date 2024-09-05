@@ -115,15 +115,13 @@ func (o *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	daBatch := DABatchV0{
-		DABatchBase: DABatchBase{
-			Version:                uint8(CodecV0),
-			BatchIndex:             batch.Index,
-			L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-			TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-			DataHash:               dataHash,
-			ParentBatchHash:        batch.ParentBatchHash,
-			SkippedL1MessageBitmap: bitmapBytes,
-		},
+		Version:                uint8(CodecV0),
+		BatchIndex:             batch.Index,
+		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
+		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
+		DataHash:               dataHash,
+		ParentBatchHash:        batch.ParentBatchHash,
+		SkippedL1MessageBitmap: bitmapBytes,
 	}
 
 	return &daBatch, nil
@@ -155,15 +153,13 @@ func (o *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	b := &DABatchV0{
-		DABatchBase: DABatchBase{
-			Version:                data[0],
-			BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
-			L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
-			TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
-			DataHash:               common.BytesToHash(data[25:57]),
-			ParentBatchHash:        common.BytesToHash(data[57:89]),
-			SkippedL1MessageBitmap: data[89:],
-		},
+		Version:                data[0],
+		BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
+		L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
+		TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
+		DataHash:               common.BytesToHash(data[25:57]),
+		ParentBatchHash:        common.BytesToHash(data[57:89]),
+		SkippedL1MessageBitmap: data[89:],
 	}
 
 	return b, nil

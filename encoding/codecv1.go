@@ -90,7 +90,7 @@ func (o *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	daBatch := DABatchV1{
-		DABatchBase: DABatchBase{
+		DABatchV0: DABatchV0{
 			Version:                uint8(CodecV1),
 			BatchIndex:             batch.Index,
 			L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
@@ -223,7 +223,7 @@ func (o *DACodecV1) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	b := &DABatchV1{
-		DABatchBase: DABatchBase{
+		DABatchV0: DABatchV0{
 			Version:                data[0],
 			BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
 			L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),

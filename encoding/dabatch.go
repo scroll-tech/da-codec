@@ -11,8 +11,8 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
-// DABatchBase contains common metadata for all versions of DABatch
-type DABatchBase struct {
+// DABatchV0 contains metadata about a batch of DAChunks.
+type DABatchV0 struct {
 	Version                uint8
 	BatchIndex             uint64
 	L1MessagePopped        uint64
@@ -20,11 +20,6 @@ type DABatchBase struct {
 	DataHash               common.Hash
 	ParentBatchHash        common.Hash
 	SkippedL1MessageBitmap []byte
-}
-
-// DABatchV0 contains metadata about a batch of DAChunks.
-type DABatchV0 struct {
-	DABatchBase
 }
 
 // Encode serializes the DABatch into bytes.
@@ -68,7 +63,7 @@ func (b *DABatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
 
 // DABatchV1 contains metadata about a batch of DAChunks.
 type DABatchV1 struct {
-	DABatchBase
+	DABatchV0
 
 	BlobVersionedHash common.Hash
 
@@ -143,7 +138,7 @@ type DABatchV2 = DABatchV1
 
 // DABatchV3 contains metadata about a batch of DAChunks.
 type DABatchV3 struct {
-	DABatchBase
+	DABatchV0
 
 	BlobVersionedHash  common.Hash    `json:"blob_versioned_hash"`
 	LastBlockTimestamp uint64         `json:"last_block_timestamp"`
