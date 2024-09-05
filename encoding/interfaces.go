@@ -2,9 +2,11 @@ package encoding
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+	"github.com/scroll-tech/go-ethereum/params"
 )
 
 // DABlock represents a Data Availability Block.
@@ -66,8 +68,8 @@ const (
 	CodecV4
 )
 
-// GetCodec returns the appropriate codec for the given version.
-func GetCodec(version CodecVersion) (Codec, error) {
+// CodecFromVersion returns the appropriate codec for the given version.
+func CodecFromVersion(version CodecVersion) (Codec, error) {
 	switch version {
 	case CodecV0:
 		return &DACodecV0{}, nil
@@ -81,5 +83,20 @@ func GetCodec(version CodecVersion) (Codec, error) {
 		return &DACodecV4{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported codec version: %d", version)
+	}
+}
+
+// CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
+func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
+	if chainCfg.IsDarwinV2(startBlockTimestamp) {
+		return &DACodecV4{}
+	} else if chainCfg.IsDarwin(startBlockTimestamp) {
+		return &DACodecV3{}
+	} else if chainCfg.IsCurie(startBlockNumber) {
+		return &DACodecV2{}
+	} else if chainCfg.IsBernoulli(startBlockNumber) {
+		return &DACodecV1{}
+	} else {
+		return &DACodecV0{}
 	}
 }
