@@ -11,6 +11,7 @@ import (
 type DAChunk interface {
 	Encode() ([]byte, error)
 	Hash() (common.Hash, error)
+	BlockRange() (uint64, uint64, error)
 }
 
 // DABatch contains metadata about a batch of DAChunks.

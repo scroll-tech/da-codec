@@ -101,6 +101,14 @@ func (c *DAChunkV0) Hash() (common.Hash, error) {
 	return hash, nil
 }
 
+func (c *DAChunkV0) BlockRange() (uint64, uint64, error) {
+	if len(c.Blocks) == 0 {
+		return 0, 0, errors.New("number of blocks is 0")
+	}
+
+	return c.Blocks[0].BlockNumber, c.Blocks[len(c.Blocks)-1].BlockNumber, nil
+}
+
 // DAChunkV1 groups consecutive DABlocks with their transactions.
 type DAChunkV1 DAChunkV0
 
