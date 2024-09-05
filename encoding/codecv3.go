@@ -15,6 +15,11 @@ type DACodecV3 struct{}
 // Codecv3MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv3MaxNumChunks = 45
 
+// Version returns the codec version.
+func (o *DACodecV3) Version() CodecVersion {
+	return CodecV3
+}
+
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (o *DACodecV3) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
 	return (&DACodecV2{}).NewDABlock(block, totalL1MessagePoppedBefore)

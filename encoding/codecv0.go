@@ -14,6 +14,11 @@ import (
 
 type DACodecV0 struct{}
 
+// Version returns the codec version.
+func (o *DACodecV0) Version() CodecVersion {
+	return CodecV0
+}
+
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
 	if !block.Header.Number.IsUint64() {

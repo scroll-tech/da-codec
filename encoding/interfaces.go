@@ -26,6 +26,8 @@ type DABatch interface {
 
 // Codec represents the interface for encoding and decoding DA-related structures.
 type Codec interface {
+	Version() CodecVersion
+
 	NewDABlock(*Block, uint64) (*DABlock, error)
 	NewDAChunk(*Chunk, uint64) (DAChunk, error)
 	NewDABatch(*Batch) (DABatch, error)

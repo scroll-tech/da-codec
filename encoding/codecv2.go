@@ -23,6 +23,11 @@ type DACodecV2 struct{}
 // Codecv2MaxNumChunks is the maximum number of chunks that a batch can contain.
 const Codecv2MaxNumChunks = 45
 
+// Version returns the codec version.
+func (o *DACodecV2) Version() CodecVersion {
+	return CodecV2
+}
+
 // NewDABlock creates a new DABlock from the given encoding.Block and the total number of L1 messages popped before.
 func (o *DACodecV2) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
 	return (&DACodecV1{}).NewDABlock(block, totalL1MessagePoppedBefore)
