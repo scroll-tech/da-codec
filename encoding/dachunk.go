@@ -101,6 +101,7 @@ func (c *DAChunkV0) Hash() (common.Hash, error) {
 	return hash, nil
 }
 
+// BlockRange returns the block range of the DAChunk.
 func (c *DAChunkV0) BlockRange() (uint64, uint64, error) {
 	if len(c.Blocks) == 0 {
 		return 0, 0, errors.New("number of blocks is 0")
@@ -157,6 +158,15 @@ func (c *DAChunkV1) Hash() (common.Hash, error) {
 
 	hash := crypto.Keccak256Hash(dataBytes)
 	return hash, nil
+}
+
+// BlockRange returns the block range of the DAChunk.
+func (c *DAChunkV1) BlockRange() (uint64, uint64, error) {
+	if len(c.Blocks) == 0 {
+		return 0, 0, errors.New("number of blocks is 0")
+	}
+
+	return c.Blocks[0].BlockNumber, c.Blocks[len(c.Blocks)-1].BlockNumber, nil
 }
 
 // DAChunkV2 groups consecutive DABlocks with their transactions.
