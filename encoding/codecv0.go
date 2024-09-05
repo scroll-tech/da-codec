@@ -20,7 +20,7 @@ func (o *DACodecV0) Version() CodecVersion {
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
-func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
+func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
 	if !block.Header.Number.IsUint64() {
 		return nil, errors.New("block number is not uint64")
 	}
@@ -38,7 +38,7 @@ func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of transactions exceeds max uint16")
 	}
 
-	daBlock := &DABlock{
+	daBlock := &DABlockV0{
 		BlockNumber:     block.Header.Number.Uint64(),
 		Timestamp:       block.Header.Time,
 		BaseFee:         block.Header.BaseFee,
@@ -52,7 +52,7 @@ func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
 func (o *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
-	var blocks []*DABlock
+	var blocks []DABlock
 	var txs [][]*types.TransactionData
 
 	if chunk == nil {
@@ -351,11 +351,11 @@ func (o *DACodecV0) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*BlockContextByteSize)
 		}
 
-		blocks := make([]*DABlock, numBlocks)
+		blocks := make([]DABlock, numBlocks)
 		for i := 0; i < numBlocks; i++ {
 			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
 			endIdx := startIdx + BlockContextByteSize
-			blocks[i] = &DABlock{}
+			blocks[i] = &DABlockV0{}
 			err := blocks[i].Decode(chunk[startIdx:endIdx])
 			if err != nil {
 				return nil, err

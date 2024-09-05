@@ -25,7 +25,7 @@ func (o *DACodecV1) Version() CodecVersion {
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
-func (o *DACodecV1) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (*DABlock, error) {
+func (o *DACodecV1) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
 	return (&DACodecV0{}).NewDABlock(block, totalL1MessagePoppedBefore)
 }
 
@@ -39,7 +39,7 @@ func (o *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of blocks exceeds 1 byte")
 	}
 
-	var blocks []*DABlock
+	var blocks []DABlock
 	var txs [][]*types.TransactionData
 
 	for _, block := range chunk.Blocks {

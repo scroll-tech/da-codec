@@ -6,9 +6,9 @@ import (
 	"math/big"
 )
 
-// DABlock represents a Data Availability Block.
-type DABlock struct {
-	BlockNumber     uint64
+// DABlockV0 represents a Data Availability Block.
+type DABlockV0 struct {
+	Number          uint64
 	Timestamp       uint64
 	BaseFee         *big.Int
 	GasLimit        uint64
@@ -17,9 +17,9 @@ type DABlock struct {
 }
 
 // Encode serializes the DABlock into a slice of bytes.
-func (b *DABlock) Encode() []byte {
+func (b *DABlockV0) Encode() []byte {
 	bytes := make([]byte, BlockContextByteSize)
-	binary.BigEndian.PutUint64(bytes[0:], b.BlockNumber)
+	binary.BigEndian.PutUint64(bytes[0:], b.Number)
 	binary.BigEndian.PutUint64(bytes[8:], b.Timestamp)
 	if b.BaseFee != nil {
 		binary.BigEndian.PutUint64(bytes[40:], b.BaseFee.Uint64())
@@ -31,12 +31,12 @@ func (b *DABlock) Encode() []byte {
 }
 
 // Decode populates the fields of a DABlock from a byte slice.
-func (b *DABlock) Decode(bytes []byte) error {
+func (b *DABlockV0) Decode(bytes []byte) error {
 	if len(bytes) != BlockContextByteSize {
 		return errors.New("block encoding is not BlockContextByteSize bytes long")
 	}
 
-	b.BlockNumber = binary.BigEndian.Uint64(bytes[0:8])
+	b.Number = binary.BigEndian.Uint64(bytes[0:8])
 	b.Timestamp = binary.BigEndian.Uint64(bytes[8:16])
 	b.BaseFee = new(big.Int).SetUint64(binary.BigEndian.Uint64(bytes[40:48]))
 	b.GasLimit = binary.BigEndian.Uint64(bytes[48:56])
@@ -45,3 +45,16 @@ func (b *DABlock) Decode(bytes []byte) error {
 
 	return nil
 }
+
+func (b *DABlockV0) BlockNumber() uint64 {
+	return b.Number
+}
+
+// DABlockV1 represents a Data Availability Block.
+type DABlockV1 = DABlockV0
+
+// DABlockV2 represents a Data Availability Block.
+type DABlockV2 = DABlockV1
+
+// DABlockV3 represents a Data Availability Block.
+type DABlockV3 = DABlockV2
