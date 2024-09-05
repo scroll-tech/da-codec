@@ -9,7 +9,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-	"github.com/scroll-tech/go-ethereum/params"
 )
 
 // BLSModulus is the BLS modulus defined in EIP-4844.
@@ -413,22 +412,6 @@ func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
 		return 0, err
 	}
 	return uint64(len(rlpTxData)), nil
-}
-
-// GetCodecVersion determines the codec version based on hain configuration, block number, and timestamp.
-func GetCodecVersion(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) CodecVersion {
-	switch {
-	case startBlockNumber.Uint64() == 0 || !chainCfg.IsBernoulli(startBlockNumber):
-		return CodecV0 // codecv0: genesis batch or batches before Bernoulli
-	case !chainCfg.IsCurie(startBlockNumber):
-		return CodecV1 // codecv1: batches after Bernoulli and before Curie
-	case !chainCfg.IsDarwin(startBlockTimestamp):
-		return CodecV2 // codecv2: batches after Curie and before Darwin
-	case !chainCfg.IsDarwinV2(startBlockTimestamp):
-		return CodecV3 // codecv3: batches after Darwin
-	default:
-		return CodecV4 // codecv4: batches after DarwinV2
-	}
 }
 
 // BlobDataProofFromValues creates the blob data proof from the given values.
