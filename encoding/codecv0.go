@@ -39,7 +39,7 @@ func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 	}
 
 	daBlock := &DABlockV0{
-		BlockNumber:     block.Header.Number.Uint64(),
+		Number:          block.Header.Number.Uint64(),
 		Timestamp:       block.Header.Time,
 		BaseFee:         block.Header.BaseFee,
 		GasLimit:        block.Header.GasLimit,
