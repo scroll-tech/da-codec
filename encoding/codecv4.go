@@ -371,3 +371,8 @@ func (o *DACodecV4) SetCompression(enable bool) {
 func (o *DACodecV4) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
 	return (&DACodecV3{}).computeBatchDataHash(chunks, totalL1MessagePoppedBefore)
 }
+
+// DecodeDAChunks takes a byte slice and decodes it into a []DAChunk
+func (o *DACodecV4) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
+	return (&DACodecV3{}).DecodeDAChunks(bytes)
+}

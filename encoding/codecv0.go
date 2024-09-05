@@ -174,7 +174,7 @@ func (o *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) 
 		}
 		size += txPayloadLength
 	}
-	size += 60 // 60 bytes BlockContext
+	size += BlockContextByteSize
 	return size, nil
 }
 
@@ -197,8 +197,7 @@ func (o *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 		total += GetKeccak256Gas(txPayloadLength)         // l2 tx hash
 	}
 
-	// 60 bytes BlockContext calldata
-	total += CalldataNonZeroByteGas * 60
+	total += CalldataNonZeroByteGas * BlockContextByteSize
 
 	// sload
 	total += 2100 * numL1Messages // numL1Messages times cold sload in L1MessageQueue
@@ -243,9 +242,9 @@ func (o *DACodecV0) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	}
 
 	numBlocks := uint64(len(c.Blocks))
-	totalL1CommitGas += 100 * numBlocks                         // numBlocks times warm sload
-	totalL1CommitGas += CalldataNonZeroByteGas                  // numBlocks field of chunk encoding in calldata
-	totalL1CommitGas += CalldataNonZeroByteGas * numBlocks * 60 // numBlocks of BlockContext in chunk
+	totalL1CommitGas += 100 * numBlocks                                           // numBlocks times warm sload
+	totalL1CommitGas += CalldataNonZeroByteGas                                    // numBlocks field of chunk encoding in calldata
+	totalL1CommitGas += CalldataNonZeroByteGas * numBlocks * BlockContextByteSize // numBlocks of BlockContext in chunk
 
 	totalL1CommitGas += GetKeccak256Gas(58*numBlocks + 32*totalTxNum) // chunk hash
 	return totalL1CommitGas, nil
@@ -333,3 +332,34 @@ func (o *DACodecV0) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 
 // SetCompression enables or disables compression.
 func (o *DACodecV0) SetCompression(enable bool) {}
+
+// DecodeDAChunks takes a byte slice and decodes it into a []DAChunk
+func (o *DACodecV0) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
+	var chunks []DAChunk
+	for _, chunk := range bytes {
+		if len(chunk) < 1 {
+			return nil, fmt.Errorf("invalid chunk, length is less than 1")
+		}
+
+		numBlocks := int(chunk[0])
+		if len(chunk) < 1+numBlocks*BlockContextByteSize {
+			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*BlockContextByteSize)
+		}
+
+		blocks := make([]*DABlock, numBlocks)
+		for i := 0; i < numBlocks; i++ {
+			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
+			endIdx := startIdx + BlockContextByteSize
+			blocks[i] = &DABlock{}
+			err := blocks[i].Decode(chunk[startIdx:endIdx])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		chunks = append(chunks, &DAChunkV0{
+			Blocks: blocks,
+		})
+	}
+	return chunks, nil
+}

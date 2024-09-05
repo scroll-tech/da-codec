@@ -18,7 +18,7 @@ type DABlock struct {
 
 // Encode serializes the DABlock into a slice of bytes.
 func (b *DABlock) Encode() []byte {
-	bytes := make([]byte, 60)
+	bytes := make([]byte, BlockContextByteSize)
 	binary.BigEndian.PutUint64(bytes[0:], b.BlockNumber)
 	binary.BigEndian.PutUint64(bytes[8:], b.Timestamp)
 	if b.BaseFee != nil {
@@ -32,8 +32,8 @@ func (b *DABlock) Encode() []byte {
 
 // Decode populates the fields of a DABlock from a byte slice.
 func (b *DABlock) Decode(bytes []byte) error {
-	if len(bytes) != 60 {
-		return errors.New("block encoding is not 60 bytes long")
+	if len(bytes) != BlockContextByteSize {
+		return errors.New("block encoding is not BlockContextByteSize bytes long")
 	}
 
 	b.BlockNumber = binary.BigEndian.Uint64(bytes[0:8])

@@ -18,6 +18,12 @@ var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80
 // CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
 const CalldataNonZeroByteGas = 16
 
+// BlockContextByteSize is the size of the block context in bytes.
+const BlockContextByteSize = 60
+
+// TxLenByteSize is the size of the transaction length in bytes.
+const TxLenByteSize = 4
+
 // Block represents an L2 block.
 type Block struct {
 	Header         *types.Header

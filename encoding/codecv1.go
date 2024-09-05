@@ -282,8 +282,7 @@ func (o *DACodecV1) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 		}
 	}
 
-	// 60 bytes BlockContext calldata
-	total += CalldataNonZeroByteGas * 60
+	total += CalldataNonZeroByteGas * BlockContextByteSize
 
 	// sload
 	total += 2100 * numL1Messages // numL1Messages times cold sload in L1MessageQueue
@@ -303,7 +302,7 @@ func (o *DACodecV1) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
 func (o *DACodecV1) EstimateChunkL1CommitCalldataSize(c *Chunk) (uint64, error) {
-	return uint64(60 * len(c.Blocks)), nil
+	return uint64(BlockContextByteSize * len(c.Blocks)), nil
 }
 
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
@@ -435,4 +434,9 @@ func (o *DACodecV1) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 
 	dataHash := crypto.Keccak256Hash(dataBytes)
 	return dataHash, nil
+}
+
+// DecodeDAChunks takes a byte slice and decodes it into a []DAChunk
+func (o *DACodecV1) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
+	return (&DACodecV0{}).DecodeDAChunks(bytes)
 }
