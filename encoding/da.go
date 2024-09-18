@@ -204,11 +204,11 @@ func (c *Chunk) NumL2Transactions() uint64 {
 
 // L2GasUsed calculates the total gas of L2 transactions in a Chunk.
 func (c *Chunk) L2GasUsed() uint64 {
-	var totalTxNum uint64
+	var totalGasUsed uint64
 	for _, block := range c.Blocks {
-		totalTxNum += block.Header.GasUsed
+		totalGasUsed += block.Header.GasUsed
 	}
-	return totalTxNum
+	return totalGasUsed
 }
 
 // StateRoot gets the state root after committing/finalizing the batch.
