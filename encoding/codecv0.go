@@ -369,3 +369,9 @@ func (o *DACodecV0) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 	}
 	return chunks, nil
 }
+
+// JSONFromBytes for CodecV1 returns empty values.
+func (c *DACodecV0) JSONFromBytes(data []byte) ([]byte, error) {
+	// DACodecV0 doesn't need this, so just return empty values
+	return nil, nil
+}

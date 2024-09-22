@@ -3,6 +3,7 @@ package encoding
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -167,7 +168,6 @@ func (b *DABatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
 type DABatchV2 struct {
 	DABatchV0
 
-	// FIXME: export correct JSON format for prover.
 	blobVersionedHash  common.Hash
 	lastBlockTimestamp uint64
 	blobDataProof      [2]common.Hash
@@ -319,4 +319,39 @@ func (b *DABatchV2) BlobVersionedHashes() []common.Hash {
 // BlobBytes returns the blob bytes of the batch.
 func (b *DABatchV2) BlobBytes() []byte {
 	return b.blobBytes
+}
+
+// MarshalJSON implements the custom JSON serialization for DABatchV2.
+// This method is designed to provide prover with batch info in snake_case format.
+func (b *DABatchV2) MarshalJSON() ([]byte, error) {
+	type daBatchV2JSON struct {
+		Version                uint8     `json:"version"`
+		BatchIndex             uint64    `json:"batch_index"`
+		L1MessagePopped        uint64    `json:"l1_message_popped"`
+		TotalL1MessagePopped   uint64    `json:"total_l1_message_popped"`
+		DataHash               string    `json:"data_hash"`
+		ParentBatchHash        string    `json:"parent_batch_hash"`
+		SkippedL1MessageBitmap string    `json:"skipped_l1_message_bitmap"`
+		BlobVersionedHash      string    `json:"blob_versioned_hash"`
+		LastBlockTimestamp     uint64    `json:"last_block_timestamp"`
+		BlobBytes              string    `json:"blob_bytes"`
+		BlobDataProof          [2]string `json:"blob_data_proof"`
+	}
+
+	return json.Marshal(&daBatchV2JSON{
+		Version:                b.version,
+		BatchIndex:             b.batchIndex,
+		L1MessagePopped:        b.l1MessagePopped,
+		TotalL1MessagePopped:   b.totalL1MessagePopped,
+		DataHash:               b.dataHash.Hex(),
+		ParentBatchHash:        b.parentBatchHash.Hex(),
+		SkippedL1MessageBitmap: common.Bytes2Hex(b.skippedL1MessageBitmap),
+		BlobVersionedHash:      b.blobVersionedHash.Hex(),
+		LastBlockTimestamp:     b.lastBlockTimestamp,
+		BlobBytes:              common.Bytes2Hex(b.blobBytes),
+		BlobDataProof: [2]string{
+			b.blobDataProof[0].Hex(),
+			b.blobDataProof[1].Hex(),
+		},
+	})
 }

@@ -447,3 +447,9 @@ func (o *DACodecV1) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 func (o *DACodecV1) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 	return (&DACodecV0{}).DecodeDAChunks(bytes)
 }
+
+// JSONFromBytes for CodecV1 returns empty values.
+func (c *DACodecV1) JSONFromBytes(data []byte) ([]byte, error) {
+	// DACodecV1 doesn't need this, so just return empty values
+	return nil, nil
+}

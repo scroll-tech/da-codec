@@ -2,6 +2,7 @@ package encoding
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -197,4 +198,19 @@ func (o *DACodecV3) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 // DecodeDAChunks takes a byte slice and decodes it into a []DAChunk
 func (o *DACodecV3) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 	return (&DACodecV2{}).DecodeDAChunks(bytes)
+}
+
+// JSONFromBytes converts the bytes to a DABatchV2 and then marshals it to JSON.
+func (o *DACodecV3) JSONFromBytes(data []byte) ([]byte, error) {
+	batch, err := o.NewDABatchFromBytes(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode DABatch from bytes: %w", err)
+	}
+
+	jsonBytes, err := json.Marshal(batch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal DABatchV2 to JSON: %w", err)
+	}
+
+	return jsonBytes, nil
 }

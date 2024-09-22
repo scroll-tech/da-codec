@@ -378,3 +378,8 @@ func (o *DACodecV4) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 func (o *DACodecV4) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 	return (&DACodecV3{}).DecodeDAChunks(bytes)
 }
+
+// JSONFromBytes converts the bytes to a DABatchV2 and then marshals it to JSON.
+func (o *DACodecV4) JSONFromBytes(data []byte) ([]byte, error) {
+	return (&DACodecV3{}).JSONFromBytes(data)
+}

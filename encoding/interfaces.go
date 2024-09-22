@@ -54,7 +54,8 @@ type Codec interface {
 	EstimateBatchL1CommitGas(*Batch) (uint64, error)
 	EstimateBatchL1CommitCalldataSize(*Batch) (uint64, error)
 
-	SetCompression(enable bool) // only used for codecv4
+	SetCompression(enable bool)
+	JSONFromBytes([]byte) ([]byte, error)
 }
 
 // CodecVersion represents the version of the codec.
