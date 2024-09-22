@@ -38,14 +38,14 @@ func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of transactions exceeds max uint16")
 	}
 
-	daBlock := &DABlockV0{
-		Number:          block.Header.Number.Uint64(),
-		Timestamp:       block.Header.Time,
-		BaseFee:         block.Header.BaseFee,
-		GasLimit:        block.Header.GasLimit,
-		NumTransactions: uint16(numTransactions),
-		NumL1Messages:   uint16(numL1Messages),
-	}
+	daBlock := NewDABlockImpl(
+		block.Header.Number.Uint64(),
+		block.Header.Time,
+		block.Header.BaseFee,
+		block.Header.GasLimit,
+		uint16(numTransactions),
+		uint16(numL1Messages),
+	)
 
 	return daBlock, nil
 }
@@ -355,7 +355,7 @@ func (o *DACodecV0) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 		for i := 0; i < numBlocks; i++ {
 			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
 			endIdx := startIdx + BlockContextByteSize
-			blocks[i] = &DABlockV0{}
+			blocks[i] = &DABlockImpl{}
 			err := blocks[i].Decode(chunk[startIdx:endIdx])
 			if err != nil {
 				return nil, err

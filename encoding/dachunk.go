@@ -107,7 +107,7 @@ func (c *DAChunkV0) BlockRange() (uint64, uint64, error) {
 		return 0, 0, errors.New("number of blocks is 0")
 	}
 
-	return c.Blocks[0].BlockNumber(), c.Blocks[len(c.Blocks)-1].BlockNumber(), nil
+	return c.Blocks[0].Number(), c.Blocks[len(c.Blocks)-1].Number(), nil
 }
 
 // DAChunkV1 groups consecutive DABlocks with their transactions.
@@ -166,7 +166,7 @@ func (c *DAChunkV1) BlockRange() (uint64, uint64, error) {
 		return 0, 0, errors.New("number of blocks is 0")
 	}
 
-	return c.Blocks[0].BlockNumber(), c.Blocks[len(c.Blocks)-1].BlockNumber(), nil
+	return c.Blocks[0].Number(), c.Blocks[len(c.Blocks)-1].Number(), nil
 }
 
 // DAChunkV2 groups consecutive DABlocks with their transactions.

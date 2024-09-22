@@ -13,7 +13,7 @@ import (
 type DABlock interface {
 	Encode() []byte
 	Decode([]byte) error
-	BlockNumber() uint64
+	Number() uint64
 }
 
 // DAChunk groups consecutive DABlocks with their transactions.
