@@ -38,13 +38,13 @@ func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of transactions exceeds max uint16")
 	}
 
-	daBlock := NewDABlockImpl(
-		block.Header.Number.Uint64(),
-		block.Header.Time,
-		block.Header.BaseFee,
-		block.Header.GasLimit,
-		uint16(numTransactions),
-		uint16(numL1Messages),
+	daBlock := NewDABlockV0(
+		block.Header.Number.Uint64(), // number
+		block.Header.Time,            // timestamp
+		block.Header.BaseFee,         // baseFee
+		block.Header.GasLimit,        // gasLimit
+		uint16(numTransactions),      // numTransactions
+		uint16(numL1Messages),        // numL1Messages
 	)
 
 	return daBlock, nil
@@ -77,7 +77,10 @@ func (o *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		txs = append(txs, block.Transactions)
 	}
 
-	daChunk := NewDAChunkV0(blocks, txs)
+	daChunk := NewDAChunkV0(
+		blocks, // blocks
+		txs,    // transactions
+	)
 
 	return daChunk, nil
 }
@@ -111,17 +114,17 @@ func (o *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, err
 	}
 
-	daBatch := DABatchV0{
-		Version:                uint8(CodecV0),
-		BatchIndex:             batch.Index,
-		L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-		TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-		DataHash:               dataHash,
-		ParentBatchHash:        batch.ParentBatchHash,
-		SkippedL1MessageBitmap: bitmapBytes,
-	}
+	daBatch := NewDABatchV0(
+		uint8(CodecV0), // version
+		batch.Index,    // batchIndex
+		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
+		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
+		dataHash,                                                   // dataHash
+		batch.ParentBatchHash,                                      // parentBatchHash
+		bitmapBytes,                                                // skippedL1MessageBitmap
+	)
 
-	return &daBatch, nil
+	return daBatch, nil
 }
 
 // NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
@@ -149,15 +152,15 @@ func (o *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV0)
 	}
 
-	b := &DABatchV0{
-		Version:                data[0],
-		BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
-		L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
-		TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
-		DataHash:               common.BytesToHash(data[25:57]),
-		ParentBatchHash:        common.BytesToHash(data[57:89]),
-		SkippedL1MessageBitmap: data[89:],
-	}
+	b := NewDABatchV0(
+		data[0],                              // version
+		binary.BigEndian.Uint64(data[1:9]),   // batchIndex
+		binary.BigEndian.Uint64(data[9:17]),  // l1MessagePopped
+		binary.BigEndian.Uint64(data[17:25]), // totalL1MessagePopped
+		common.BytesToHash(data[25:57]),      // dataHash
+		common.BytesToHash(data[57:89]),      // parentBatchHash
+		data[89:],                            // skippedL1MessageBitmap
+	)
 
 	return b, nil
 }
@@ -352,14 +355,17 @@ func (o *DACodecV0) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 		for i := 0; i < numBlocks; i++ {
 			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
 			endIdx := startIdx + BlockContextByteSize
-			blocks[i] = &DABlockImpl{}
+			blocks[i] = &DABlockV0{}
 			err := blocks[i].Decode(chunk[startIdx:endIdx])
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		chunks = append(chunks, NewDAChunkV0(blocks, nil))
+		chunks = append(chunks, NewDAChunkV0(
+			blocks, // blocks
+			nil,    // transactions
+		))
 	}
 	return chunks, nil
 }

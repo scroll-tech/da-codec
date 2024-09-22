@@ -66,29 +66,20 @@ func (o *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	lastChunk := batch.Chunks[len(batch.Chunks)-1]
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
-	daBatch := DABatchV3{
-		DABatchV0: DABatchV0{
-			Version:                uint8(CodecV3),
-			BatchIndex:             batch.Index,
-			L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-			TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-			DataHash:               dataHash,
-			ParentBatchHash:        batch.ParentBatchHash,
-			SkippedL1MessageBitmap: bitmapBytes,
-		},
-		BlobVersionedHash:  blobVersionedHash,
-		LastBlockTimestamp: lastBlock.Header.Time,
-		blob:               blob,
-		z:                  z,
-		blobBytes:          blobBytes,
-	}
-
-	daBatch.BlobDataProof, err = daBatch.blobDataProofForPICircuit()
-	if err != nil {
-		return nil, err
-	}
-
-	return &daBatch, nil
+	return NewDABatchV2(
+		uint8(CodecV3), // version
+		batch.Index,    // batchIndex
+		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
+		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
+		lastBlock.Header.Time,                                      // lastBlockTimestamp
+		dataHash,                                                   // dataHash
+		batch.ParentBatchHash,                                      // parentBatchHash
+		blobVersionedHash,                                          // blobVersionedHash
+		bitmapBytes,                                                // skippedL1MessageBitmap
+		blob,                                                       // blob
+		z,                                                          // z
+		blobBytes,                                                  // blobBytes
+	)
 }
 
 // NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
@@ -122,22 +113,24 @@ func (o *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV3)
 	}
 
-	b := &DABatchV3{
-		DABatchV0: DABatchV0{
-			Version:              data[0],
-			BatchIndex:           binary.BigEndian.Uint64(data[1:9]),
-			L1MessagePopped:      binary.BigEndian.Uint64(data[9:17]),
-			TotalL1MessagePopped: binary.BigEndian.Uint64(data[17:25]),
-			DataHash:             common.BytesToHash(data[25:57]),
-			ParentBatchHash:      common.BytesToHash(data[89:121]),
-		},
-		BlobVersionedHash:  common.BytesToHash(data[57:89]),
-		LastBlockTimestamp: binary.BigEndian.Uint64(data[121:129]),
-		BlobDataProof: [2]common.Hash{
+	b := NewDABatchV2WithProof(
+		data[0],                                // Version
+		binary.BigEndian.Uint64(data[1:9]),     // BatchIndex
+		binary.BigEndian.Uint64(data[9:17]),    // L1MessagePopped
+		binary.BigEndian.Uint64(data[17:25]),   // TotalL1MessagePopped
+		binary.BigEndian.Uint64(data[121:129]), // LastBlockTimestamp
+		common.BytesToHash(data[25:57]),        // DataHash
+		common.BytesToHash(data[89:121]),       // ParentBatchHash
+		common.BytesToHash(data[57:89]),        // BlobVersionedHash
+		nil,                                    // skippedL1MessageBitmap
+		nil,                                    // blob
+		nil,                                    // z
+		nil,                                    // blobBytes
+		[2]common.Hash{ // BlobDataProof
 			common.BytesToHash(data[129:161]),
 			common.BytesToHash(data[161:193]),
 		},
-	}
+	)
 
 	return b, nil
 }

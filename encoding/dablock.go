@@ -6,8 +6,8 @@ import (
 	"math/big"
 )
 
-// DABlockImpl represents a Data Availability Block.
-type DABlockImpl struct {
+// DABlockV0 represents a Data Availability Block.
+type DABlockV0 struct {
 	number          uint64
 	timestamp       uint64
 	baseFee         *big.Int
@@ -16,9 +16,9 @@ type DABlockImpl struct {
 	numL1Messages   uint16
 }
 
-// NewDABlockImpl is a constructor function for DABlockImpl that initializes the internal fields.
-func NewDABlockImpl(number uint64, timestamp uint64, baseFee *big.Int, gasLimit uint64, numTransactions uint16, numL1Messages uint16) *DABlockImpl {
-	return &DABlockImpl{
+// NewDABlockV0 is a constructor function for DABlockV0 that initializes the internal fields.
+func NewDABlockV0(number uint64, timestamp uint64, baseFee *big.Int, gasLimit uint64, numTransactions uint16, numL1Messages uint16) *DABlockV0 {
+	return &DABlockV0{
 		number:          number,
 		timestamp:       timestamp,
 		baseFee:         baseFee,
@@ -29,7 +29,7 @@ func NewDABlockImpl(number uint64, timestamp uint64, baseFee *big.Int, gasLimit 
 }
 
 // Encode serializes the DABlock into a slice of bytes.
-func (b *DABlockImpl) Encode() []byte {
+func (b *DABlockV0) Encode() []byte {
 	bytes := make([]byte, BlockContextByteSize)
 	binary.BigEndian.PutUint64(bytes[0:], b.number)
 	binary.BigEndian.PutUint64(bytes[8:], b.timestamp)
@@ -43,7 +43,7 @@ func (b *DABlockImpl) Encode() []byte {
 }
 
 // Decode populates the fields of a DABlock from a byte slice.
-func (b *DABlockImpl) Decode(bytes []byte) error {
+func (b *DABlockV0) Decode(bytes []byte) error {
 	if len(bytes) != BlockContextByteSize {
 		return errors.New("block encoding is not BlockContextByteSize bytes long")
 	}
@@ -59,31 +59,31 @@ func (b *DABlockImpl) Decode(bytes []byte) error {
 }
 
 // Number returns the block number.
-func (b *DABlockImpl) Number() uint64 {
+func (b *DABlockV0) Number() uint64 {
 	return b.number
 }
 
 // Timestamp returns the block timestamp.
-func (b *DABlockImpl) Timestamp() uint64 {
+func (b *DABlockV0) Timestamp() uint64 {
 	return b.timestamp
 }
 
 // BaseFee returns the block base fee.
-func (b *DABlockImpl) BaseFee() *big.Int {
+func (b *DABlockV0) BaseFee() *big.Int {
 	return b.baseFee
 }
 
 // GasLimit returns the block gas limit.
-func (b *DABlockImpl) GasLimit() uint64 {
+func (b *DABlockV0) GasLimit() uint64 {
 	return b.gasLimit
 }
 
 // NumTransactions returns the number of transactions in the block.
-func (b *DABlockImpl) NumTransactions() uint16 {
+func (b *DABlockV0) NumTransactions() uint16 {
 	return b.numTransactions
 }
 
 // NumL1Messages returns the number of L1 messages in the block.
-func (b *DABlockImpl) NumL1Messages() uint16 {
+func (b *DABlockV0) NumL1Messages() uint16 {
 	return b.numL1Messages
 }

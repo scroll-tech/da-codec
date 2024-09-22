@@ -13,25 +13,38 @@ import (
 
 // DABatchV0 contains metadata about a batch of DAChunks.
 type DABatchV0 struct {
-	Version                uint8
-	BatchIndex             uint64
-	L1MessagePopped        uint64
-	TotalL1MessagePopped   uint64
-	DataHash               common.Hash
-	ParentBatchHash        common.Hash
-	SkippedL1MessageBitmap []byte
+	version                uint8
+	batchIndex             uint64
+	l1MessagePopped        uint64
+	totalL1MessagePopped   uint64
+	dataHash               common.Hash
+	parentBatchHash        common.Hash
+	skippedL1MessageBitmap []byte
+}
+
+// NewDABatchV0 is a constructor for DABatchV0.
+func NewDABatchV0(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash common.Hash, skippedL1MessageBitmap []byte) *DABatchV0 {
+	return &DABatchV0{
+		version:                version,
+		batchIndex:             batchIndex,
+		l1MessagePopped:        l1MessagePopped,
+		totalL1MessagePopped:   totalL1MessagePopped,
+		dataHash:               dataHash,
+		parentBatchHash:        parentBatchHash,
+		skippedL1MessageBitmap: skippedL1MessageBitmap,
+	}
 }
 
 // Encode serializes the DABatch into bytes.
 func (b *DABatchV0) Encode() []byte {
-	batchBytes := make([]byte, 89+len(b.SkippedL1MessageBitmap))
-	batchBytes[0] = b.Version
-	binary.BigEndian.PutUint64(batchBytes[1:], b.BatchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:], b.L1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:], b.TotalL1MessagePopped)
-	copy(batchBytes[25:], b.DataHash[:])
-	copy(batchBytes[57:], b.ParentBatchHash[:])
-	copy(batchBytes[89:], b.SkippedL1MessageBitmap[:])
+	batchBytes := make([]byte, 89+len(b.skippedL1MessageBitmap))
+	batchBytes[0] = b.version
+	binary.BigEndian.PutUint64(batchBytes[1:], b.batchIndex)
+	binary.BigEndian.PutUint64(batchBytes[9:], b.l1MessagePopped)
+	binary.BigEndian.PutUint64(batchBytes[17:], b.totalL1MessagePopped)
+	copy(batchBytes[25:], b.dataHash[:])
+	copy(batchBytes[57:], b.parentBatchHash[:])
+	copy(batchBytes[89:], b.skippedL1MessageBitmap[:])
 	return batchBytes
 }
 
@@ -65,24 +78,40 @@ func (b *DABatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
 type DABatchV1 struct {
 	DABatchV0
 
-	BlobVersionedHash common.Hash
+	blobVersionedHash common.Hash
+	blob              *kzg4844.Blob
+	z                 *kzg4844.Point
+}
 
-	// blob payload
-	blob *kzg4844.Blob
-	z    *kzg4844.Point
+// NewDABatchV1 is a constructor for DABatchV1.
+func NewDABatchV1(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob, z *kzg4844.Point) *DABatchV1 {
+	return &DABatchV1{
+		DABatchV0: DABatchV0{
+			version:                version,
+			batchIndex:             batchIndex,
+			l1MessagePopped:        l1MessagePopped,
+			totalL1MessagePopped:   totalL1MessagePopped,
+			dataHash:               dataHash,
+			parentBatchHash:        parentBatchHash,
+			skippedL1MessageBitmap: skippedL1MessageBitmap,
+		},
+		blobVersionedHash: blobVersionedHash,
+		blob:              blob,
+		z:                 z,
+	}
 }
 
 // Encode serializes the DABatch into bytes.
 func (b *DABatchV1) Encode() []byte {
-	batchBytes := make([]byte, 121+len(b.SkippedL1MessageBitmap))
-	batchBytes[0] = b.Version
-	binary.BigEndian.PutUint64(batchBytes[1:], b.BatchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:], b.L1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:], b.TotalL1MessagePopped)
-	copy(batchBytes[25:], b.DataHash[:])
-	copy(batchBytes[57:], b.BlobVersionedHash[:])
-	copy(batchBytes[89:], b.ParentBatchHash[:])
-	copy(batchBytes[121:], b.SkippedL1MessageBitmap[:])
+	batchBytes := make([]byte, 121+len(b.skippedL1MessageBitmap))
+	batchBytes[0] = b.version
+	binary.BigEndian.PutUint64(batchBytes[1:], b.batchIndex)
+	binary.BigEndian.PutUint64(batchBytes[9:], b.l1MessagePopped)
+	binary.BigEndian.PutUint64(batchBytes[17:], b.totalL1MessagePopped)
+	copy(batchBytes[25:], b.dataHash[:])
+	copy(batchBytes[57:], b.blobVersionedHash[:])
+	copy(batchBytes[89:], b.parentBatchHash[:])
+	copy(batchBytes[121:], b.skippedL1MessageBitmap[:])
 	return batchBytes
 }
 
@@ -121,7 +150,7 @@ func (b *DABatchV1) Blob() *kzg4844.Blob {
 
 // BlobVersionedHashes returns the blob versioned hashes of the batch.
 func (b *DABatchV1) BlobVersionedHashes() []common.Hash {
-	return []common.Hash{b.BlobVersionedHash}
+	return []common.Hash{b.blobVersionedHash}
 }
 
 // BlobBytes returns the blob bytes of the batch.
@@ -134,48 +163,104 @@ func (b *DABatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
 	return nil, nil
 }
 
-type DABatchV2 = DABatchV1
-
-// DABatchV3 contains metadata about a batch of DAChunks.
-type DABatchV3 struct {
+// DABatchV2 contains metadata about a batch of DAChunks.
+type DABatchV2 struct {
 	DABatchV0
 
-	BlobVersionedHash  common.Hash    `json:"blob_versioned_hash"`
-	LastBlockTimestamp uint64         `json:"last_block_timestamp"`
-	BlobDataProof      [2]common.Hash `json:"blob_data_proof"`
+	// FIXME: export correct JSON format for prover.
+	blobVersionedHash  common.Hash
+	lastBlockTimestamp uint64
+	blobDataProof      [2]common.Hash
+	blob               *kzg4844.Blob
+	z                  *kzg4844.Point
+	blobBytes          []byte
+}
 
-	// blob payload
-	blob *kzg4844.Blob
-	z    *kzg4844.Point
+// NewDABatchV2 is a constructor for DABatchV2 that calls blobDataProofForPICircuit internally.
+func NewDABatchV2(version uint8,
+	batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
+	dataHash, parentBatchHash, blobVersionedHash common.Hash,
+	skippedL1MessageBitmap []byte,
+	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte,
+) (*DABatchV2, error) {
+	daBatch := &DABatchV2{
+		DABatchV0: DABatchV0{
+			version:                version,
+			batchIndex:             batchIndex,
+			l1MessagePopped:        l1MessagePopped,
+			totalL1MessagePopped:   totalL1MessagePopped,
+			dataHash:               dataHash,
+			parentBatchHash:        parentBatchHash,
+			skippedL1MessageBitmap: skippedL1MessageBitmap,
+		},
+		blobVersionedHash:  blobVersionedHash,
+		lastBlockTimestamp: lastBlockTimestamp,
+		blob:               blob,
+		z:                  z,
+		blobBytes:          blobBytes,
+	}
 
-	// for batch task
-	blobBytes []byte
+	proof, err := daBatch.blobDataProofForPICircuit()
+	if err != nil {
+		return nil, err
+	}
+
+	daBatch.blobDataProof = proof
+
+	return daBatch, nil
+}
+
+// NewDABatchV2WithProof is a constructor for DABatchV2 that allows directly passing blobDataProof.
+func NewDABatchV2WithProof(version uint8,
+	batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
+	dataHash, parentBatchHash, blobVersionedHash common.Hash,
+	skippedL1MessageBitmap []byte,
+	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte,
+	blobDataProof [2]common.Hash, // Accept blobDataProof directly
+) *DABatchV2 {
+	return &DABatchV2{
+		DABatchV0: DABatchV0{
+			version:                version,
+			batchIndex:             batchIndex,
+			l1MessagePopped:        l1MessagePopped,
+			totalL1MessagePopped:   totalL1MessagePopped,
+			dataHash:               dataHash,
+			parentBatchHash:        parentBatchHash,
+			skippedL1MessageBitmap: skippedL1MessageBitmap,
+		},
+		blobVersionedHash:  blobVersionedHash,
+		lastBlockTimestamp: lastBlockTimestamp,
+		blob:               blob,
+		z:                  z,
+		blobBytes:          blobBytes,
+		blobDataProof:      blobDataProof, // Set blobDataProof directly
+	}
 }
 
 // Encode serializes the DABatch into bytes.
-func (b *DABatchV3) Encode() []byte {
+func (b *DABatchV2) Encode() []byte {
 	batchBytes := make([]byte, 193)
-	batchBytes[0] = b.Version
-	binary.BigEndian.PutUint64(batchBytes[1:9], b.BatchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:17], b.L1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:25], b.TotalL1MessagePopped)
-	copy(batchBytes[25:57], b.DataHash[:])
-	copy(batchBytes[57:89], b.BlobVersionedHash[:])
-	copy(batchBytes[89:121], b.ParentBatchHash[:])
-	binary.BigEndian.PutUint64(batchBytes[121:129], b.LastBlockTimestamp)
-	copy(batchBytes[129:161], b.BlobDataProof[0].Bytes())
-	copy(batchBytes[161:193], b.BlobDataProof[1].Bytes())
+	batchBytes[0] = b.version
+	binary.BigEndian.PutUint64(batchBytes[1:9], b.batchIndex)
+	binary.BigEndian.PutUint64(batchBytes[9:17], b.l1MessagePopped)
+	binary.BigEndian.PutUint64(batchBytes[17:25], b.totalL1MessagePopped)
+	copy(batchBytes[25:57], b.dataHash[:])
+	copy(batchBytes[57:89], b.blobVersionedHash[:])
+	copy(batchBytes[89:121], b.parentBatchHash[:])
+	binary.BigEndian.PutUint64(batchBytes[121:129], b.lastBlockTimestamp)
+	copy(batchBytes[129:161], b.blobDataProof[0].Bytes())
+	copy(batchBytes[161:193], b.blobDataProof[1].Bytes())
 	return batchBytes
 }
 
 // Hash computes the hash of the serialized DABatch.
-func (b *DABatchV3) Hash() common.Hash {
+func (b *DABatchV2) Hash() common.Hash {
 	bytes := b.Encode()
 	return crypto.Keccak256Hash(bytes)
 }
 
 // blobDataProofForPICircuit computes the abi-encoded blob verification data.
-func (b *DABatchV3) blobDataProofForPICircuit() ([2]common.Hash, error) {
+func (b *DABatchV2) blobDataProofForPICircuit() ([2]common.Hash, error) {
 	if b.blob == nil {
 		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty blob")
 	}
@@ -200,7 +285,7 @@ func (b *DABatchV3) blobDataProofForPICircuit() ([2]common.Hash, error) {
 }
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatchV3) BlobDataProofForPointEvaluation() ([]byte, error) {
+func (b *DABatchV2) BlobDataProofForPointEvaluation() ([]byte, error) {
 	if b.blob == nil {
 		return nil, errors.New("called BlobDataProofForPointEvaluation with empty blob")
 	}
@@ -222,18 +307,16 @@ func (b *DABatchV3) BlobDataProofForPointEvaluation() ([]byte, error) {
 }
 
 // Blob returns the blob of the batch.
-func (b *DABatchV3) Blob() *kzg4844.Blob {
+func (b *DABatchV2) Blob() *kzg4844.Blob {
 	return b.blob
 }
 
 // BlobVersionedHashes returns the blob versioned hashes of the batch.
-func (b *DABatchV3) BlobVersionedHashes() []common.Hash {
-	return []common.Hash{b.BlobVersionedHash}
+func (b *DABatchV2) BlobVersionedHashes() []common.Hash {
+	return []common.Hash{b.blobVersionedHash}
 }
 
 // BlobBytes returns the blob bytes of the batch.
-func (b *DABatchV3) BlobBytes() []byte {
+func (b *DABatchV2) BlobBytes() []byte {
 	return b.blobBytes
 }
-
-type DABatchV4 = DABatchV3

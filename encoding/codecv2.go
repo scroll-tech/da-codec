@@ -67,22 +67,20 @@ func (o *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, err
 	}
 
-	daBatch := DABatchV2{
-		DABatchV0: DABatchV0{
-			Version:                uint8(CodecV2),
-			BatchIndex:             batch.Index,
-			L1MessagePopped:        totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore,
-			TotalL1MessagePopped:   totalL1MessagePoppedAfter,
-			DataHash:               dataHash,
-			ParentBatchHash:        batch.ParentBatchHash,
-			SkippedL1MessageBitmap: bitmapBytes,
-		},
-		BlobVersionedHash: blobVersionedHash,
-		blob:              blob,
-		z:                 z,
-	}
+	daBatch := NewDABatchV1(
+		uint8(CodecV2), // version
+		batch.Index,    // batchIndex
+		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
+		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
+		dataHash,                                                   // dataHash
+		batch.ParentBatchHash,                                      // parentBatchHash
+		blobVersionedHash,                                          // blobVersionedHash
+		bitmapBytes,                                                // skippedL1MessageBitmap
+		blob,                                                       // blob
+		z,                                                          // z
+	)
 
-	return &daBatch, nil
+	return daBatch, nil
 }
 
 // NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
@@ -220,18 +218,18 @@ func (o *DACodecV2) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV2)
 	}
 
-	b := &DABatchV2{
-		DABatchV0: DABatchV0{
-			Version:                data[0],
-			BatchIndex:             binary.BigEndian.Uint64(data[1:9]),
-			L1MessagePopped:        binary.BigEndian.Uint64(data[9:17]),
-			TotalL1MessagePopped:   binary.BigEndian.Uint64(data[17:25]),
-			DataHash:               common.BytesToHash(data[25:57]),
-			ParentBatchHash:        common.BytesToHash(data[89:121]),
-			SkippedL1MessageBitmap: data[121:],
-		},
-		BlobVersionedHash: common.BytesToHash(data[57:89]),
-	}
+	b := NewDABatchV1(
+		data[0],                              // version
+		binary.BigEndian.Uint64(data[1:9]),   // batchIndex
+		binary.BigEndian.Uint64(data[9:17]),  // l1MessagePopped
+		binary.BigEndian.Uint64(data[17:25]), // totalL1MessagePopped
+		common.BytesToHash(data[25:57]),      // dataHash
+		common.BytesToHash(data[89:121]),     // parentBatchHash
+		common.BytesToHash(data[57:89]),      // blobVersionedHash
+		data[121:],                           // skippedL1MessageBitmap
+		nil,                                  // blob
+		nil,                                  // z
+	)
 
 	return b, nil
 }
