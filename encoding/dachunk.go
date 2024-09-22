@@ -12,32 +12,40 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto"
 )
 
-// DAChunk groups consecutive DABlocks with their transactions.
+// DAChunkV0 groups consecutive DABlocks with their transactions.
 type DAChunkV0 struct {
-	Blocks       []DABlock
-	Transactions [][]*types.TransactionData
+	blocks       []DABlock
+	transactions [][]*types.TransactionData
+}
+
+// NewDAChunkV0 is a constructor for DAChunkV0, initializing with blocks and transactions.
+func NewDAChunkV0(blocks []DABlock, transactions [][]*types.TransactionData) *DAChunkV0 {
+	return &DAChunkV0{
+		blocks:       blocks,
+		transactions: transactions,
+	}
 }
 
 // Encode serializes the DAChunk into a slice of bytes.
 func (c *DAChunkV0) Encode() ([]byte, error) {
-	if len(c.Blocks) == 0 {
+	if len(c.blocks) == 0 {
 		return nil, errors.New("number of blocks is 0")
 	}
 
-	if len(c.Blocks) > 255 {
+	if len(c.blocks) > 255 {
 		return nil, errors.New("number of blocks exceeds 1 byte")
 	}
 
 	var chunkBytes []byte
-	chunkBytes = append(chunkBytes, byte(len(c.Blocks)))
+	chunkBytes = append(chunkBytes, byte(len(c.blocks)))
 
 	var l2TxDataBytes []byte
 
-	for _, block := range c.Blocks {
+	for _, block := range c.blocks {
 		chunkBytes = append(chunkBytes, block.Encode()...)
 	}
 
-	for _, blockTxs := range c.Transactions {
+	for _, blockTxs := range c.transactions {
 		for _, txData := range blockTxs {
 			if txData.Type == types.L1MessageTxType {
 				continue
@@ -78,7 +86,7 @@ func (c *DAChunkV0) Hash() (common.Hash, error) {
 	}
 
 	// concatenate l1 and l2 tx hashes
-	for _, blockTxs := range c.Transactions {
+	for _, blockTxs := range c.transactions {
 		var l1TxHashes []byte
 		var l2TxHashes []byte
 		for _, txData := range blockTxs {
@@ -103,22 +111,30 @@ func (c *DAChunkV0) Hash() (common.Hash, error) {
 
 // BlockRange returns the block range of the DAChunk.
 func (c *DAChunkV0) BlockRange() (uint64, uint64, error) {
-	if len(c.Blocks) == 0 {
+	if len(c.blocks) == 0 {
 		return 0, 0, errors.New("number of blocks is 0")
 	}
 
-	return c.Blocks[0].Number(), c.Blocks[len(c.Blocks)-1].Number(), nil
+	return c.blocks[0].Number(), c.blocks[len(c.blocks)-1].Number(), nil
 }
 
 // DAChunkV1 groups consecutive DABlocks with their transactions.
 type DAChunkV1 DAChunkV0
 
+// NewDAChunkV1 is a constructor for DAChunkV1, initializing with blocks and transactions.
+func NewDAChunkV1(blocks []DABlock, transactions [][]*types.TransactionData) *DAChunkV1 {
+	return &DAChunkV1{
+		blocks:       blocks,
+		transactions: transactions,
+	}
+}
+
 // Encode serializes the DAChunk into a slice of bytes.
 func (c *DAChunkV1) Encode() ([]byte, error) {
 	var chunkBytes []byte
-	chunkBytes = append(chunkBytes, byte(len(c.Blocks)))
+	chunkBytes = append(chunkBytes, byte(len(c.blocks)))
 
-	for _, block := range c.Blocks {
+	for _, block := range c.blocks {
 		blockBytes := block.Encode()
 		chunkBytes = append(chunkBytes, blockBytes...)
 	}
@@ -131,14 +147,14 @@ func (c *DAChunkV1) Hash() (common.Hash, error) {
 	var dataBytes []byte
 
 	// concatenate block contexts
-	for _, block := range c.Blocks {
+	for _, block := range c.blocks {
 		encodedBlock := block.Encode()
 		// only the first 58 bytes are used in the hashing process
 		dataBytes = append(dataBytes, encodedBlock[:58]...)
 	}
 
 	// concatenate l1 tx hashes
-	for _, blockTxs := range c.Transactions {
+	for _, blockTxs := range c.transactions {
 		for _, txData := range blockTxs {
 			if txData.Type != types.L1MessageTxType {
 				continue
@@ -162,18 +178,9 @@ func (c *DAChunkV1) Hash() (common.Hash, error) {
 
 // BlockRange returns the block range of the DAChunk.
 func (c *DAChunkV1) BlockRange() (uint64, uint64, error) {
-	if len(c.Blocks) == 0 {
+	if len(c.blocks) == 0 {
 		return 0, 0, errors.New("number of blocks is 0")
 	}
 
-	return c.Blocks[0].Number(), c.Blocks[len(c.Blocks)-1].Number(), nil
+	return c.blocks[0].Number(), c.blocks[len(c.blocks)-1].Number(), nil
 }
-
-// DAChunkV2 groups consecutive DABlocks with their transactions.
-type DAChunkV2 = DAChunkV1
-
-// DAChunkV3 groups consecutive DABlocks with their transactions.
-type DAChunkV3 = DAChunkV2
-
-// DAChunkV4 groups consecutive DABlocks with their transactions.
-type DAChunkV4 = DAChunkV3

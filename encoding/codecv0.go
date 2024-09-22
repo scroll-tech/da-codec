@@ -77,12 +77,9 @@ func (o *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		txs = append(txs, block.Transactions)
 	}
 
-	daChunk := DAChunkV0{
-		Blocks:       blocks,
-		Transactions: txs,
-	}
+	daChunk := NewDAChunkV0(blocks, txs)
 
-	return &daChunk, nil
+	return daChunk, nil
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
@@ -362,9 +359,7 @@ func (o *DACodecV0) DecodeDAChunks(bytes [][]byte) ([]DAChunk, error) {
 			}
 		}
 
-		chunks = append(chunks, &DAChunkV0{
-			Blocks: blocks,
-		})
+		chunks = append(chunks, NewDAChunkV0(blocks, nil))
 	}
 	return chunks, nil
 }
