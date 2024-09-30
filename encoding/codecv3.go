@@ -209,7 +209,7 @@ func (o *DACodecV3) JSONFromBytes(data []byte) ([]byte, error) {
 
 	jsonBytes, err := json.Marshal(batch)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal DABatchV2 to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal DABatch to JSON: %w", err)
 	}
 
 	return jsonBytes, nil
