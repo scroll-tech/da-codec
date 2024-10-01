@@ -406,7 +406,8 @@ func GetMemoryExpansionCost(memoryByteSize uint64) uint64 {
 	return memoryCost
 }
 
-func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
+// GetTxPayloadLength calculates the length of the transaction payload.
+func GetTxPayloadLength(txData *types.TransactionData) (uint64, error) {
 	rlpTxData, err := ConvertTxDataToRLPEncoding(txData, false /* no mock */)
 	if err != nil {
 		return 0, err

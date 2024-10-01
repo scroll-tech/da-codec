@@ -69,35 +69,42 @@ const (
 	CodecV4
 )
 
-// CodecFromVersion returns the appropriate codec for the given version.
-func CodecFromVersion(version CodecVersion) (Codec, error) {
-	switch version {
-	case CodecV0:
-		return &DACodecV0{}, nil
-	case CodecV1:
-		return &DACodecV1{}, nil
-	case CodecV2:
-		return &DACodecV2{}, nil
-	case CodecV3:
-		return &DACodecV3{}, nil
-	case CodecV4:
-		return &DACodecV4{}, nil
-	default:
+// MyCodecGen is a map that stores codec generator functions for each version.
+var MyCodecGen = make(map[CodecVersion]func() Codec)
+
+// RegisterCodec registers a codec generator function for a specific version.
+func RegisterCodec(version CodecVersion, codecGenFunc func() Codec) {
+	MyCodecGen[version] = codecGenFunc
+}
+
+// getCodec retrieves a Codec instance for the specified version.
+// It returns an error if the version is not supported.
+func getCodec(version CodecVersion) (Codec, error) {
+	codecGen, ok := MyCodecGen[version]
+	if !ok {
 		return nil, fmt.Errorf("unsupported codec version: %d", version)
 	}
+	return codecGen(), nil
+}
+
+// CodecFromVersion returns the appropriate codec for the given version.
+func CodecFromVersion(version CodecVersion) (Codec, error) {
+	return getCodec(version)
 }
 
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
-func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
+func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) (Codec, error) {
+	var version CodecVersion
 	if chainCfg.IsDarwinV2(startBlockTimestamp) {
-		return &DACodecV4{}
+		version = CodecV4
 	} else if chainCfg.IsDarwin(startBlockTimestamp) {
-		return &DACodecV3{}
+		version = CodecV3
 	} else if chainCfg.IsCurie(startBlockNumber) {
-		return &DACodecV2{}
+		version = CodecV2
 	} else if chainCfg.IsBernoulli(startBlockNumber) {
-		return &DACodecV1{}
+		version = CodecV1
 	} else {
-		return &DACodecV0{}
+		version = CodecV0
 	}
+	return getCodec(version)
 }
