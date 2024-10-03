@@ -9,11 +9,12 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/scroll-tech/da-codec/encoding"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+
+	"github.com/scroll-tech/da-codec/encoding"
 )
 
 type DACodecV1 struct{}
