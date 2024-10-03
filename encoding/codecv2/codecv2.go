@@ -99,6 +99,53 @@ func (o *DACodecV2) NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore
 	return daChunk, nil
 }
 
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
+// Beginning from codecv1 tx data posted to blobs, not to chunk bytes in calldata
+func (o *DACodecV2) DecodeDAChunksRawTx(bytes [][]byte) ([]*encoding.DAChunkRawTx, error) {
+	var chunks []*encoding.DAChunkRawTx
+	for _, chunk := range bytes {
+		if len(chunk) < 1 {
+			return nil, fmt.Errorf("invalid chunk, length is less than 1")
+		}
+
+		numBlocks := int(chunk[0])
+		if len(chunk) < 1+numBlocks*encoding.BlockContextByteSize {
+			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*encoding.BlockContextByteSize)
+		}
+
+		blocks := make([]encoding.DABlock, numBlocks)
+		for i := 0; i < numBlocks; i++ {
+			startIdx := 1 + i*encoding.BlockContextByteSize // add 1 to skip numBlocks byte
+			endIdx := startIdx + encoding.BlockContextByteSize
+			blocks[i] = &encoding.DABlockV0{}
+			err := blocks[i].Decode(chunk[startIdx:endIdx])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var transactions []types.Transactions
+
+		chunks = append(chunks, &encoding.DAChunkRawTx{
+			Blocks:       blocks,
+			Transactions: transactions, // Transactions field is still empty in the phase of DecodeDAChunksRawTx, because txs moved to blobs and filled in DecodeTxsFromBlob method.
+		})
+	}
+	return chunks, nil
+}
+
+// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
+func (o *DACodecV2) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*encoding.DAChunkRawTx) error {
+	compressedBytes := encoding.BytesFromBlobCanonical(blob)
+	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
+
+	batchBytes, err := encoding.DecompressScrollBlobToBatch(append(magics, compressedBytes[:]...))
+	if err != nil {
+		return err
+	}
+	return encoding.DecodeTxsFromBytes(batchBytes, chunks, Codecv2MaxNumChunks)
+}
+
 // NewDABatch creates a DABatch from the provided encoding.Batch.
 func (o *DACodecV2) NewDABatch(batch *encoding.Batch) (encoding.DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
@@ -508,38 +555,6 @@ func (o *DACodecV2) computeBatchDataHash(chunks []*encoding.Chunk, totalL1Messag
 
 	dataHash := crypto.Keccak256Hash(dataBytes)
 	return dataHash, nil
-}
-
-// DecodeDAChunks takes a byte slice and decodes it into a []DAChunk
-func (o *DACodecV2) DecodeDAChunks(bytes [][]byte) ([]encoding.DAChunk, error) {
-	var chunks []encoding.DAChunk
-	for _, chunk := range bytes {
-		if len(chunk) < 1 {
-			return nil, fmt.Errorf("invalid chunk, length is less than 1")
-		}
-
-		numBlocks := int(chunk[0])
-		if len(chunk) < 1+numBlocks*encoding.BlockContextByteSize {
-			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*encoding.BlockContextByteSize)
-		}
-
-		blocks := make([]encoding.DABlock, numBlocks)
-		for i := 0; i < numBlocks; i++ {
-			startIdx := 1 + i*encoding.BlockContextByteSize // add 1 to skip numBlocks byte
-			endIdx := startIdx + encoding.BlockContextByteSize
-			blocks[i] = &encoding.DABlockV0{}
-			err := blocks[i].Decode(chunk[startIdx:endIdx])
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		chunks = append(chunks, encoding.NewDAChunkV1(
-			blocks, // blocks
-			nil,    // transactions
-		))
-	}
-	return chunks, nil
 }
 
 // JSONFromBytes for CodecV1 returns empty values.

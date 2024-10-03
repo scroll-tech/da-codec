@@ -14,6 +14,8 @@ type DABlock interface {
 	Encode() []byte
 	Decode([]byte) error
 	Number() uint64
+	NumTransactions() uint16
+	NumL1Messages() uint16
 }
 
 // DAChunk groups consecutive DABlocks with their transactions.
@@ -43,7 +45,8 @@ type Codec interface {
 	NewDABatchFromBytes([]byte) (DABatch, error)
 	NewDABatchWithExpectedBlobVersionedHashes(*Batch, []common.Hash) (DABatch, error)
 
-	DecodeDAChunks(chunks [][]byte) ([]DAChunk, error)
+	DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error)
+	DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error
 
 	EstimateChunkL1CommitBatchSizeAndBlobSize(*Chunk) (uint64, uint64, error)
 	EstimateBatchL1CommitBatchSizeAndBlobSize(*Batch) (uint64, uint64, error)

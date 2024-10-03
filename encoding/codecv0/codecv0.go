@@ -11,6 +11,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
+	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
 type DACodecV0 struct{}
@@ -91,6 +92,69 @@ func (o *DACodecV0) NewDAChunk(chunk *encoding.Chunk, totalL1MessagePoppedBefore
 	)
 
 	return daChunk, nil
+}
+
+// DecodeDAChunksRawTx takes a byte slice and decodes it into a []*encoding.DAChunkRawTx.
+func (o *DACodecV0) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*encoding.DAChunkRawTx, error) {
+	var chunks []*encoding.DAChunkRawTx
+	for _, chunk := range chunkBytes {
+		if len(chunk) < 1 {
+			return nil, fmt.Errorf("invalid chunk, length is less than 1")
+		}
+
+		numBlocks := int(chunk[0])
+		if len(chunk) < 1+numBlocks*encoding.BlockContextByteSize {
+			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*encoding.BlockContextByteSize)
+		}
+
+		blocks := make([]encoding.DABlock, numBlocks)
+		for i := 0; i < numBlocks; i++ {
+			startIdx := 1 + i*encoding.BlockContextByteSize // add 1 to skip numBlocks byte
+			endIdx := startIdx + encoding.BlockContextByteSize
+			blocks[i] = &encoding.DABlockV0{}
+			err := blocks[i].Decode(chunk[startIdx:endIdx])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		var transactions []types.Transactions
+		currentIndex := 1 + numBlocks*encoding.BlockContextByteSize
+		for _, block := range blocks {
+			var blockTransactions types.Transactions
+			// ignore L1 msg transactions from the block, consider only L2 transactions
+			txNum := int(block.NumTransactions() - block.NumL1Messages())
+			for i := 0; i < txNum; i++ {
+				if len(chunk) < currentIndex+encoding.TxLenByteSize {
+					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+encoding.TxLenByteSize, i)
+				}
+				txLen := int(binary.BigEndian.Uint32(chunk[currentIndex : currentIndex+encoding.TxLenByteSize]))
+				if len(chunk) < currentIndex+encoding.TxLenByteSize+txLen {
+					return nil, fmt.Errorf("chunk size doesn't match with next tx length, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+encoding.TxLenByteSize+txLen, i)
+				}
+				txData := chunk[currentIndex+encoding.TxLenByteSize : currentIndex+encoding.TxLenByteSize+txLen]
+				tx := &types.Transaction{}
+				err := tx.UnmarshalBinary(txData)
+				if err != nil {
+					return nil, fmt.Errorf("failed to unmarshal tx, pos of tx in chunk bytes: %d. tx num without l1 msgs: %d, err: %w", currentIndex, i, err)
+				}
+				blockTransactions = append(blockTransactions, tx)
+				currentIndex += encoding.TxLenByteSize + txLen
+			}
+			transactions = append(transactions, blockTransactions)
+		}
+
+		chunks = append(chunks, &encoding.DAChunkRawTx{
+			Blocks:       blocks,
+			Transactions: transactions,
+		})
+	}
+	return chunks, nil
+}
+
+// DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
+func (o *DACodecV0) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*encoding.DAChunkRawTx) error {
+	return nil
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
@@ -345,38 +409,6 @@ func (o *DACodecV0) EstimateBatchL1CommitBatchSizeAndBlobSize(b *encoding.Batch)
 
 // SetCompression enables or disables compression.
 func (o *DACodecV0) SetCompression(enable bool) {}
-
-// DecodeDAChunks takes a byte slice and decodes it into a []DAChunk
-func (o *DACodecV0) DecodeDAChunks(bytes [][]byte) ([]encoding.DAChunk, error) {
-	var chunks []encoding.DAChunk
-	for _, chunk := range bytes {
-		if len(chunk) < 1 {
-			return nil, fmt.Errorf("invalid chunk, length is less than 1")
-		}
-
-		numBlocks := int(chunk[0])
-		if len(chunk) < 1+numBlocks*encoding.BlockContextByteSize {
-			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*encoding.BlockContextByteSize)
-		}
-
-		blocks := make([]encoding.DABlock, numBlocks)
-		for i := 0; i < numBlocks; i++ {
-			startIdx := 1 + i*encoding.BlockContextByteSize // add 1 to skip numBlocks byte
-			endIdx := startIdx + encoding.BlockContextByteSize
-			blocks[i] = &encoding.DABlockV0{}
-			err := blocks[i].Decode(chunk[startIdx:endIdx])
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		chunks = append(chunks, encoding.NewDAChunkV0(
-			blocks, // blocks
-			nil,    // transactions
-		))
-	}
-	return chunks, nil
-}
 
 // JSONFromBytes for CodecV1 returns empty values.
 func (c *DACodecV0) JSONFromBytes(data []byte) ([]byte, error) {

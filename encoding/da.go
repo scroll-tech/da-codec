@@ -1,9 +1,12 @@
 package encoding
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math/big"
+
+	"github.com/klauspost/compress/zstd"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
@@ -343,6 +346,44 @@ func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	return &blob, nil
 }
 
+// BytesFromBlobCanonical converts the canonical blob representation into the raw blob data
+func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
+	var blobBytes [126976]byte
+	for from := 0; from < len(blob); from += 32 {
+		copy(blobBytes[from/32*31:], blob[from+1:from+32])
+	}
+	return blobBytes
+}
+
+// DecompressScrollBlobToBatch decompresses the given blob bytes into scroll batch bytes
+func DecompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
+	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
+	var res []byte
+	readBatchSize := 131072
+	batchOfBytes := make([]byte, readBatchSize)
+
+	r := bytes.NewReader(compressedBytes)
+	zr, err := zstd.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+
+	for {
+		i, err := zr.Read(batchOfBytes)
+		res = append(res, batchOfBytes[:i]...) // append already decoded bytes even if we meet error
+		// the error here is supposed to be EOF or similar that indicates that buffer has been read until the end
+		// we should return all data that read by this moment
+		if i < readBatchSize || err != nil {
+			break
+		}
+	}
+	if len(res) == 0 {
+		return nil, fmt.Errorf("failed to decompress blob bytes")
+	}
+	return res, nil
+}
+
 // CalculatePaddedBlobSize calculates the required size on blob storage
 // where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
 func CalculatePaddedBlobSize(dataSize uint64) uint64 {
@@ -430,4 +471,91 @@ func BlobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg484
 	copy(result[112:160], proof[:])
 
 	return result
+}
+
+var errSmallLength error = fmt.Errorf("length of blob bytes is too small")
+
+// getNextTx parses blob bytes to find length of payload of next Tx and decode it
+func getNextTx(bytes []byte, index int) (*types.Transaction, int, error) {
+	var nextIndex int
+	length := len(bytes)
+	if length < index+1 {
+		return nil, 0, errSmallLength
+	}
+	var txBytes []byte
+	if bytes[index] <= 0x7f {
+		// the first byte is transaction type, rlp encoding begins from next byte
+		txBytes = append(txBytes, bytes[index])
+		index++
+	}
+	if length < index+1 {
+		return nil, 0, errSmallLength
+	}
+	if bytes[index] >= 0xc0 && bytes[index] <= 0xf7 {
+		// length of payload is simply bytes[index] - 0xc0
+		payloadLen := int(bytes[index] - 0xc0)
+		if length < index+1+payloadLen {
+			return nil, 0, errSmallLength
+		}
+		txBytes = append(txBytes, bytes[index:index+1+payloadLen]...)
+		nextIndex = index + 1 + payloadLen
+	} else if bytes[index] > 0xf7 {
+		// the length of payload is encoded in next bytes[index] - 0xf7 bytes
+		// length of bytes representation of length of payload
+		lenPayloadLen := int(bytes[index] - 0xf7)
+		if length < index+1+lenPayloadLen {
+			return nil, 0, errSmallLength
+		}
+		lenBytes := bytes[index+1 : index+1+lenPayloadLen]
+		for len(lenBytes) < 8 {
+			lenBytes = append([]byte{0x0}, lenBytes...)
+		}
+		payloadLen := binary.BigEndian.Uint64(lenBytes)
+
+		if length < index+1+lenPayloadLen+int(payloadLen) {
+			return nil, 0, errSmallLength
+		}
+		txBytes = append(txBytes, bytes[index:index+1+lenPayloadLen+int(payloadLen)]...)
+		nextIndex = index + 1 + lenPayloadLen + int(payloadLen)
+	} else {
+		return nil, 0, fmt.Errorf("incorrect format of rlp encoding")
+	}
+	tx := &types.Transaction{}
+	err := tx.UnmarshalBinary(txBytes)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to unmarshal tx, err: %w", err)
+	}
+	return tx, nextIndex, nil
+}
+
+// DecodeTxsFromBytes decodes txs from blob bytes and writes to chunks
+func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks int) error {
+	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
+	if numChunks != len(chunks) {
+		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
+	}
+	index := 2 + maxNumChunks*4
+	for chunkID, chunk := range chunks {
+		var transactions []types.Transactions
+		chunkSize := int(binary.BigEndian.Uint32(blobBytes[2+4*chunkID : 2+4*chunkID+4]))
+
+		chunkBytes := blobBytes[index : index+chunkSize]
+		curIndex := 0
+		for _, block := range chunk.Blocks {
+			var blockTransactions types.Transactions
+			txNum := int(block.NumTransactions() - block.NumL1Messages())
+			for i := 0; i < txNum; i++ {
+				tx, nextIndex, err := getNextTx(chunkBytes, curIndex)
+				if err != nil {
+					return fmt.Errorf("couldn't decode next tx from blob bytes: %w, index: %d", err, index+curIndex+4)
+				}
+				curIndex = nextIndex
+				blockTransactions = append(blockTransactions, tx)
+			}
+			transactions = append(transactions, blockTransactions)
+		}
+		chunk.Transactions = transactions
+		index += chunkSize
+	}
+	return nil
 }

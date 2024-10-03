@@ -184,3 +184,9 @@ func (c *DAChunkV1) BlockRange() (uint64, uint64, error) {
 
 	return c.blocks[0].Number(), c.blocks[len(c.blocks)-1].Number(), nil
 }
+
+// DAChunkRawTx groups consecutive DABlocks with their L2 transactions, L1 msgs are loaded in another place.
+type DAChunkRawTx struct {
+	Blocks       []DABlock
+	Transactions []types.Transactions
+}
