@@ -72,42 +72,35 @@ const (
 	CodecV4
 )
 
-// MyCodecGen is a map that stores codec generator functions for each version.
-var MyCodecGen = make(map[CodecVersion]func() Codec)
-
-// RegisterCodec registers a codec generator function for a specific version.
-func RegisterCodec(version CodecVersion, codecGenFunc func() Codec) {
-	MyCodecGen[version] = codecGenFunc
-}
-
-// getCodec retrieves a Codec instance for the specified version.
-// It returns an error if the version is not supported.
-func getCodec(version CodecVersion) (Codec, error) {
-	codecGen, ok := MyCodecGen[version]
-	if !ok {
-		return nil, fmt.Errorf("unsupported codec version: %d", version)
-	}
-	return codecGen(), nil
-}
-
 // CodecFromVersion returns the appropriate codec for the given version.
 func CodecFromVersion(version CodecVersion) (Codec, error) {
-	return getCodec(version)
+	switch version {
+	case CodecV0:
+		return &DACodecV0{}, nil
+	case CodecV1:
+		return &DACodecV1{}, nil
+	case CodecV2:
+		return &DACodecV2{}, nil
+	case CodecV3:
+		return &DACodecV3{}, nil
+	case CodecV4:
+		return &DACodecV4{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported codec version: %v", version)
+	}
 }
 
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
-func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) (Codec, error) {
-	var version CodecVersion
+func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
 	if chainCfg.IsDarwinV2(startBlockTimestamp) {
-		version = CodecV4
+		return &DACodecV4{}
 	} else if chainCfg.IsDarwin(startBlockTimestamp) {
-		version = CodecV3
+		return &DACodecV3{}
 	} else if chainCfg.IsCurie(startBlockNumber) {
-		version = CodecV2
+		return &DACodecV2{}
 	} else if chainCfg.IsBernoulli(startBlockNumber) {
-		version = CodecV1
+		return &DACodecV1{}
 	} else {
-		version = CodecV0
+		return &DACodecV0{}
 	}
-	return getCodec(version)
 }
