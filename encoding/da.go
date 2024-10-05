@@ -12,6 +12,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+	"github.com/scroll-tech/go-ethereum/params"
 )
 
 // BLSModulus is the BLS modulus defined in EIP-4844.
@@ -558,4 +559,49 @@ func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks i
 		index += chunkSize
 	}
 	return nil
+}
+
+// GetHardforkName returns the name of the hardfork active at the given block height and timestamp.
+func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uint64) string {
+	if !config.IsBernoulli(new(big.Int).SetUint64(blockHeight)) {
+		return "homestead"
+	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
+		return "bernoulli"
+	} else if !config.IsDarwin(blockTimestamp) {
+		return "curie"
+	} else if !config.IsDarwinV2(blockTimestamp) {
+		return "darwin"
+	} else {
+		return "darwinV2"
+	}
+}
+
+// GetCodecVersion returns the encoding codec version for the given block height and timestamp.
+func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uint64) CodecVersion {
+	if !config.IsBernoulli(new(big.Int).SetUint64(blockHeight)) {
+		return CodecV0
+	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
+		return CodecV1
+	} else if !config.IsDarwin(blockTimestamp) {
+		return CodecV2
+	} else if !config.IsDarwinV2(blockTimestamp) {
+		return CodecV3
+	} else {
+		return CodecV4
+	}
+}
+
+// GetMaxChunksPerBatch returns the maximum number of chunks allowed per batch for the given block height and timestamp.
+func GetMaxChunksPerBatch(config *params.ChainConfig, blockHeight, blockTimestamp uint64) uint64 {
+	if !config.IsBernoulli(new(big.Int).SetUint64(blockHeight)) {
+		return 15
+	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
+		return 15
+	} else if !config.IsDarwin(blockTimestamp) {
+		return 45
+	} else if !config.IsDarwinV2(blockTimestamp) {
+		return 45
+	} else {
+		return 45
+	}
 }
