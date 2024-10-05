@@ -75,6 +75,16 @@ func (b *DABatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
 	return nil, nil
 }
 
+// Version returns the version of the DABatch.
+func (b *DABatchV0) Version() uint8 {
+	return b.version
+}
+
+// SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
+func (b *DABatchV0) SkippedL1MessageBitmap() []byte {
+	return b.skippedL1MessageBitmap
+}
+
 // DABatchV1 contains metadata about a batch of DAChunks.
 type DABatchV1 struct {
 	DABatchV0
@@ -162,6 +172,16 @@ func (b *DABatchV1) BlobBytes() []byte {
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
 func (b *DABatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
 	return nil, nil
+}
+
+// Version returns the version of the DABatch.
+func (b *DABatchV1) Version() uint8 {
+	return b.version
+}
+
+// SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
+func (b *DABatchV1) SkippedL1MessageBitmap() []byte {
+	return b.skippedL1MessageBitmap
 }
 
 // DABatchV2 contains metadata about a batch of DAChunks.
@@ -354,4 +374,14 @@ func (b *DABatchV2) MarshalJSON() ([]byte, error) {
 			b.blobDataProof[1].Hex(),
 		},
 	})
+}
+
+// Version returns the version of the DABatch.
+func (b *DABatchV2) Version() uint8 {
+	return b.version
+}
+
+// SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
+func (b *DABatchV2) SkippedL1MessageBitmap() []byte {
+	return b.skippedL1MessageBitmap
 }

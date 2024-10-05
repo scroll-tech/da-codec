@@ -33,6 +33,8 @@ type DABatch interface {
 	Blob() *kzg4844.Blob
 	BlobBytes() []byte
 	BlobVersionedHashes() []common.Hash
+	Version() uint8
+	SkippedL1MessageBitmap() []byte
 }
 
 // Codec represents the interface for encoding and decoding DA-related structures.
