@@ -438,6 +438,11 @@ func (o *DACodecV4) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 	return true, nil
 }
 
+// EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.
+func (o *DACodecV4) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) {
+	return BlockContextByteSize, nil
+}
+
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
 func (o *DACodecV4) EstimateChunkL1CommitCalldataSize(c *Chunk) (uint64, error) {
 	return uint64(BlockContextByteSize * len(c.Blocks)), nil

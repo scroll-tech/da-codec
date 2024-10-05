@@ -52,6 +52,7 @@ type Codec interface {
 	EstimateBatchL1CommitBatchSizeAndBlobSize(*Batch) (uint64, uint64, error)
 	CheckChunkCompressedDataCompatibility(*Chunk) (bool, error)
 	CheckBatchCompressedDataCompatibility(*Batch) (bool, error)
+	EstimateBlockL1CommitCalldataSize(*Block) (uint64, error)
 	EstimateChunkL1CommitCalldataSize(*Chunk) (uint64, error)
 	EstimateChunkL1CommitGas(*Chunk) (uint64, error)
 	EstimateBatchL1CommitGas(*Batch) (uint64, error)
