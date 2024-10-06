@@ -304,30 +304,6 @@ func (o *DACodecV1) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	return b, nil
 }
 
-// EstimateChunkL1CommitBlobSize estimates the size of the L1 commit blob for a single chunk.
-func (o *DACodecV1) EstimateChunkL1CommitBlobSize(c *Chunk) (uint64, error) {
-	metadataSize := uint64(2 + 4*Codecv1MaxNumChunks) // over-estimate: adding metadata length
-	chunkDataSize, err := o.chunkL1CommitBlobDataSize(c)
-	if err != nil {
-		return 0, err
-	}
-	return CalculatePaddedBlobSize(metadataSize + chunkDataSize), nil
-}
-
-// EstimateBatchL1CommitBlobSize estimates the total size of the L1 commit blob for a batch.
-func (o *DACodecV1) EstimateBatchL1CommitBlobSize(b *Batch) (uint64, error) {
-	metadataSize := uint64(2 + 4*Codecv1MaxNumChunks)
-	var batchDataSize uint64
-	for _, c := range b.Chunks {
-		chunkDataSize, err := o.chunkL1CommitBlobDataSize(c)
-		if err != nil {
-			return 0, err
-		}
-		batchDataSize += chunkDataSize
-	}
-	return CalculatePaddedBlobSize(metadataSize + batchDataSize), nil
-}
-
 func (o *DACodecV1) chunkL1CommitBlobDataSize(c *Chunk) (uint64, error) {
 	var dataSize uint64
 	for _, block := range c.Blocks {
@@ -480,12 +456,28 @@ func (o *DACodecV1) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
 func (o *DACodecV1) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
-	return 0, 0, nil
+	metadataSize := uint64(2 + 4*Codecv1MaxNumChunks)
+	batchDataSize, err := o.chunkL1CommitBlobDataSize(c)
+	if err != nil {
+		return 0, 0, err
+	}
+	blobSize := CalculatePaddedBlobSize(metadataSize + batchDataSize)
+	return blobSize, blobSize, nil
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
 func (o *DACodecV1) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
-	return 0, 0, nil
+	metadataSize := uint64(2 + 4*Codecv1MaxNumChunks)
+	var batchDataSize uint64
+	for _, c := range b.Chunks {
+		chunkDataSize, err := o.chunkL1CommitBlobDataSize(c)
+		if err != nil {
+			return 0, 0, err
+		}
+		batchDataSize += chunkDataSize
+	}
+	blobSize := CalculatePaddedBlobSize(metadataSize + batchDataSize)
+	return blobSize, blobSize, nil
 }
 
 // SetCompression enables or disables compression.
