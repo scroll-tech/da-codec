@@ -85,6 +85,11 @@ func (b *DABatchV0) SkippedL1MessageBitmap() []byte {
 	return b.skippedL1MessageBitmap
 }
 
+// DataHash returns the data hash of the DABatch.
+func (b *DABatchV0) DataHash() common.Hash {
+	return b.dataHash
+}
+
 // DABatchV1 contains metadata about a batch of DAChunks.
 type DABatchV1 struct {
 	DABatchV0
@@ -182,6 +187,11 @@ func (b *DABatchV1) Version() uint8 {
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
 func (b *DABatchV1) SkippedL1MessageBitmap() []byte {
 	return b.skippedL1MessageBitmap
+}
+
+// DataHash returns the data hash of the DABatch.
+func (b *DABatchV1) DataHash() common.Hash {
+	return b.dataHash
 }
 
 // DABatchV2 contains metadata about a batch of DAChunks.
@@ -384,4 +394,9 @@ func (b *DABatchV2) Version() uint8 {
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
 func (b *DABatchV2) SkippedL1MessageBitmap() []byte {
 	return b.skippedL1MessageBitmap
+}
+
+// DataHash returns the data hash of the DABatch.
+func (b *DABatchV2) DataHash() common.Hash {
+	return b.dataHash
 }

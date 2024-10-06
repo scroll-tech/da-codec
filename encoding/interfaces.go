@@ -29,6 +29,7 @@ type DAChunk interface {
 type DABatch interface {
 	Encode() []byte
 	Hash() common.Hash
+	DataHash() common.Hash
 	BlobDataProofForPointEvaluation() ([]byte, error)
 	Blob() *kzg4844.Blob
 	BlobBytes() []byte
