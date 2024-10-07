@@ -176,7 +176,24 @@ func (b *DABatchV1) BlobBytes() []byte {
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
 func (b *DABatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
-	return nil, nil
+	if b.blob == nil {
+		return nil, errors.New("called BlobDataProofForPointEvaluation with empty blob")
+	}
+	if b.z == nil {
+		return nil, errors.New("called BlobDataProofForPointEvaluation with empty z")
+	}
+
+	commitment, err := kzg4844.BlobToCommitment(b.blob)
+	if err != nil {
+		return nil, errors.New("failed to create blob commitment")
+	}
+
+	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
+	}
+
+	return BlobDataProofFromValues(*b.z, y, commitment, proof), nil
 }
 
 // Version returns the version of the DABatch.
