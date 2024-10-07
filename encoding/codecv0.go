@@ -402,7 +402,7 @@ func (o *DACodecV0) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 // SetCompression enables or disables compression.
 func (o *DACodecV0) SetCompression(enable bool) {}
 
-// JSONFromBytes for CodecV1 returns empty values.
+// JSONFromBytes for CodecV0 returns empty values.
 func (c *DACodecV0) JSONFromBytes(data []byte) ([]byte, error) {
 	// DACodecV0 doesn't need this, so just return empty values
 	return nil, nil

@@ -552,7 +552,7 @@ func (o *DACodecV2) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 	return dataHash, nil
 }
 
-// JSONFromBytes for CodecV1 returns empty values.
+// JSONFromBytes for CodecV2 returns empty values.
 func (c *DACodecV2) JSONFromBytes(data []byte) ([]byte, error) {
 	// DACodecV2 doesn't need this, so just return empty values
 	return nil, nil
