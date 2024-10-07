@@ -524,7 +524,7 @@ func (o *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
 
 	for _, chunk := range b.Chunks {
-		chunkL1CommitGas, err := o.EstimateChunkL1CommitGas(chunk)
+		chunkL1CommitGas, err := o.estimateChunkL1CommitGasWithoutPointEvaluation(chunk)
 		if err != nil {
 			return 0, err
 		}
@@ -536,13 +536,11 @@ func (o *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 		totalL1CommitGas += CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
 		totalL1CommitGas += GetKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
 
-		var totalL1CommitCalldataSize uint64
-		chunkL1CommitCalldataSize, err := o.estimateChunkL1CommitGasWithoutPointEvaluation(chunk)
+		chunkL1CommitCalldataSize, err := o.EstimateChunkL1CommitCalldataSize(chunk)
 		if err != nil {
 			return 0, err
 		}
-		totalL1CommitCalldataSize += chunkL1CommitCalldataSize
-		totalL1CommitGas += GetMemoryExpansionCost(totalL1CommitCalldataSize)
+		totalL1CommitGas += GetMemoryExpansionCost(chunkL1CommitCalldataSize)
 	}
 
 	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
