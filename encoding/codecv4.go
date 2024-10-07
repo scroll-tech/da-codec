@@ -490,8 +490,8 @@ func (o *DACodecV4) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 	return total, nil
 }
 
-// EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
-func (o *DACodecV4) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
+// estimateChunkL1CommitGasWithoutPointEvaluation calculates the total L1 commit gas without point-evaluation for this chunk approximately.
+func (o *DACodecV4) estimateChunkL1CommitGasWithoutPointEvaluation(c *Chunk) (uint64, error) {
 	var totalNonSkippedL1Messages uint64
 	var totalL1CommitGas uint64
 	for _, block := range c.Blocks {
@@ -511,6 +511,16 @@ func (o *DACodecV4) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 
 	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
 
+	return totalL1CommitGas, nil
+}
+
+// EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
+func (o *DACodecV4) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
+	totalL1CommitGas, err := o.estimateChunkL1CommitGasWithoutPointEvaluation(c)
+	if err != nil {
+		return 0, err
+	}
+	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
 	return totalL1CommitGas, nil
 }
 
@@ -552,7 +562,7 @@ func (o *DACodecV4) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 		totalL1CommitGas += GetKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
 
 		var totalL1CommitCalldataSize uint64
-		chunkL1CommitCalldataSize, err := o.EstimateChunkL1CommitCalldataSize(chunk)
+		chunkL1CommitCalldataSize, err := o.estimateChunkL1CommitGasWithoutPointEvaluation(chunk)
 		if err != nil {
 			return 0, err
 		}
