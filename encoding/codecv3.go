@@ -482,12 +482,9 @@ func (o *DACodecV3) estimateChunkL1CommitGasWithoutPointEvaluation(c *Chunk) (ui
 	}
 
 	numBlocks := uint64(len(c.Blocks))
-	totalL1CommitGas += 100 * numBlocks        // numBlocks times warm sload
-	totalL1CommitGas += CalldataNonZeroByteGas // numBlocks field of chunk encoding in calldata
-
+	totalL1CommitGas += 100 * numBlocks                                              // numBlocks times warm sload
+	totalL1CommitGas += CalldataNonZeroByteGas                                       // numBlocks field of chunk encoding in calldata
 	totalL1CommitGas += GetKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
-
-	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
 
 	return totalL1CommitGas, nil
 }
@@ -549,7 +546,6 @@ func (o *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	}
 
 	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
-
 	return totalL1CommitGas, nil
 }
 
