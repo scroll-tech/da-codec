@@ -605,3 +605,21 @@ func GetMaxChunksPerBatch(config *params.ChainConfig, blockHeight, blockTimestam
 		return 45
 	}
 }
+
+// CheckChunkCompressedDataCompatibility checks compressed data compatibility of a batch built by a single chunk.
+func CheckChunkCompressedDataCompatibility(chunk *Chunk, codecVersion CodecVersion) (bool, error) {
+	codec, err := CodecFromVersion(codecVersion)
+	if err != nil {
+		return false, fmt.Errorf("failed to get codec from version: %w", err)
+	}
+	return codec.CheckChunkCompressedDataCompatibility(chunk)
+}
+
+// CheckBatchCompressedDataCompatibility checks compressed data compatibility of a batch built by a single chunk.
+func CheckBatchCompressedDataCompatibility(batch *Batch, codecVersion CodecVersion) (bool, error) {
+	codec, err := CodecFromVersion(codecVersion)
+	if err != nil {
+		return false, fmt.Errorf("failed to get codec from version: %w", err)
+	}
+	return codec.CheckBatchCompressedDataCompatibility(batch)
+}
