@@ -9,7 +9,7 @@ go test -v -race ./...
 
 ## FAQ
 
-**Q: Why the repo contains `libscroll_zstd*.a` binary files?**
+**Q: Why does the repo contains `libscroll_zstd*.a` binary files?**
 
 A: This simplifies package installation with `go get` without the need to perform additional steps for building the `libscroll_zstd*.a`.
 
