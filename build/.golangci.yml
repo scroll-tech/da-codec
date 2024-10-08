@@ -1,7 +1,7 @@
 # Source: https://github.com/golangci/golangci-lint/blob/master/.golangci.example.yml
 # options for analysis running
 run:
-  # default concurrency is a available CPU number
+  # default concurrency is an available CPU number
   concurrency: 4
 
   # timeout for analysis, e.g. 30s, 5m, default is 1m
@@ -55,7 +55,7 @@ output:
 # all available settings of specific linters
 linters-settings:
   errcheck:
-    # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
+    # report about not checking of errors in type assertions: `a := b.(MyStruct)`;
     # default is false: such cases aren't reported by default.
     check-type-assertions: false
 
