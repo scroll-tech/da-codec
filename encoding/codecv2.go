@@ -62,6 +62,10 @@ func (o *DACodecV2) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
 func (o *DACodecV2) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
+	if chunk == nil {
+		return nil, errors.New("chunk is nil")
+	}
+
 	if len(chunk.Blocks) == 0 {
 		return nil, errors.New("number of blocks is 0")
 	}
