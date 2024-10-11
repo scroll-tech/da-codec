@@ -158,6 +158,15 @@ func (d *DACodecV0) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 
 // NewDABatch creates a DABatch from the provided Batch.
 func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
+	// this encoding can only support a fixed number of chunks per batch
+	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
+		return nil, errors.New("too many chunks in batch")
+	}
+
+	if len(batch.Chunks) == 0 {
+		return nil, errors.New("too few chunks in batch")
+	}
+
 	// compute batch data hash
 	var dataBytes []byte
 	totalL1MessagePoppedBeforeChunk := batch.TotalL1MessagePoppedBefore
