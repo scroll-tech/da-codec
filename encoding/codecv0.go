@@ -237,7 +237,7 @@ func (o *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) 
 			continue
 		}
 		size += 4 // 4 bytes payload length
-		txPayloadLength, err := GetTxPayloadLength(txData)
+		txPayloadLength, err := getTxPayloadLength(txData)
 		if err != nil {
 			return 0, err
 		}
@@ -257,13 +257,13 @@ func (o *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 			continue
 		}
 
-		txPayloadLength, err := GetTxPayloadLength(txData)
+		txPayloadLength, err := getTxPayloadLength(txData)
 		if err != nil {
 			return 0, err
 		}
 		total += CalldataNonZeroByteGas * txPayloadLength // an over-estimate: treat each byte as non-zero
 		total += CalldataNonZeroByteGas * 4               // 4 bytes payload length
-		total += GetKeccak256Gas(txPayloadLength)         // l2 tx hash
+		total += getKeccak256Gas(txPayloadLength)         // l2 tx hash
 	}
 
 	total += CalldataNonZeroByteGas * BlockContextByteSize
@@ -275,11 +275,11 @@ func (o *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 	total += 100 * numL1Messages // numL1Messages times call to L1MessageQueue
 	total += 100 * numL1Messages // numL1Messages times warm address access to L1MessageQueue
 
-	total += GetMemoryExpansionCost(36) * numL1Messages // staticcall to proxy
+	total += getMemoryExpansionCost(36) * numL1Messages // staticcall to proxy
 	total += 100 * numL1Messages                        // read admin in proxy
 	total += 100 * numL1Messages                        // read impl in proxy
 	total += 100 * numL1Messages                        // access impl
-	total += GetMemoryExpansionCost(36) * numL1Messages // delegatecall to impl
+	total += getMemoryExpansionCost(36) * numL1Messages // delegatecall to impl
 
 	return total, nil
 }
@@ -315,7 +315,7 @@ func (o *DACodecV0) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	totalL1CommitGas += CalldataNonZeroByteGas                                    // numBlocks field of chunk encoding in calldata
 	totalL1CommitGas += CalldataNonZeroByteGas * numBlocks * BlockContextByteSize // numBlocks of BlockContext in chunk
 
-	totalL1CommitGas += GetKeccak256Gas(58*numBlocks + 32*totalTxNum) // chunk hash
+	totalL1CommitGas += getKeccak256Gas(58*numBlocks + 32*totalTxNum) // chunk hash
 	return totalL1CommitGas, nil
 }
 
@@ -335,11 +335,11 @@ func (o *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	// add 1 time cold address access (2600 gas) for L1MessageQueue
 	// minus 1 time warm sload (100 gas) & 1 time warm address access (100 gas)
 	totalL1CommitGas += (2100 + 2600 - 100 - 100)
-	totalL1CommitGas += GetKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
+	totalL1CommitGas += getKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
 	totalL1CommitGas += CalldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
 
 	// adjust batch data hash gas cost
-	totalL1CommitGas += GetKeccak256Gas(uint64(32 * len(b.Chunks)))
+	totalL1CommitGas += getKeccak256Gas(uint64(32 * len(b.Chunks)))
 
 	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
 
@@ -354,13 +354,13 @@ func (o *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 		totalL1MessagePoppedBefore += totalL1MessagePoppedInChunk
 
 		totalL1CommitGas += CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
-		totalL1CommitGas += GetKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
+		totalL1CommitGas += getKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
 
 		chunkL1CommitCalldataSize, err := o.EstimateChunkL1CommitCalldataSize(chunk)
 		if err != nil {
 			return 0, err
 		}
-		totalL1CommitGas += GetMemoryExpansionCost(chunkL1CommitCalldataSize)
+		totalL1CommitGas += getMemoryExpansionCost(chunkL1CommitCalldataSize)
 	}
 
 	return totalL1CommitGas, nil

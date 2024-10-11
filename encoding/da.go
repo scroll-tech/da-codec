@@ -385,9 +385,9 @@ func DecompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
 	return res, nil
 }
 
-// CalculatePaddedBlobSize calculates the required size on blob storage
+// calculatePaddedBlobSize calculates the required size on blob storage
 // where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
-func CalculatePaddedBlobSize(dataSize uint64) uint64 {
+func calculatePaddedBlobSize(dataSize uint64) uint64 {
 	paddedSize := (dataSize / 31) * 32
 
 	if dataSize%31 != 0 {
@@ -397,9 +397,9 @@ func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 	return paddedSize
 }
 
-// ConstructBatchPayloadInBlob constructs the batch payload.
+// constructBatchPayloadInBlob constructs the batch payload.
 // This function is only used in compressed batch payload length estimation.
-func ConstructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, error) {
+func constructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + MaxNumChunks*4
 
@@ -436,20 +436,20 @@ func ConstructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, 
 	return batchBytes, nil
 }
 
-// GetKeccak256Gas calculates the gas cost for computing the keccak256 hash of a given size.
-func GetKeccak256Gas(size uint64) uint64 {
-	return GetMemoryExpansionCost(size) + 30 + 6*((size+31)/32)
+// getKeccak256Gas calculates the gas cost for computing the keccak256 hash of a given size.
+func getKeccak256Gas(size uint64) uint64 {
+	return getMemoryExpansionCost(size) + 30 + 6*((size+31)/32)
 }
 
-// GetMemoryExpansionCost calculates the cost of memory expansion for a given memoryByteSize.
-func GetMemoryExpansionCost(memoryByteSize uint64) uint64 {
+// getMemoryExpansionCost calculates the cost of memory expansion for a given memoryByteSize.
+func getMemoryExpansionCost(memoryByteSize uint64) uint64 {
 	memorySizeWord := (memoryByteSize + 31) / 32
 	memoryCost := (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
 	return memoryCost
 }
 
-// GetTxPayloadLength calculates the length of the transaction payload.
-func GetTxPayloadLength(txData *types.TransactionData) (uint64, error) {
+// getTxPayloadLength calculates the length of the transaction payload.
+func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
 	rlpTxData, err := ConvertTxDataToRLPEncoding(txData, false /* no mock */)
 	if err != nil {
 		return 0, err

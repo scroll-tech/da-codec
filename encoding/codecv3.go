@@ -354,7 +354,7 @@ func (o *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
 func (o *DACodecV3) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
-	batchBytes, err := ConstructBatchPayloadInBlob([]*Chunk{c}, Codecv3MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, Codecv3MaxNumChunks)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -362,12 +362,12 @@ func (o *DACodecV3) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 	if err != nil {
 		return 0, 0, err
 	}
-	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), calculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
 func (o *DACodecV3) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
-	batchBytes, err := ConstructBatchPayloadInBlob(b.Chunks, Codecv3MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, Codecv3MaxNumChunks)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -375,12 +375,12 @@ func (o *DACodecV3) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 	if err != nil {
 		return 0, 0, err
 	}
-	return uint64(len(batchBytes)), CalculatePaddedBlobSize(uint64(len(blobBytes))), nil
+	return uint64(len(batchBytes)), calculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
 func (o *DACodecV3) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
-	batchBytes, err := ConstructBatchPayloadInBlob([]*Chunk{c}, Codecv3MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, Codecv3MaxNumChunks)
 	if err != nil {
 		return false, err
 	}
@@ -401,7 +401,7 @@ func (o *DACodecV3) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 func (o *DACodecV3) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
-	batchBytes, err := ConstructBatchPayloadInBlob(b.Chunks, Codecv3MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, Codecv3MaxNumChunks)
 	if err != nil {
 		return false, err
 	}
@@ -463,11 +463,11 @@ func (o *DACodecV3) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 	total += 100 * numL1Messages // numL1Messages times call to L1MessageQueue
 	total += 100 * numL1Messages // numL1Messages times warm address access to L1MessageQueue
 
-	total += GetMemoryExpansionCost(36) * numL1Messages // staticcall to proxy
+	total += getMemoryExpansionCost(36) * numL1Messages // staticcall to proxy
 	total += 100 * numL1Messages                        // read admin in proxy
 	total += 100 * numL1Messages                        // read impl in proxy
 	total += 100 * numL1Messages                        // access impl
-	total += GetMemoryExpansionCost(36) * numL1Messages // delegatecall to impl
+	total += getMemoryExpansionCost(36) * numL1Messages // delegatecall to impl
 
 	return total, nil
 }
@@ -488,7 +488,7 @@ func (o *DACodecV3) estimateChunkL1CommitGasWithoutPointEvaluation(c *Chunk) (ui
 	numBlocks := uint64(len(c.Blocks))
 	totalL1CommitGas += 100 * numBlocks                                              // numBlocks times warm sload
 	totalL1CommitGas += CalldataNonZeroByteGas                                       // numBlocks field of chunk encoding in calldata
-	totalL1CommitGas += GetKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
+	totalL1CommitGas += getKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
 
 	return totalL1CommitGas, nil
 }
@@ -519,11 +519,11 @@ func (o *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	// add 1 time cold address access (2600 gas) for L1MessageQueue
 	// minus 1 time warm sload (100 gas) & 1 time warm address access (100 gas)
 	totalL1CommitGas += (2100 + 2600 - 100 - 100)
-	totalL1CommitGas += GetKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
+	totalL1CommitGas += getKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
 	totalL1CommitGas += CalldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
 
 	// adjust batch data hash gas cost
-	totalL1CommitGas += GetKeccak256Gas(uint64(32 * len(b.Chunks)))
+	totalL1CommitGas += getKeccak256Gas(uint64(32 * len(b.Chunks)))
 
 	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
 
@@ -538,13 +538,13 @@ func (o *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 		totalL1MessagePoppedBefore += totalL1MessagePoppedInChunk
 
 		totalL1CommitGas += CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
-		totalL1CommitGas += GetKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
+		totalL1CommitGas += getKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
 
 		chunkL1CommitCalldataSize, err := o.EstimateChunkL1CommitCalldataSize(chunk)
 		if err != nil {
 			return 0, err
 		}
-		totalL1CommitGas += GetMemoryExpansionCost(chunkL1CommitCalldataSize)
+		totalL1CommitGas += getMemoryExpansionCost(chunkL1CommitCalldataSize)
 	}
 
 	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
