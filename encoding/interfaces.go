@@ -95,9 +95,9 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
 func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
-	if chainCfg.IsDarwinV2(startBlockTimestamp) {
+	if chainCfg.IsDarwinV2(startBlockNumber, startBlockTimestamp) {
 		return &DACodecV4{}
-	} else if chainCfg.IsDarwin(startBlockTimestamp) {
+	} else if chainCfg.IsDarwin(startBlockNumber, startBlockTimestamp) {
 		return &DACodecV3{}
 	} else if chainCfg.IsCurie(startBlockNumber) {
 		return &DACodecV2{}

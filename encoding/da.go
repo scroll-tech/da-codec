@@ -567,9 +567,9 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "homestead"
 	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
 		return "bernoulli"
-	} else if !config.IsDarwin(blockTimestamp) {
+	} else if !config.IsDarwin(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
 		return "curie"
-	} else if !config.IsDarwinV2(blockTimestamp) {
+	} else if !config.IsDarwinV2(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
 		return "darwin"
 	} else {
 		return "darwinV2"
@@ -582,9 +582,9 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return CodecV0
 	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
 		return CodecV1
-	} else if !config.IsDarwin(blockTimestamp) {
+	} else if !config.IsDarwin(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
 		return CodecV2
-	} else if !config.IsDarwinV2(blockTimestamp) {
+	} else if !config.IsDarwinV2(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
 		return CodecV3
 	} else {
 		return CodecV4
