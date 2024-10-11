@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"reflect"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -195,21 +194,6 @@ func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 		batch.ParentBatchHash,                                      // parentBatchHash
 		bitmapBytes,                                                // skippedL1MessageBitmap
 	)
-
-	return daBatch, nil
-}
-
-// NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
-// It also checks if the blob versioned hashes are as expected.
-func (d *DACodecV0) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hashes []common.Hash) (DABatch, error) {
-	daBatch, err := d.NewDABatch(batch)
-	if err != nil {
-		return nil, err
-	}
-
-	if !reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
-		return nil, fmt.Errorf("blob versioned hashes do not match. Expected: %v, Got: %v", hashes, daBatch.BlobVersionedHashes())
-	}
 
 	return daBatch, nil
 }
@@ -406,9 +390,6 @@ func (d *DACodecV0) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 func (d *DACodecV0) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
 	return 0, 0, nil
 }
-
-// SetCompression enables or disables compression.
-func (d *DACodecV0) SetCompression(enable bool) {}
 
 // JSONFromBytes for CodecV0 returns empty values.
 func (c *DACodecV0) JSONFromBytes(data []byte) ([]byte, error) {

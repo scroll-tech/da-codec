@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -198,21 +197,6 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 		z,                                                          // z
 		blobBytes,                                                  // blobBytes
 	)
-}
-
-// NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
-// It also checks if the blob versioned hashes are as expected.
-func (d *DACodecV3) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hashes []common.Hash) (DABatch, error) {
-	daBatch, err := d.NewDABatch(batch)
-	if err != nil {
-		return nil, err
-	}
-
-	if !reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
-		return nil, fmt.Errorf("blob versioned hashes do not match. Expected: %v, Got: %v", hashes, daBatch.BlobVersionedHashes())
-	}
-
-	return daBatch, nil
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
@@ -555,9 +539,6 @@ func (d *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
 	return totalL1CommitGas, nil
 }
-
-// SetCompression enables or disables compression.
-func (d *DACodecV3) SetCompression(enable bool) {}
 
 // computeBatchDataHash computes the data hash of the batch.
 // Note: The batch hash and batch data hash are two different hashes,

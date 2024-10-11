@@ -47,7 +47,6 @@ type Codec interface {
 	NewDAChunk(*Chunk, uint64) (DAChunk, error)
 	NewDABatch(*Batch) (DABatch, error)
 	NewDABatchFromBytes([]byte) (DABatch, error)
-	NewDABatchWithExpectedBlobVersionedHashes(*Batch, []common.Hash) (DABatch, error)
 
 	DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error)
 	DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error
@@ -62,7 +61,6 @@ type Codec interface {
 	EstimateBatchL1CommitGas(*Batch) (uint64, error)
 	EstimateBatchL1CommitCalldataSize(*Batch) (uint64, error)
 
-	SetCompression(enable bool)
 	JSONFromBytes([]byte) ([]byte, error)
 }
 

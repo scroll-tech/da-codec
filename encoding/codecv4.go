@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"reflect"
-	"sync/atomic"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -22,7 +20,7 @@ import (
 )
 
 type DACodecV4 struct {
-	enableCompress uint32
+	enableCompress bool
 }
 
 // codecv4MaxNumChunks is the maximum number of chunks that a batch can contain.
@@ -192,6 +190,11 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	lastChunk := batch.Chunks[len(batch.Chunks)-1]
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
+	d.enableCompress, err = d.CheckBatchCompressedDataCompatibility(batch)
+	if err != nil {
+		return nil, err
+	}
+
 	return NewDABatchV2(
 		uint8(CodecV4), // version
 		batch.Index,    // batchIndex
@@ -206,26 +209,6 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 		z,                                                          // z
 		blobBytes,                                                  // blobBytes
 	)
-}
-
-// NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
-// It also checks if the blob versioned hashes are as expected.
-func (d *DACodecV4) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hashes []common.Hash) (DABatch, error) {
-	d.SetCompression(true)
-	daBatch, err := d.NewDABatch(batch)
-	if err != nil || !reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
-		d.SetCompression(false)
-		daBatch, err = d.NewDABatch(batch)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !reflect.DeepEqual(daBatch.BlobVersionedHashes(), hashes) {
-		return nil, fmt.Errorf("blob versioned hashes do not match. Expected: %v, Got: %v", hashes, daBatch.BlobVersionedHashes())
-	}
-
-	return daBatch, nil
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
@@ -289,7 +272,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, useMockTxData bool) (*
 	copy(challengePreimage[0:], hash[:])
 
 	var blobBytes []byte
-	if d.isCompressEnabled() {
+	if d.enableCompress {
 		// blobBytes represents the compressed blob payload (batchBytes)
 		var err error
 		blobBytes, err = zstd.CompressScrollBatchBytes(batchBytes)
@@ -382,7 +365,11 @@ func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 		return 0, 0, err
 	}
 	var blobBytesLength uint64
-	if d.isCompressEnabled() {
+	enableCompress, err := d.CheckChunkCompressedDataCompatibility(c)
+	if err != nil {
+		return 0, 0, err
+	}
+	if enableCompress {
 		blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 		if err != nil {
 			return 0, 0, err
@@ -401,7 +388,11 @@ func (d *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 		return 0, 0, err
 	}
 	var blobBytesLength uint64
-	if d.isCompressEnabled() {
+	enableCompress, err := d.CheckBatchCompressedDataCompatibility(b)
+	if err != nil {
+		return 0, 0, err
+	}
+	if enableCompress {
 		blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 		if err != nil {
 			return 0, 0, err
@@ -576,20 +567,6 @@ func (d *DACodecV4) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 
 	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
 	return totalL1CommitGas, nil
-}
-
-// isCompressEnabled checks if compression is enabled.
-func (d *DACodecV4) isCompressEnabled() bool {
-	return atomic.LoadUint32(&d.enableCompress) == 1
-}
-
-// SetCompression enables or disables compression.
-func (d *DACodecV4) SetCompression(enable bool) {
-	if enable {
-		atomic.StoreUint32(&d.enableCompress, 1)
-	} else {
-		atomic.StoreUint32(&d.enableCompress, 0)
-	}
 }
 
 // computeBatchDataHash computes the data hash of the batch.
