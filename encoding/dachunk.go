@@ -12,22 +12,22 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto"
 )
 
-// DAChunkV0 groups consecutive DABlocks with their transactions.
-type DAChunkV0 struct {
+// daChunkV0 groups consecutive DABlocks with their transactions.
+type daChunkV0 struct {
 	blocks       []DABlock
 	transactions [][]*types.TransactionData
 }
 
-// NewDAChunkV0 is a constructor for DAChunkV0, initializing with blocks and transactions.
-func NewDAChunkV0(blocks []DABlock, transactions [][]*types.TransactionData) *DAChunkV0 {
-	return &DAChunkV0{
+// newDAChunkV0 is a constructor for daChunkV0, initializing with blocks and transactions.
+func newDAChunkV0(blocks []DABlock, transactions [][]*types.TransactionData) *daChunkV0 {
+	return &daChunkV0{
 		blocks:       blocks,
 		transactions: transactions,
 	}
 }
 
 // Encode serializes the DAChunk into a slice of bytes.
-func (c *DAChunkV0) Encode() ([]byte, error) {
+func (c *daChunkV0) Encode() ([]byte, error) {
 	if len(c.blocks) == 0 {
 		return nil, errors.New("number of blocks is 0")
 	}
@@ -67,7 +67,7 @@ func (c *DAChunkV0) Encode() ([]byte, error) {
 }
 
 // Hash computes the hash of the DAChunk data.
-func (c *DAChunkV0) Hash() (common.Hash, error) {
+func (c *daChunkV0) Hash() (common.Hash, error) {
 	chunkBytes, err := c.Encode()
 	if err != nil {
 		return common.Hash{}, err
@@ -110,7 +110,7 @@ func (c *DAChunkV0) Hash() (common.Hash, error) {
 }
 
 // BlockRange returns the block range of the DAChunk.
-func (c *DAChunkV0) BlockRange() (uint64, uint64, error) {
+func (c *daChunkV0) BlockRange() (uint64, uint64, error) {
 	if len(c.blocks) == 0 {
 		return 0, 0, errors.New("number of blocks is 0")
 	}
@@ -118,19 +118,19 @@ func (c *DAChunkV0) BlockRange() (uint64, uint64, error) {
 	return c.blocks[0].Number(), c.blocks[len(c.blocks)-1].Number(), nil
 }
 
-// DAChunkV1 groups consecutive DABlocks with their transactions.
-type DAChunkV1 DAChunkV0
+// daChunkV1 groups consecutive DABlocks with their transactions.
+type daChunkV1 daChunkV0
 
-// NewDAChunkV1 is a constructor for DAChunkV1, initializing with blocks and transactions.
-func NewDAChunkV1(blocks []DABlock, transactions [][]*types.TransactionData) *DAChunkV1 {
-	return &DAChunkV1{
+// newDAChunkV1 is a constructor for daChunkV1, initializing with blocks and transactions.
+func newDAChunkV1(blocks []DABlock, transactions [][]*types.TransactionData) *daChunkV1 {
+	return &daChunkV1{
 		blocks:       blocks,
 		transactions: transactions,
 	}
 }
 
 // Encode serializes the DAChunk into a slice of bytes.
-func (c *DAChunkV1) Encode() ([]byte, error) {
+func (c *daChunkV1) Encode() ([]byte, error) {
 	var chunkBytes []byte
 	chunkBytes = append(chunkBytes, byte(len(c.blocks)))
 
@@ -143,7 +143,7 @@ func (c *DAChunkV1) Encode() ([]byte, error) {
 }
 
 // Hash computes the hash of the DAChunk data.
-func (c *DAChunkV1) Hash() (common.Hash, error) {
+func (c *daChunkV1) Hash() (common.Hash, error) {
 	var dataBytes []byte
 
 	// concatenate block contexts
@@ -177,7 +177,7 @@ func (c *DAChunkV1) Hash() (common.Hash, error) {
 }
 
 // BlockRange returns the block range of the DAChunk.
-func (c *DAChunkV1) BlockRange() (uint64, uint64, error) {
+func (c *daChunkV1) BlockRange() (uint64, uint64, error) {
 	if len(c.blocks) == 0 {
 		return 0, 0, errors.New("number of blocks is 0")
 	}

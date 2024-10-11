@@ -53,7 +53,7 @@ func (d *DACodecV3) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of transactions exceeds max uint16")
 	}
 
-	daBlock := NewDABlockV0(
+	daBlock := newDABlockV0(
 		block.Header.Number.Uint64(), // number
 		block.Header.Time,            // timestamp
 		block.Header.BaseFee,         // baseFee
@@ -92,7 +92,7 @@ func (d *DACodecV3) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		txs = append(txs, block.Transactions)
 	}
 
-	daChunk := NewDAChunkV1(
+	daChunk := newDAChunkV1(
 		blocks, // blocks
 		txs,    // transactions
 	)
@@ -118,7 +118,7 @@ func (d *DACodecV3) DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error)
 		for i := 0; i < numBlocks; i++ {
 			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
 			endIdx := startIdx + BlockContextByteSize
-			blocks[i] = &DABlockV0{}
+			blocks[i] = &daBlockV0{}
 			err := blocks[i].Decode(chunk[startIdx:endIdx])
 			if err != nil {
 				return nil, err
@@ -183,7 +183,7 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	lastChunk := batch.Chunks[len(batch.Chunks)-1]
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
-	return NewDABatchV2(
+	return newDABatchV2(
 		uint8(CodecV3), // version
 		batch.Index,    // batchIndex
 		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
@@ -565,7 +565,7 @@ func (d *DACodecV3) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 	return dataHash, nil
 }
 
-// JSONFromBytes converts the bytes to a DABatchV2 and then marshals it to JSON.
+// JSONFromBytes converts the bytes to a daBatchV2 and then marshals it to JSON.
 func (d *DACodecV3) JSONFromBytes(data []byte) ([]byte, error) {
 	batch, err := d.NewDABatchFromBytes(data)
 	if err != nil {

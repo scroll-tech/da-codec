@@ -12,8 +12,8 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
-// DABatchV0 contains metadata about a batch of DAChunks.
-type DABatchV0 struct {
+// daBatchV0 contains metadata about a batch of DAChunks.
+type daBatchV0 struct {
 	version                uint8
 	batchIndex             uint64
 	l1MessagePopped        uint64
@@ -23,9 +23,9 @@ type DABatchV0 struct {
 	skippedL1MessageBitmap []byte
 }
 
-// NewDABatchV0 is a constructor for DABatchV0.
-func NewDABatchV0(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash common.Hash, skippedL1MessageBitmap []byte) *DABatchV0 {
-	return &DABatchV0{
+// newDABatchV0 is a constructor for daBatchV0.
+func newDABatchV0(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash common.Hash, skippedL1MessageBitmap []byte) *daBatchV0 {
+	return &daBatchV0{
 		version:                version,
 		batchIndex:             batchIndex,
 		l1MessagePopped:        l1MessagePopped,
@@ -37,7 +37,7 @@ func NewDABatchV0(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopp
 }
 
 // Encode serializes the DABatch into bytes.
-func (b *DABatchV0) Encode() []byte {
+func (b *daBatchV0) Encode() []byte {
 	batchBytes := make([]byte, 89+len(b.skippedL1MessageBitmap))
 	batchBytes[0] = b.version
 	binary.BigEndian.PutUint64(batchBytes[1:], b.batchIndex)
@@ -50,59 +50,59 @@ func (b *DABatchV0) Encode() []byte {
 }
 
 // Hash computes the hash of the serialized DABatch.
-func (b *DABatchV0) Hash() common.Hash {
+func (b *daBatchV0) Hash() common.Hash {
 	bytes := b.Encode()
 	return crypto.Keccak256Hash(bytes)
 }
 
 // Blob returns the blob of the batch.
-func (b *DABatchV0) Blob() *kzg4844.Blob {
+func (b *daBatchV0) Blob() *kzg4844.Blob {
 	return nil
 }
 
 // BlobVersionedHashes returns the blob versioned hashes of the batch.
-func (b *DABatchV0) BlobVersionedHashes() []common.Hash {
+func (b *daBatchV0) BlobVersionedHashes() []common.Hash {
 	return nil
 }
 
 // BlobBytes returns the blob bytes of the batch.
-func (b *DABatchV0) BlobBytes() []byte {
+func (b *daBatchV0) BlobBytes() []byte {
 	return nil
 }
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
+func (b *daBatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
 	return nil, nil
 }
 
 // Version returns the version of the DABatch.
-func (b *DABatchV0) Version() uint8 {
+func (b *daBatchV0) Version() uint8 {
 	return b.version
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
-func (b *DABatchV0) SkippedL1MessageBitmap() []byte {
+func (b *daBatchV0) SkippedL1MessageBitmap() []byte {
 	return b.skippedL1MessageBitmap
 }
 
 // DataHash returns the data hash of the DABatch.
-func (b *DABatchV0) DataHash() common.Hash {
+func (b *daBatchV0) DataHash() common.Hash {
 	return b.dataHash
 }
 
-// DABatchV1 contains metadata about a batch of DAChunks.
-type DABatchV1 struct {
-	DABatchV0
+// daBatchV1 contains metadata about a batch of DAChunks.
+type daBatchV1 struct {
+	daBatchV0
 
 	blobVersionedHash common.Hash
 	blob              *kzg4844.Blob
 	z                 *kzg4844.Point
 }
 
-// NewDABatchV1 is a constructor for DABatchV1.
-func NewDABatchV1(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob, z *kzg4844.Point) *DABatchV1 {
-	return &DABatchV1{
-		DABatchV0: DABatchV0{
+// newDABatchV1 is a constructor for daBatchV1.
+func newDABatchV1(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob, z *kzg4844.Point) *daBatchV1 {
+	return &daBatchV1{
+		daBatchV0: daBatchV0{
 			version:                version,
 			batchIndex:             batchIndex,
 			l1MessagePopped:        l1MessagePopped,
@@ -118,7 +118,7 @@ func NewDABatchV1(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopp
 }
 
 // Encode serializes the DABatch into bytes.
-func (b *DABatchV1) Encode() []byte {
+func (b *daBatchV1) Encode() []byte {
 	batchBytes := make([]byte, 121+len(b.skippedL1MessageBitmap))
 	batchBytes[0] = b.version
 	binary.BigEndian.PutUint64(batchBytes[1:], b.batchIndex)
@@ -132,13 +132,13 @@ func (b *DABatchV1) Encode() []byte {
 }
 
 // Hash computes the hash of the serialized DABatch.
-func (b *DABatchV1) Hash() common.Hash {
+func (b *daBatchV1) Hash() common.Hash {
 	bytes := b.Encode()
 	return crypto.Keccak256Hash(bytes)
 }
 
 // BlobDataProof computes the abi-encoded blob verification data.
-func (b *DABatchV1) BlobDataProof() ([]byte, error) {
+func (b *daBatchV1) BlobDataProof() ([]byte, error) {
 	if b.blob == nil {
 		return nil, errors.New("called BlobDataProof with empty blob")
 	}
@@ -160,22 +160,22 @@ func (b *DABatchV1) BlobDataProof() ([]byte, error) {
 }
 
 // Blob returns the blob of the batch.
-func (b *DABatchV1) Blob() *kzg4844.Blob {
+func (b *daBatchV1) Blob() *kzg4844.Blob {
 	return b.blob
 }
 
 // BlobVersionedHashes returns the blob versioned hashes of the batch.
-func (b *DABatchV1) BlobVersionedHashes() []common.Hash {
+func (b *daBatchV1) BlobVersionedHashes() []common.Hash {
 	return []common.Hash{b.blobVersionedHash}
 }
 
 // BlobBytes returns the blob bytes of the batch.
-func (b *DABatchV1) BlobBytes() []byte {
+func (b *daBatchV1) BlobBytes() []byte {
 	return nil
 }
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
+func (b *daBatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
 	if b.blob == nil {
 		return nil, errors.New("called BlobDataProofForPointEvaluation with empty blob")
 	}
@@ -197,23 +197,23 @@ func (b *DABatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
 }
 
 // Version returns the version of the DABatch.
-func (b *DABatchV1) Version() uint8 {
+func (b *daBatchV1) Version() uint8 {
 	return b.version
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
-func (b *DABatchV1) SkippedL1MessageBitmap() []byte {
+func (b *daBatchV1) SkippedL1MessageBitmap() []byte {
 	return b.skippedL1MessageBitmap
 }
 
 // DataHash returns the data hash of the DABatch.
-func (b *DABatchV1) DataHash() common.Hash {
+func (b *daBatchV1) DataHash() common.Hash {
 	return b.dataHash
 }
 
-// DABatchV2 contains metadata about a batch of DAChunks.
-type DABatchV2 struct {
-	DABatchV0
+// daBatchV2 contains metadata about a batch of DAChunks.
+type daBatchV2 struct {
+	daBatchV0
 
 	blobVersionedHash  common.Hash
 	lastBlockTimestamp uint64
@@ -223,15 +223,15 @@ type DABatchV2 struct {
 	blobBytes          []byte
 }
 
-// NewDABatchV2 is a constructor for DABatchV2 that calls blobDataProofForPICircuit internally.
-func NewDABatchV2(version uint8,
+// newDABatchV2 is a constructor for daBatchV2 that calls blobDataProofForPICircuit internally.
+func newDABatchV2(version uint8,
 	batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash,
 	skippedL1MessageBitmap []byte,
 	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte,
-) (*DABatchV2, error) {
-	daBatch := &DABatchV2{
-		DABatchV0: DABatchV0{
+) (*daBatchV2, error) {
+	daBatch := &daBatchV2{
+		daBatchV0: daBatchV0{
 			version:                version,
 			batchIndex:             batchIndex,
 			l1MessagePopped:        l1MessagePopped,
@@ -257,16 +257,16 @@ func NewDABatchV2(version uint8,
 	return daBatch, nil
 }
 
-// NewDABatchV2WithProof is a constructor for DABatchV2 that allows directly passing blobDataProof.
+// NewDABatchV2WithProof is a constructor for daBatchV2 that allows directly passing blobDataProof.
 func NewDABatchV2WithProof(version uint8,
 	batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash,
 	skippedL1MessageBitmap []byte,
 	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte,
 	blobDataProof [2]common.Hash, // Accept blobDataProof directly
-) *DABatchV2 {
-	return &DABatchV2{
-		DABatchV0: DABatchV0{
+) *daBatchV2 {
+	return &daBatchV2{
+		daBatchV0: daBatchV0{
 			version:                version,
 			batchIndex:             batchIndex,
 			l1MessagePopped:        l1MessagePopped,
@@ -285,7 +285,7 @@ func NewDABatchV2WithProof(version uint8,
 }
 
 // Encode serializes the DABatch into bytes.
-func (b *DABatchV2) Encode() []byte {
+func (b *daBatchV2) Encode() []byte {
 	batchBytes := make([]byte, 193)
 	batchBytes[0] = b.version
 	binary.BigEndian.PutUint64(batchBytes[1:9], b.batchIndex)
@@ -301,13 +301,13 @@ func (b *DABatchV2) Encode() []byte {
 }
 
 // Hash computes the hash of the serialized DABatch.
-func (b *DABatchV2) Hash() common.Hash {
+func (b *daBatchV2) Hash() common.Hash {
 	bytes := b.Encode()
 	return crypto.Keccak256Hash(bytes)
 }
 
 // blobDataProofForPICircuit computes the abi-encoded blob verification data.
-func (b *DABatchV2) blobDataProofForPICircuit() ([2]common.Hash, error) {
+func (b *daBatchV2) blobDataProofForPICircuit() ([2]common.Hash, error) {
 	if b.blob == nil {
 		return [2]common.Hash{}, errors.New("called blobDataProofForPICircuit with empty blob")
 	}
@@ -332,7 +332,7 @@ func (b *DABatchV2) blobDataProofForPICircuit() ([2]common.Hash, error) {
 }
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-func (b *DABatchV2) BlobDataProofForPointEvaluation() ([]byte, error) {
+func (b *daBatchV2) BlobDataProofForPointEvaluation() ([]byte, error) {
 	if b.blob == nil {
 		return nil, errors.New("called BlobDataProofForPointEvaluation with empty blob")
 	}
@@ -354,23 +354,23 @@ func (b *DABatchV2) BlobDataProofForPointEvaluation() ([]byte, error) {
 }
 
 // Blob returns the blob of the batch.
-func (b *DABatchV2) Blob() *kzg4844.Blob {
+func (b *daBatchV2) Blob() *kzg4844.Blob {
 	return b.blob
 }
 
 // BlobVersionedHashes returns the blob versioned hashes of the batch.
-func (b *DABatchV2) BlobVersionedHashes() []common.Hash {
+func (b *daBatchV2) BlobVersionedHashes() []common.Hash {
 	return []common.Hash{b.blobVersionedHash}
 }
 
 // BlobBytes returns the blob bytes of the batch.
-func (b *DABatchV2) BlobBytes() []byte {
+func (b *daBatchV2) BlobBytes() []byte {
 	return b.blobBytes
 }
 
-// MarshalJSON implements the custom JSON serialization for DABatchV2.
+// MarshalJSON implements the custom JSON serialization for daBatchV2.
 // This method is designed to provide prover with batch info in snake_case format.
-func (b *DABatchV2) MarshalJSON() ([]byte, error) {
+func (b *daBatchV2) MarshalJSON() ([]byte, error) {
 	type daBatchV2JSON struct {
 		Version                uint8     `json:"version"`
 		BatchIndex             uint64    `json:"batch_index"`
@@ -404,16 +404,16 @@ func (b *DABatchV2) MarshalJSON() ([]byte, error) {
 }
 
 // Version returns the version of the DABatch.
-func (b *DABatchV2) Version() uint8 {
+func (b *daBatchV2) Version() uint8 {
 	return b.version
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
-func (b *DABatchV2) SkippedL1MessageBitmap() []byte {
+func (b *daBatchV2) SkippedL1MessageBitmap() []byte {
 	return b.skippedL1MessageBitmap
 }
 
 // DataHash returns the data hash of the DABatch.
-func (b *DABatchV2) DataHash() common.Hash {
+func (b *daBatchV2) DataHash() common.Hash {
 	return b.dataHash
 }
