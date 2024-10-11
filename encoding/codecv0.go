@@ -19,17 +19,17 @@ type DACodecV0 struct{}
 const codecv0MaxNumChunks = 15
 
 // Version returns the codec version.
-func (o *DACodecV0) Version() CodecVersion {
+func (d *DACodecV0) Version() CodecVersion {
 	return CodecV0
 }
 
 // MaxNumChunksPerBatch returns the maximum number of chunks per batch.
-func (o *DACodecV0) MaxNumChunksPerBatch() uint64 {
+func (d *DACodecV0) MaxNumChunksPerBatch() uint64 {
 	return codecv0MaxNumChunks
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
-func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
+func (d *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
 	if !block.Header.Number.IsUint64() {
 		return nil, errors.New("block number is not uint64")
 	}
@@ -60,7 +60,7 @@ func (o *DACodecV0) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 }
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
-func (o *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
+func (d *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
 	var blocks []DABlock
 	var txs [][]*types.TransactionData
 
@@ -77,7 +77,7 @@ func (o *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	}
 
 	for _, block := range chunk.Blocks {
-		b, err := o.NewDABlock(block, totalL1MessagePoppedBefore)
+		b, err := d.NewDABlock(block, totalL1MessagePoppedBefore)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func (o *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 }
 
 // DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
-func (o *DACodecV0) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error) {
+func (d *DACodecV0) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error) {
 	var chunks []*DAChunkRawTx
 	for _, chunk := range chunkBytes {
 		if len(chunk) < 1 {
@@ -153,19 +153,19 @@ func (o *DACodecV0) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, e
 }
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
-func (o *DACodecV0) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+func (d *DACodecV0) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	return nil
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
-func (o *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
+func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	// compute batch data hash
 	var dataBytes []byte
 	totalL1MessagePoppedBeforeChunk := batch.TotalL1MessagePoppedBefore
 
 	for _, chunk := range batch.Chunks {
 		// build data hash
-		daChunk, err := o.NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
+		daChunk, err := d.NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
 		if err != nil {
 			return nil, err
 		}
@@ -201,8 +201,8 @@ func (o *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 
 // NewDABatchWithExpectedBlobVersionedHashes creates a DABatch from the provided Batch.
 // It also checks if the blob versioned hashes are as expected.
-func (o *DACodecV0) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hashes []common.Hash) (DABatch, error) {
-	daBatch, err := o.NewDABatch(batch)
+func (d *DACodecV0) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hashes []common.Hash) (DABatch, error) {
+	daBatch, err := d.NewDABatch(batch)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func (o *DACodecV0) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hash
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
-func (o *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
+func (d *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	if len(data) < 89 {
 		return nil, fmt.Errorf("insufficient data for DABatch, expected at least 89 bytes but got %d", len(data))
 	}
@@ -238,7 +238,7 @@ func (o *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 }
 
 // EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.
-func (o *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) {
+func (d *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) {
 	var size uint64
 	for _, txData := range b.Transactions {
 		if txData.Type == types.L1MessageTxType {
@@ -256,7 +256,7 @@ func (o *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) 
 }
 
 // EstimateBlockL1CommitGas calculates the total L1 commit gas for this block approximately.
-func (o *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
+func (d *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 	var total uint64
 	var numL1Messages uint64
 	for _, txData := range b.Transactions {
@@ -293,10 +293,10 @@ func (o *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 }
 
 // EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
-func (o *DACodecV0) EstimateChunkL1CommitCalldataSize(c *Chunk) (uint64, error) {
+func (d *DACodecV0) EstimateChunkL1CommitCalldataSize(c *Chunk) (uint64, error) {
 	var totalL1CommitCalldataSize uint64
 	for _, block := range c.Blocks {
-		blockL1CommitCalldataSize, err := o.EstimateBlockL1CommitCalldataSize(block)
+		blockL1CommitCalldataSize, err := d.EstimateBlockL1CommitCalldataSize(block)
 		if err != nil {
 			return 0, err
 		}
@@ -306,12 +306,12 @@ func (o *DACodecV0) EstimateChunkL1CommitCalldataSize(c *Chunk) (uint64, error) 
 }
 
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
-func (o *DACodecV0) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
+func (d *DACodecV0) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	var totalTxNum uint64
 	var totalL1CommitGas uint64
 	for _, block := range c.Blocks {
 		totalTxNum += uint64(len(block.Transactions))
-		blockL1CommitGas, err := o.EstimateBlockL1CommitGas(block)
+		blockL1CommitGas, err := d.EstimateBlockL1CommitGas(block)
 		if err != nil {
 			return 0, err
 		}
@@ -328,7 +328,7 @@ func (o *DACodecV0) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 }
 
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
-func (o *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
+func (d *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	var totalL1CommitGas uint64
 
 	// Add extra gas costs
@@ -352,7 +352,7 @@ func (o *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
 
 	for _, chunk := range b.Chunks {
-		chunkL1CommitGas, err := o.EstimateChunkL1CommitGas(chunk)
+		chunkL1CommitGas, err := d.EstimateChunkL1CommitGas(chunk)
 		if err != nil {
 			return 0, err
 		}
@@ -364,7 +364,7 @@ func (o *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 		totalL1CommitGas += CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
 		totalL1CommitGas += getKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
 
-		chunkL1CommitCalldataSize, err := o.EstimateChunkL1CommitCalldataSize(chunk)
+		chunkL1CommitCalldataSize, err := d.EstimateChunkL1CommitCalldataSize(chunk)
 		if err != nil {
 			return 0, err
 		}
@@ -375,10 +375,10 @@ func (o *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 }
 
 // EstimateBatchL1CommitCalldataSize calculates the calldata size in l1 commit for this batch approximately.
-func (o *DACodecV0) EstimateBatchL1CommitCalldataSize(b *Batch) (uint64, error) {
+func (d *DACodecV0) EstimateBatchL1CommitCalldataSize(b *Batch) (uint64, error) {
 	var totalL1CommitCalldataSize uint64
 	for _, chunk := range b.Chunks {
-		chunkL1CommitCalldataSize, err := o.EstimateChunkL1CommitCalldataSize(chunk)
+		chunkL1CommitCalldataSize, err := d.EstimateChunkL1CommitCalldataSize(chunk)
 		if err != nil {
 			return 0, err
 		}
@@ -388,27 +388,27 @@ func (o *DACodecV0) EstimateBatchL1CommitCalldataSize(b *Batch) (uint64, error) 
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
-func (o *DACodecV0) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+func (d *DACodecV0) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
 	return true, nil
 }
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
-func (o *DACodecV0) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
+func (d *DACodecV0) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
 	return true, nil
 }
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
-func (o *DACodecV0) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
+func (d *DACodecV0) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
 	return 0, 0, nil
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
-func (o *DACodecV0) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
+func (d *DACodecV0) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
 	return 0, 0, nil
 }
 
 // SetCompression enables or disables compression.
-func (o *DACodecV0) SetCompression(enable bool) {}
+func (d *DACodecV0) SetCompression(enable bool) {}
 
 // JSONFromBytes for CodecV0 returns empty values.
 func (c *DACodecV0) JSONFromBytes(data []byte) ([]byte, error) {
