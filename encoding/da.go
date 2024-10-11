@@ -591,21 +591,6 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 	}
 }
 
-// GetMaxChunksPerBatch returns the maximum number of chunks allowed per batch for the given block height and timestamp.
-func GetMaxChunksPerBatch(config *params.ChainConfig, blockHeight, blockTimestamp uint64) uint64 {
-	if !config.IsBernoulli(new(big.Int).SetUint64(blockHeight)) {
-		return 15
-	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
-		return 15
-	} else if !config.IsDarwin(blockTimestamp) {
-		return 45
-	} else if !config.IsDarwinV2(blockTimestamp) {
-		return 45
-	} else {
-		return 45
-	}
-}
-
 // CheckChunkCompressedDataCompatibility checks compressed data compatibility of a batch built by a single chunk.
 func CheckChunkCompressedDataCompatibility(chunk *Chunk, codecVersion CodecVersion) (bool, error) {
 	codec, err := CodecFromVersion(codecVersion)

@@ -29,6 +29,11 @@ func (o *DACodecV2) Version() CodecVersion {
 	return CodecV2
 }
 
+// MaxNumChunksPerBatch returns the maximum number of chunks per batch.
+func (o *DACodecV2) MaxNumChunksPerBatch() uint64 {
+	return Codecv2MaxNumChunks
+}
+
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (o *DACodecV2) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
 	if !block.Header.Number.IsUint64() {
