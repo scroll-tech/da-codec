@@ -399,9 +399,9 @@ func calculatePaddedBlobSize(dataSize uint64) uint64 {
 
 // constructBatchPayloadInBlob constructs the batch payload.
 // This function is only used in compressed batch payload length estimation.
-func constructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, error) {
+func constructBatchPayloadInBlob(chunks []*Chunk, codec Codec) ([]byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
-	metadataLength := 2 + MaxNumChunks*4
+	metadataLength := 2 + codec.MaxNumChunksPerBatch()*4
 
 	// batchBytes represents the raw (un-compressed and un-padded) blob payload
 	batchBytes := make([]byte, metadataLength)

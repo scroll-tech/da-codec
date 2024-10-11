@@ -25,8 +25,8 @@ type DACodecV4 struct {
 	enableCompress uint32
 }
 
-// Codecv4MaxNumChunks is the maximum number of chunks that a batch can contain.
-const Codecv4MaxNumChunks = 45
+// codecv4MaxNumChunks is the maximum number of chunks that a batch can contain.
+const codecv4MaxNumChunks = 45
 
 // Version returns the codec version.
 func (o *DACodecV4) Version() CodecVersion {
@@ -35,7 +35,7 @@ func (o *DACodecV4) Version() CodecVersion {
 
 // MaxNumChunksPerBatch returns the maximum number of chunks per batch.
 func (o *DACodecV4) MaxNumChunksPerBatch() uint64 {
-	return Codecv4MaxNumChunks
+	return codecv4MaxNumChunks
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
@@ -150,16 +150,16 @@ func (o *DACodecV4) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 		if err != nil {
 			return err
 		}
-		return DecodeTxsFromBytes(batchBytes, chunks, Codecv4MaxNumChunks)
+		return DecodeTxsFromBytes(batchBytes, chunks, codecv4MaxNumChunks)
 	} else {
-		return DecodeTxsFromBytes(rawBytes[1:], chunks, Codecv4MaxNumChunks)
+		return DecodeTxsFromBytes(rawBytes[1:], chunks, codecv4MaxNumChunks)
 	}
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
 func (o *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > Codecv4MaxNumChunks {
+	if len(batch.Chunks) > codecv4MaxNumChunks {
 		return nil, errors.New("too many chunks in batch")
 	}
 
@@ -231,14 +231,14 @@ func (o *DACodecV4) NewDABatchWithExpectedBlobVersionedHashes(batch *Batch, hash
 // constructBlobPayload constructs the 4844 blob payload.
 func (o *DACodecV4) constructBlobPayload(chunks []*Chunk, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
-	metadataLength := 2 + Codecv4MaxNumChunks*4
+	metadataLength := 2 + codecv4MaxNumChunks*4
 
 	// batchBytes represents the raw (un-compressed and un-padded) blob payload
 	batchBytes := make([]byte, metadataLength)
 
 	// challenge digest preimage
 	// 1 hash for metadata, 1 hash for each chunk, 1 hash for blob versioned hash
-	challengePreimage := make([]byte, (1+Codecv4MaxNumChunks+1)*32)
+	challengePreimage := make([]byte, (1+codecv4MaxNumChunks+1)*32)
 
 	// the chunk data hash used for calculating the challenge preimage
 	var chunkDataHash common.Hash
@@ -276,10 +276,10 @@ func (o *DACodecV4) constructBlobPayload(chunks []*Chunk, useMockTxData bool) (*
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
 
-	// if we have fewer than Codecv4MaxNumChunks chunks, the rest
+	// if we have fewer than codecv4MaxNumChunks chunks, the rest
 	// of the blob metadata is correctly initialized to 0,
 	// but we need to add padding to the challenge preimage
-	for chunkID := len(chunks); chunkID < Codecv4MaxNumChunks; chunkID++ {
+	for chunkID := len(chunks); chunkID < codecv4MaxNumChunks; chunkID++ {
 		// use the last chunk's data hash as padding
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
@@ -327,7 +327,7 @@ func (o *DACodecV4) constructBlobPayload(chunks []*Chunk, useMockTxData bool) (*
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
 	// challenge: append blob versioned hash
-	copy(challengePreimage[(1+Codecv4MaxNumChunks)*32:], blobVersionedHash[:])
+	copy(challengePreimage[(1+codecv4MaxNumChunks)*32:], blobVersionedHash[:])
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
@@ -377,7 +377,7 @@ func (o *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
 func (o *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
-	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, Codecv4MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, o)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -396,7 +396,7 @@ func (o *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
 func (o *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
-	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, Codecv4MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, o)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -415,7 +415,7 @@ func (o *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
 func (o *DACodecV4) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
-	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, Codecv4MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, o)
 	if err != nil {
 		return false, err
 	}
@@ -432,7 +432,7 @@ func (o *DACodecV4) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 func (o *DACodecV4) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
-	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, Codecv4MaxNumChunks)
+	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, o)
 	if err != nil {
 		return false, err
 	}
