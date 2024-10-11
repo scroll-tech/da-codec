@@ -610,7 +610,7 @@ func CheckBatchCompressedDataCompatibility(batch *Batch, codecVersion CodecVersi
 }
 
 // GetChunkEnableCompression returns whether to enable compression for the given block height and timestamp.
-func GetChunkEnableCompression(codecVersion CodecVersion, chunk Chunk) (bool, error) {
+func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, error) {
 	switch codecVersion {
 	case CodecV0:
 		return false, nil
@@ -621,14 +621,14 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk Chunk) (bool, er
 	case CodecV3:
 		return true, nil
 	case CodecV4:
-		return CheckChunkCompressedDataCompatibility(&chunk, codecVersion)
+		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
 	}
 }
 
 // GetBatchEnableCompression returns whether to enable compression for the given block height and timestamp.
-func GetBatchEnableCompression(codecVersion CodecVersion, batch Batch) (bool, error) {
+func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, error) {
 	switch codecVersion {
 	case CodecV0:
 		return false, nil
@@ -639,7 +639,7 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch Batch) (bool, er
 	case CodecV3:
 		return true, nil
 	case CodecV4:
-		return CheckBatchCompressedDataCompatibility(&batch, codecVersion)
+		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
 	}
