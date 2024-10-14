@@ -106,7 +106,7 @@ func (d *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV4)
 	}
 
-	b := NewDABatchV2WithProof(
+	b := newDABatchV2WithProof(
 		data[0],                                // Version
 		binary.BigEndian.Uint64(data[1:9]),     // BatchIndex
 		binary.BigEndian.Uint64(data[9:17]),    // L1MessagePopped

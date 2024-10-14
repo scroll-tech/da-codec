@@ -25,12 +25,9 @@ type daBatchV2 struct {
 }
 
 // newDABatchV2 is a constructor for daBatchV2 that calls blobDataProofForPICircuit internally.
-func newDABatchV2(version uint8,
-	batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
-	dataHash, parentBatchHash, blobVersionedHash common.Hash,
-	skippedL1MessageBitmap []byte,
-	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte,
-) (*daBatchV2, error) {
+func newDABatchV2(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
+	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob,
+	z *kzg4844.Point, blobBytes []byte) (*daBatchV2, error) {
 	daBatch := &daBatchV2{
 		daBatchV0: daBatchV0{
 			version:                version,
@@ -58,14 +55,10 @@ func newDABatchV2(version uint8,
 	return daBatch, nil
 }
 
-// NewDABatchV2WithProof is a constructor for daBatchV2 that allows directly passing blobDataProof.
-func NewDABatchV2WithProof(version uint8,
-	batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
-	dataHash, parentBatchHash, blobVersionedHash common.Hash,
-	skippedL1MessageBitmap []byte,
-	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte,
-	blobDataProof [2]common.Hash, // Accept blobDataProof directly
-) *daBatchV2 {
+// newDABatchV2WithProof is a constructor for daBatchV2 that allows directly passing blobDataProof.
+func newDABatchV2WithProof(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
+	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte,
+	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte, blobDataProof [2]common.Hash) *daBatchV2 {
 	return &daBatchV2{
 		daBatchV0: daBatchV0{
 			version:                version,
