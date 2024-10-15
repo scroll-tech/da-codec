@@ -15,17 +15,17 @@ import (
 	"github.com/scroll-tech/go-ethereum/params"
 )
 
-// BLSModulus is the BLS modulus defined in EIP-4844.
-var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
+// blsModulus is the BLS modulus defined in EIP-4844.
+var blsModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
 
-// CalldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
-const CalldataNonZeroByteGas = 16
+// calldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
+const calldataNonZeroByteGas = 16
 
-// BlockContextByteSize is the size of the block context in bytes.
-const BlockContextByteSize = 60
+// blockContextByteSize is the size of the block context in bytes.
+const blockContextByteSize = 60
 
-// TxLenByteSize is the size of the transaction length in bytes.
-const TxLenByteSize = 4
+// txLenByteSize is the size of the transaction length in bytes.
+const txLenByteSize = 4
 
 // Block represents an L2 block.
 type Block struct {
@@ -89,8 +89,8 @@ func (c *Chunk) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 	return numL1Messages
 }
 
-// ConvertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
-func ConvertTxDataToRLPEncoding(txData *types.TransactionData, useMockTxData bool) ([]byte, error) {
+// convertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
+func convertTxDataToRLPEncoding(txData *types.TransactionData, useMockTxData bool) ([]byte, error) {
 	data, err := hexutil.Decode(txData.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
@@ -206,8 +206,8 @@ func (c *Chunk) NumL2Transactions() uint64 {
 	return totalTxNum
 }
 
-// L2GasUsed calculates the total gas of L2 transactions in a Chunk.
-func (c *Chunk) L2GasUsed() uint64 {
+// TotalGasUsed calculates the total gas of transactions in a Chunk.
+func (c *Chunk) TotalGasUsed() uint64 {
 	var totalGasUsed uint64
 	for _, block := range c.Blocks {
 		totalGasUsed += block.Header.GasUsed
@@ -233,43 +233,6 @@ func (b *Batch) WithdrawRoot() common.Hash {
 	}
 	lastChunkBlockNum := len(b.Chunks[numChunks-1].Blocks)
 	return b.Chunks[len(b.Chunks)-1].Blocks[lastChunkBlockNum-1].WithdrawRoot
-}
-
-// TxsToTxsData converts transactions to a TransactionData array.
-func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
-	txsData := make([]*types.TransactionData, len(txs))
-	for i, tx := range txs {
-		v, r, s := tx.RawSignatureValues()
-
-		nonce := tx.Nonce()
-
-		// We need QueueIndex in `NewBatchHeader`. However, `TransactionData`
-		// does not have this field. Since `L1MessageTx` do not have a nonce,
-		// we reuse this field for storing the queue index.
-		if msg := tx.AsL1MessageTx(); msg != nil {
-			nonce = msg.QueueIndex
-		}
-
-		txsData[i] = &types.TransactionData{
-			Type:       tx.Type(),
-			TxHash:     tx.Hash().String(),
-			Nonce:      nonce,
-			ChainId:    (*hexutil.Big)(tx.ChainId()),
-			Gas:        tx.Gas(),
-			GasPrice:   (*hexutil.Big)(tx.GasPrice()),
-			GasTipCap:  (*hexutil.Big)(tx.GasTipCap()),
-			GasFeeCap:  (*hexutil.Big)(tx.GasFeeCap()),
-			To:         tx.To(),
-			Value:      (*hexutil.Big)(tx.Value()),
-			Data:       hexutil.Encode(tx.Data()),
-			IsCreate:   tx.To() == nil,
-			AccessList: tx.AccessList(),
-			V:          (*hexutil.Big)(v),
-			R:          (*hexutil.Big)(r),
-			S:          (*hexutil.Big)(s),
-		}
-	}
-	return txsData
 }
 
 // Fast testing if the compressed data is compatible with our circuit
@@ -322,8 +285,8 @@ func CheckCompressedDataCompatibility(data []byte) error {
 	return nil
 }
 
-// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
-func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
+// makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
+func makeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	// blob contains 131072 bytes but we can only utilize 31/32 of these
 	if len(blobBytes) > 126976 {
 		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
@@ -347,8 +310,8 @@ func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	return &blob, nil
 }
 
-// BytesFromBlobCanonical converts the canonical blob representation into the raw blob data
-func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
+// bytesFromBlobCanonical converts the canonical blob representation into the raw blob data
+func bytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
 	var blobBytes [126976]byte
 	for from := 0; from < len(blob); from += 32 {
 		copy(blobBytes[from/32*31:], blob[from+1:from+32])
@@ -356,8 +319,8 @@ func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
 	return blobBytes
 }
 
-// DecompressScrollBlobToBatch decompresses the given blob bytes into scroll batch bytes
-func DecompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
+// decompressScrollBlobToBatch decompresses the given blob bytes into scroll batch bytes
+func decompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
 	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
 	var res []byte
 	readBatchSize := 131072
@@ -420,7 +383,7 @@ func constructBatchPayloadInBlob(chunks []*Chunk, codec Codec) ([]byte, error) {
 				}
 
 				// encode L2 txs into batch payload
-				rlpTxData, err := ConvertTxDataToRLPEncoding(tx, false /* no mock */)
+				rlpTxData, err := convertTxDataToRLPEncoding(tx, false /* no mock */)
 				if err != nil {
 					return nil, err
 				}
@@ -450,20 +413,20 @@ func getMemoryExpansionCost(memoryByteSize uint64) uint64 {
 
 // getTxPayloadLength calculates the length of the transaction payload.
 func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
-	rlpTxData, err := ConvertTxDataToRLPEncoding(txData, false /* no mock */)
+	rlpTxData, err := convertTxDataToRLPEncoding(txData, false /* no mock */)
 	if err != nil {
 		return 0, err
 	}
 	return uint64(len(rlpTxData)), nil
 }
 
-// BlobDataProofFromValues creates the blob data proof from the given values.
+// blobDataProofFromValues creates the blob data proof from the given values.
 // Memory layout of ``_blobDataProof``:
 // | z       | y       | kzg_commitment | kzg_proof |
 // |---------|---------|----------------|-----------|
 // | bytes32 | bytes32 | bytes48        | bytes48   |
 
-func BlobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg4844.Commitment, proof kzg4844.Proof) []byte {
+func blobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg4844.Commitment, proof kzg4844.Proof) []byte {
 	result := make([]byte, 32+32+48+48)
 
 	copy(result[0:32], z[:])
@@ -529,8 +492,8 @@ func getNextTx(bytes []byte, index int) (*types.Transaction, int, error) {
 	return tx, nextIndex, nil
 }
 
-// DecodeTxsFromBytes decodes txs from blob bytes and writes to chunks
-func DecodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks int) error {
+// decodeTxsFromBytes decodes txs from blob bytes and writes to chunks
+func decodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks int) error {
 	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
 	if numChunks != len(chunks) {
 		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))

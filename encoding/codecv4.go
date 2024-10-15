@@ -23,18 +23,18 @@ func (d *DACodecV4) Version() CodecVersion {
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func (d *DACodecV4) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	rawBytes := BytesFromBlobCanonical(blob)
+	rawBytes := bytesFromBlobCanonical(blob)
 
 	// if first byte is 1 - data compressed, 0 - not compressed
 	if rawBytes[0] == 0x1 {
 		magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
-		batchBytes, err := DecompressScrollBlobToBatch(append(magics, rawBytes[1:]...))
+		batchBytes, err := decompressScrollBlobToBatch(append(magics, rawBytes[1:]...))
 		if err != nil {
 			return err
 		}
-		return DecodeTxsFromBytes(batchBytes, chunks, int(d.MaxNumChunksPerBatch()))
+		return decodeTxsFromBytes(batchBytes, chunks, int(d.MaxNumChunksPerBatch()))
 	} else {
-		return DecodeTxsFromBytes(rawBytes[1:], chunks, int(d.MaxNumChunksPerBatch()))
+		return decodeTxsFromBytes(rawBytes[1:], chunks, int(d.MaxNumChunksPerBatch()))
 	}
 }
 

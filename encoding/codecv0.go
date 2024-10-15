@@ -102,14 +102,14 @@ func (d *DACodecV0) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, e
 		}
 
 		numBlocks := int(chunk[0])
-		if len(chunk) < 1+numBlocks*BlockContextByteSize {
-			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*BlockContextByteSize)
+		if len(chunk) < 1+numBlocks*blockContextByteSize {
+			return nil, fmt.Errorf("chunk size doesn't match with numBlocks, byte length of chunk: %v, expected length: %v", len(chunk), 1+numBlocks*blockContextByteSize)
 		}
 
 		blocks := make([]DABlock, numBlocks)
 		for i := 0; i < numBlocks; i++ {
-			startIdx := 1 + i*BlockContextByteSize // add 1 to skip numBlocks byte
-			endIdx := startIdx + BlockContextByteSize
+			startIdx := 1 + i*blockContextByteSize // add 1 to skip numBlocks byte
+			endIdx := startIdx + blockContextByteSize
 			blocks[i] = &daBlockV0{}
 			err := blocks[i].Decode(chunk[startIdx:endIdx])
 			if err != nil {
@@ -118,27 +118,27 @@ func (d *DACodecV0) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, e
 		}
 
 		var transactions []types.Transactions
-		currentIndex := 1 + numBlocks*BlockContextByteSize
+		currentIndex := 1 + numBlocks*blockContextByteSize
 		for _, block := range blocks {
 			var blockTransactions types.Transactions
 			// ignore L1 msg transactions from the block, consider only L2 transactions
 			txNum := int(block.NumTransactions() - block.NumL1Messages())
 			for i := 0; i < txNum; i++ {
-				if len(chunk) < currentIndex+TxLenByteSize {
-					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+TxLenByteSize, i)
+				if len(chunk) < currentIndex+txLenByteSize {
+					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+txLenByteSize, i)
 				}
-				txLen := int(binary.BigEndian.Uint32(chunk[currentIndex : currentIndex+TxLenByteSize]))
-				if len(chunk) < currentIndex+TxLenByteSize+txLen {
-					return nil, fmt.Errorf("chunk size doesn't match with next tx length, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+TxLenByteSize+txLen, i)
+				txLen := int(binary.BigEndian.Uint32(chunk[currentIndex : currentIndex+txLenByteSize]))
+				if len(chunk) < currentIndex+txLenByteSize+txLen {
+					return nil, fmt.Errorf("chunk size doesn't match with next tx length, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+txLenByteSize+txLen, i)
 				}
-				txData := chunk[currentIndex+TxLenByteSize : currentIndex+TxLenByteSize+txLen]
+				txData := chunk[currentIndex+txLenByteSize : currentIndex+txLenByteSize+txLen]
 				tx := &types.Transaction{}
 				err := tx.UnmarshalBinary(txData)
 				if err != nil {
 					return nil, fmt.Errorf("failed to unmarshal tx, pos of tx in chunk bytes: %d. tx num without l1 msgs: %d, err: %w", currentIndex, i, err)
 				}
 				blockTransactions = append(blockTransactions, tx)
-				currentIndex += TxLenByteSize + txLen
+				currentIndex += txLenByteSize + txLen
 			}
 			transactions = append(transactions, blockTransactions)
 		}
@@ -244,7 +244,7 @@ func (d *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) 
 		}
 		size += txPayloadLength
 	}
-	size += BlockContextByteSize
+	size += blockContextByteSize
 	return size, nil
 }
 
@@ -262,12 +262,12 @@ func (d *DACodecV0) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
-		total += CalldataNonZeroByteGas * txPayloadLength // an over-estimate: treat each byte as non-zero
-		total += CalldataNonZeroByteGas * 4               // 4 bytes payload length
+		total += calldataNonZeroByteGas * txPayloadLength // an over-estimate: treat each byte as non-zero
+		total += calldataNonZeroByteGas * 4               // 4 bytes payload length
 		total += getKeccak256Gas(txPayloadLength)         // l2 tx hash
 	}
 
-	total += CalldataNonZeroByteGas * BlockContextByteSize
+	total += calldataNonZeroByteGas * blockContextByteSize
 
 	// sload
 	total += 2100 * numL1Messages // numL1Messages times cold sload in L1MessageQueue
@@ -313,8 +313,8 @@ func (d *DACodecV0) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 
 	numBlocks := uint64(len(c.Blocks))
 	totalL1CommitGas += 100 * numBlocks                                           // numBlocks times warm sload
-	totalL1CommitGas += CalldataNonZeroByteGas                                    // numBlocks field of chunk encoding in calldata
-	totalL1CommitGas += CalldataNonZeroByteGas * numBlocks * BlockContextByteSize // numBlocks of BlockContext in chunk
+	totalL1CommitGas += calldataNonZeroByteGas                                    // numBlocks field of chunk encoding in calldata
+	totalL1CommitGas += calldataNonZeroByteGas * numBlocks * blockContextByteSize // numBlocks of BlockContext in chunk
 
 	totalL1CommitGas += getKeccak256Gas(58*numBlocks + 32*totalTxNum) // chunk hash
 	return totalL1CommitGas, nil
@@ -329,7 +329,7 @@ func (d *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	totalL1CommitGas += 4 * 2100               // 4 one-time cold sload for commitBatch
 	totalL1CommitGas += 20000                  // 1 time sstore
 	totalL1CommitGas += 21000                  // base fee for tx
-	totalL1CommitGas += CalldataNonZeroByteGas // version in calldata
+	totalL1CommitGas += calldataNonZeroByteGas // version in calldata
 
 	// adjusting gas:
 	// add 1 time cold sload (2100 gas) for L1MessageQueue
@@ -337,7 +337,7 @@ func (d *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	// minus 1 time warm sload (100 gas) & 1 time warm address access (100 gas)
 	totalL1CommitGas += (2100 + 2600 - 100 - 100)
 	totalL1CommitGas += getKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
-	totalL1CommitGas += CalldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
+	totalL1CommitGas += calldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
 
 	// adjust batch data hash gas cost
 	totalL1CommitGas += getKeccak256Gas(uint64(32 * len(b.Chunks)))
@@ -354,7 +354,7 @@ func (d *DACodecV0) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 		totalL1MessagePoppedInChunk := chunk.NumL1Messages(totalL1MessagePoppedBefore)
 		totalL1MessagePoppedBefore += totalL1MessagePoppedInChunk
 
-		totalL1CommitGas += CalldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
+		totalL1CommitGas += calldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
 		totalL1CommitGas += getKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
 
 		chunkL1CommitCalldataSize, err := d.EstimateChunkL1CommitCalldataSize(chunk)

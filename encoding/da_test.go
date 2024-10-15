@@ -55,7 +55,7 @@ func TestUtilFunctions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(11), crc1Max)
 	assert.Equal(t, uint64(3), chunk1.NumTransactions())
-	assert.Equal(t, uint64(1194994), chunk1.L2GasUsed())
+	assert.Equal(t, uint64(1194994), chunk1.TotalGasUsed())
 
 	assert.Equal(t, uint64(42), chunk2.NumL1Messages(0))
 	assert.Equal(t, uint64(1), chunk2.NumL2Transactions())
@@ -63,7 +63,7 @@ func TestUtilFunctions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), crc2Max)
 	assert.Equal(t, uint64(7), chunk2.NumTransactions())
-	assert.Equal(t, uint64(144000), chunk2.L2GasUsed())
+	assert.Equal(t, uint64(144000), chunk2.TotalGasUsed())
 
 	assert.Equal(t, uint64(257), chunk3.NumL1Messages(0))
 	assert.Equal(t, uint64(0), chunk3.NumL2Transactions())
@@ -73,7 +73,7 @@ func TestUtilFunctions(t *testing.T) {
 	assert.EqualError(t, err, "block (17, 0x003fee335455c0c293dda17ea9365fe0caa94071ed7216baf61f7aeb808e8a28) has nil RowConsumption")
 	assert.Equal(t, uint64(0), crc3Max)
 	assert.Equal(t, uint64(5), chunk3.NumTransactions())
-	assert.Equal(t, uint64(240000), chunk3.L2GasUsed())
+	assert.Equal(t, uint64(240000), chunk3.TotalGasUsed())
 
 	// Test Batch methods
 	assert.Equal(t, block6.Header.Root, batch.StateRoot())
@@ -96,7 +96,7 @@ func TestConvertTxDataToRLPEncoding(t *testing.T) {
 				continue
 			}
 
-			rlpTxData, err := ConvertTxDataToRLPEncoding(txData, false /* no mock */)
+			rlpTxData, err := convertTxDataToRLPEncoding(txData, false /* no mock */)
 			assert.NoError(t, err)
 			var tx types.Transaction
 			err = tx.UnmarshalBinary(rlpTxData)

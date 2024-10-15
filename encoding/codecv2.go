@@ -36,14 +36,14 @@ func (d *DACodecV2) MaxNumChunksPerBatch() uint64 {
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func (d *DACodecV2) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	compressedBytes := BytesFromBlobCanonical(blob)
+	compressedBytes := bytesFromBlobCanonical(blob)
 	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
 
-	batchBytes, err := DecompressScrollBlobToBatch(append(magics, compressedBytes[:]...))
+	batchBytes, err := decompressScrollBlobToBatch(append(magics, compressedBytes[:]...))
 	if err != nil {
 		return err
 	}
-	return DecodeTxsFromBytes(batchBytes, chunks, int(d.MaxNumChunksPerBatch()))
+	return decodeTxsFromBytes(batchBytes, chunks, int(d.MaxNumChunksPerBatch()))
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
@@ -121,7 +121,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				}
 
 				// encode L2 txs into blob payload
-				rlpTxData, err := ConvertTxDataToRLPEncoding(tx, useMockTxData)
+				rlpTxData, err := convertTxDataToRLPEncoding(tx, useMockTxData)
 				if err != nil {
 					return nil, common.Hash{}, nil, nil, err
 				}
@@ -172,7 +172,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	}
 
 	// convert raw data to BLSFieldElements
-	blob, err := MakeBlobCanonical(blobBytes)
+	blob, err := makeBlobCanonical(blobBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, nil, err
 	}
@@ -189,7 +189,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), BLSModulus)
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), blsModulus)
 	pointBytes := pointBigInt.Bytes()
 
 	// the challenge point z

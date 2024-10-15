@@ -146,17 +146,12 @@ func (b *daBatchV1) BlobDataProof() ([]byte, error) {
 		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
-	return BlobDataProofFromValues(*b.z, y, commitment, proof), nil
+	return blobDataProofFromValues(*b.z, y, commitment, proof), nil
 }
 
 // Blob returns the blob of the batch.
 func (b *daBatchV1) Blob() *kzg4844.Blob {
 	return b.blob
-}
-
-// BlobVersionedHashes returns the blob versioned hashes of the batch.
-func (b *daBatchV1) BlobVersionedHashes() []common.Hash {
-	return []common.Hash{b.blobVersionedHash}
 }
 
 // BlobBytes returns the blob bytes of the batch.
@@ -183,7 +178,7 @@ func (b *daBatchV1) BlobDataProofForPointEvaluation() ([]byte, error) {
 		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
-	return BlobDataProofFromValues(*b.z, y, commitment, proof), nil
+	return blobDataProofFromValues(*b.z, y, commitment, proof), nil
 }
 
 // Version returns the version of the DABatch.

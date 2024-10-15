@@ -144,7 +144,7 @@ func (b *daBatchV2) BlobDataProofForPointEvaluation() ([]byte, error) {
 		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
 	}
 
-	return BlobDataProofFromValues(*b.z, y, commitment, proof), nil
+	return blobDataProofFromValues(*b.z, y, commitment, proof), nil
 }
 
 // Blob returns the blob of the batch.

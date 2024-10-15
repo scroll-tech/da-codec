@@ -38,7 +38,7 @@ func newDABlockV0(number uint64, timestamp uint64, baseFee *big.Int, gasLimit ui
 
 // Encode serializes the DABlock into a slice of bytes.
 func (b *daBlockV0) Encode() []byte {
-	bytes := make([]byte, BlockContextByteSize)
+	bytes := make([]byte, blockContextByteSize)
 	binary.BigEndian.PutUint64(bytes[0:], b.number)
 	binary.BigEndian.PutUint64(bytes[8:], b.timestamp)
 	if b.baseFee != nil {
@@ -52,8 +52,8 @@ func (b *daBlockV0) Encode() []byte {
 
 // Decode populates the fields of a DABlock from a byte slice.
 func (b *daBlockV0) Decode(bytes []byte) error {
-	if len(bytes) != BlockContextByteSize {
-		return errors.New("block encoding is not BlockContextByteSize bytes long")
+	if len(bytes) != blockContextByteSize {
+		return errors.New("block encoding is not blockContextByteSize bytes long")
 	}
 
 	b.number = binary.BigEndian.Uint64(bytes[0:8])
@@ -142,7 +142,7 @@ func (c *daChunkV0) Encode() ([]byte, error) {
 			}
 
 			var txLen [4]byte
-			rlpTxData, err := ConvertTxDataToRLPEncoding(txData, false /* no mock */)
+			rlpTxData, err := convertTxDataToRLPEncoding(txData, false /* no mock */)
 			if err != nil {
 				return nil, err
 			}
