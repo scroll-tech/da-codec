@@ -384,6 +384,19 @@ func (d *DACodecV1) EstimateChunkL1CommitCalldataSize(c *Chunk) (uint64, error) 
 	return uint64(blockContextByteSize * len(c.Blocks)), nil
 }
 
+// EstimateBatchL1CommitCalldataSize calculates the calldata size in l1 commit for this batch approximately.
+func (d *DACodecV1) EstimateBatchL1CommitCalldataSize(b *Batch) (uint64, error) {
+	var totalL1CommitCalldataSize uint64
+	for _, chunk := range b.Chunks {
+		chunkL1CommitCalldataSize, err := d.EstimateChunkL1CommitCalldataSize(chunk)
+		if err != nil {
+			return 0, err
+		}
+		totalL1CommitCalldataSize += chunkL1CommitCalldataSize
+	}
+	return totalL1CommitCalldataSize, nil
+}
+
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
 func (d *DACodecV1) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
 	metadataSize := 2 + 4*d.MaxNumChunksPerBatch()
