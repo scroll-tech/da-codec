@@ -327,6 +327,53 @@ func (d *DACodecV1) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	return totalL1CommitGas, nil
 }
 
+// EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
+func (d *DACodecV1) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
+	var totalL1CommitGas uint64
+
+	// Add extra gas costs
+	totalL1CommitGas += 100000                 // constant to account for ops like _getAdmin, _implementation, _requireNotPaused, etc
+	totalL1CommitGas += 4 * 2100               // 4 one-time cold sload for commitBatch
+	totalL1CommitGas += 20000                  // 1 time sstore
+	totalL1CommitGas += 21000                  // base fee for tx
+	totalL1CommitGas += calldataNonZeroByteGas // version in calldata
+
+	// adjusting gas:
+	// add 1 time cold sload (2100 gas) for L1MessageQueue
+	// add 1 time cold address access (2600 gas) for L1MessageQueue
+	// minus 1 time warm sload (100 gas) & 1 time warm address access (100 gas)
+	totalL1CommitGas += (2100 + 2600 - 100 - 100)
+	totalL1CommitGas += getKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
+	totalL1CommitGas += calldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
+
+	// adjust batch data hash gas cost
+	totalL1CommitGas += getKeccak256Gas(uint64(32 * len(b.Chunks)))
+
+	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
+
+	for _, chunk := range b.Chunks {
+		chunkL1CommitGas, err := d.EstimateChunkL1CommitGas(chunk)
+		if err != nil {
+			return 0, err
+		}
+		totalL1CommitGas += chunkL1CommitGas
+
+		totalL1MessagePoppedInChunk := chunk.NumL1Messages(totalL1MessagePoppedBefore)
+		totalL1MessagePoppedBefore += totalL1MessagePoppedInChunk
+
+		totalL1CommitGas += calldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
+		totalL1CommitGas += getKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
+
+		chunkL1CommitCalldataSize, err := d.EstimateChunkL1CommitCalldataSize(chunk)
+		if err != nil {
+			return 0, err
+		}
+		totalL1CommitGas += getMemoryExpansionCost(chunkL1CommitCalldataSize)
+	}
+
+	return totalL1CommitGas, nil
+}
+
 // EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.
 func (d *DACodecV1) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) {
 	return blockContextByteSize, nil
