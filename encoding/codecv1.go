@@ -11,6 +11,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+	"github.com/scroll-tech/go-ethereum/rollup/types/encoding"
 )
 
 type DACodecV1 struct {
@@ -307,11 +308,11 @@ func (d *DACodecV1) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 }
 
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
-func (d *DACodecV1) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
-	var totalTxNum uint64
+func (d *DACodecV1) EstimateChunkL1CommitGas(c *encoding.Chunk) (uint64, error) {
+	var totalNonSkippedL1Messages uint64
 	var totalL1CommitGas uint64
 	for _, block := range c.Blocks {
-		totalTxNum += uint64(len(block.Transactions))
+		totalNonSkippedL1Messages += uint64(len(block.Transactions)) - block.NumL2Transactions()
 		blockL1CommitGas, err := d.EstimateBlockL1CommitGas(block)
 		if err != nil {
 			return 0, err
@@ -323,7 +324,7 @@ func (d *DACodecV1) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	totalL1CommitGas += 100 * numBlocks        // numBlocks times warm sload
 	totalL1CommitGas += calldataNonZeroByteGas // numBlocks field of chunk encoding in calldata
 
-	totalL1CommitGas += getKeccak256Gas(58*numBlocks + 32*totalTxNum) // chunk hash
+	totalL1CommitGas += getKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
 	return totalL1CommitGas, nil
 }
 
