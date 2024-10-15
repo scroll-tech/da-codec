@@ -11,7 +11,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-	"github.com/scroll-tech/go-ethereum/rollup/types/encoding"
 )
 
 type DACodecV1 struct {
@@ -308,7 +307,7 @@ func (d *DACodecV1) EstimateBlockL1CommitGas(b *Block) (uint64, error) {
 }
 
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
-func (d *DACodecV1) EstimateChunkL1CommitGas(c *encoding.Chunk) (uint64, error) {
+func (d *DACodecV1) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	var totalNonSkippedL1Messages uint64
 	var totalL1CommitGas uint64
 	for _, block := range c.Blocks {
