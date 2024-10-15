@@ -312,9 +312,8 @@ func (d *DACodecV0) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	}
 
 	numBlocks := uint64(len(c.Blocks))
-	totalL1CommitGas += 100 * numBlocks                                           // numBlocks times warm sload
-	totalL1CommitGas += calldataNonZeroByteGas                                    // numBlocks field of chunk encoding in calldata
-	totalL1CommitGas += calldataNonZeroByteGas * numBlocks * blockContextByteSize // numBlocks of BlockContext in chunk
+	totalL1CommitGas += 100 * numBlocks        // numBlocks times warm sload
+	totalL1CommitGas += calldataNonZeroByteGas // numBlocks field of chunk encoding in calldata
 
 	totalL1CommitGas += getKeccak256Gas(58*numBlocks + 32*totalTxNum) // chunk hash
 	return totalL1CommitGas, nil
