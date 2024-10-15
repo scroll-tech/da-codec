@@ -7,8 +7,8 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 )
 
-// ConstructSkippedBitmap constructs skipped L1 message bitmap of the batch.
-func ConstructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePoppedBefore uint64) ([]byte, uint64, error) {
+// constructSkippedBitmap constructs skipped L1 message bitmap of the batch.
+func constructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePoppedBefore uint64) ([]byte, uint64, error) {
 	// skipped L1 message bitmap, an array of 256-bit bitmaps
 	var skippedBitmap []*big.Int
 
