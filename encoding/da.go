@@ -235,6 +235,43 @@ func (b *Batch) WithdrawRoot() common.Hash {
 	return b.Chunks[len(b.Chunks)-1].Blocks[lastChunkBlockNum-1].WithdrawRoot
 }
 
+// TxsToTxsData converts transactions to a TransactionData array.
+func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
+	txsData := make([]*types.TransactionData, len(txs))
+	for i, tx := range txs {
+		v, r, s := tx.RawSignatureValues()
+
+		nonce := tx.Nonce()
+
+		// We need QueueIndex in `NewBatchHeader`. However, `TransactionData`
+		// does not have this field. Since `L1MessageTx` do not have a nonce,
+		// we reuse this field for storing the queue index.
+		if msg := tx.AsL1MessageTx(); msg != nil {
+			nonce = msg.QueueIndex
+		}
+
+		txsData[i] = &types.TransactionData{
+			Type:       tx.Type(),
+			TxHash:     tx.Hash().String(),
+			Nonce:      nonce,
+			ChainId:    (*hexutil.Big)(tx.ChainId()),
+			Gas:        tx.Gas(),
+			GasPrice:   (*hexutil.Big)(tx.GasPrice()),
+			GasTipCap:  (*hexutil.Big)(tx.GasTipCap()),
+			GasFeeCap:  (*hexutil.Big)(tx.GasFeeCap()),
+			To:         tx.To(),
+			Value:      (*hexutil.Big)(tx.Value()),
+			Data:       hexutil.Encode(tx.Data()),
+			IsCreate:   tx.To() == nil,
+			AccessList: tx.AccessList(),
+			V:          (*hexutil.Big)(v),
+			R:          (*hexutil.Big)(r),
+			S:          (*hexutil.Big)(s),
+		}
+	}
+	return txsData
+}
+
 // Fast testing if the compressed data is compatible with our circuit
 // (require specified frame header and each block is compressed)
 func CheckCompressedDataCompatibility(data []byte) error {
