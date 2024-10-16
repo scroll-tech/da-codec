@@ -498,24 +498,24 @@ func TestCodecV0BatchL1MessagePopped(t *testing.T) {
 	assert.Equal(t, uint64(0), daBatch.(*daBatchV0).l1MessagePopped)
 	assert.Equal(t, uint64(0), daBatch.(*daBatchV0).totalL1MessagePopped)
 
-	trace3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
-	chunk3 := &Chunk{Blocks: []*Block{trace3}}
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{block3}}
 	originalBatch = &Batch{Chunks: []*Chunk{chunk3}}
 	daBatch, err = codecv0.NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), daBatch.(*daBatchV0).l1MessagePopped)
 	assert.Equal(t, uint64(0), daBatch.(*daBatchV0).totalL1MessagePopped)
 
-	trace4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
-	chunk4 := &Chunk{Blocks: []*Block{trace4}}
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{block4}}
 	originalBatch = &Batch{Chunks: []*Chunk{chunk4}}
 	daBatch, err = codecv0.NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(11), daBatch.(*daBatchV0).l1MessagePopped)
 	assert.Equal(t, uint64(11), daBatch.(*daBatchV0).totalL1MessagePopped)
 
-	trace5 := readBlockFromJSON(t, "testdata/blockTrace_05.json")
-	chunk5 := &Chunk{Blocks: []*Block{trace5}}
+	block5 := readBlockFromJSON(t, "testdata/blockTrace_05.json")
+	chunk5 := &Chunk{Blocks: []*Block{block5}}
 	originalBatch = &Batch{Chunks: []*Chunk{chunk5}}
 	daBatch, err = codecv0.NewDABatch(originalBatch)
 	assert.NoError(t, err)
@@ -528,16 +528,16 @@ func TestCodecV0BatchL1MessagePopped(t *testing.T) {
 	assert.Equal(t, uint64(5), daBatch.(*daBatchV0).l1MessagePopped) // skip 37, include 5
 	assert.Equal(t, uint64(42), daBatch.(*daBatchV0).totalL1MessagePopped)
 
-	trace6 := readBlockFromJSON(t, "testdata/blockTrace_06.json")
-	chunk6 := &Chunk{Blocks: []*Block{trace6}}
+	block6 := readBlockFromJSON(t, "testdata/blockTrace_06.json")
+	chunk6 := &Chunk{Blocks: []*Block{block6}}
 	originalBatch = &Batch{Chunks: []*Chunk{chunk6}}
 	daBatch, err = codecv0.NewDABatch(originalBatch)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(10), daBatch.(*daBatchV0).l1MessagePopped) // skip 7, include 3
 	assert.Equal(t, uint64(10), daBatch.(*daBatchV0).totalL1MessagePopped)
 
-	trace7 := readBlockFromJSON(t, "testdata/blockTrace_07.json")
-	chunk7 := &Chunk{Blocks: []*Block{trace7}}
+	block7 := readBlockFromJSON(t, "testdata/blockTrace_07.json")
+	chunk7 := &Chunk{Blocks: []*Block{block7}}
 	originalBatch = &Batch{Chunks: []*Chunk{chunk7}}
 	daBatch, err = codecv0.NewDABatch(originalBatch)
 	assert.NoError(t, err)
@@ -550,8 +550,8 @@ func TestCodecV0BatchL1MessagePopped(t *testing.T) {
 	assert.Equal(t, uint64(256), daBatch.(*daBatchV0).l1MessagePopped) // skip 254, include 2
 	assert.Equal(t, uint64(257), daBatch.(*daBatchV0).totalL1MessagePopped)
 
-	chunk8 := &Chunk{Blocks: []*Block{block2, trace3, trace4}} // queue index 10
-	chunk9 := &Chunk{Blocks: []*Block{trace5}}                 // queue index 37-41
+	chunk8 := &Chunk{Blocks: []*Block{block2, block3, block4}} // queue index 10
+	chunk9 := &Chunk{Blocks: []*Block{block5}}                 // queue index 37-41
 	originalBatch = &Batch{Chunks: []*Chunk{chunk8, chunk9}}
 	daBatch, err = codecv0.NewDABatch(originalBatch)
 	assert.NoError(t, err)
