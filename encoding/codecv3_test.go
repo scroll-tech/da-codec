@@ -669,3 +669,60 @@ func TestCodecV3CommitGasEstimation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(213087), batch5Gas)
 }
+
+func TestCodecV3BatchSizeAndBlobSizeEstimation(t *testing.T) {
+	codecv3, err := CodecFromVersion(CodecV3)
+	assert.NoError(t, err)
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	chunk2 := &Chunk{Blocks: []*Block{block2}}
+	chunk2BatchBytesSize, chunk2BlobSize, err := codecv3.EstimateChunkL1CommitBatchSizeAndBlobSize(chunk2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(412), chunk2BatchBytesSize)
+	assert.Equal(t, uint64(237), chunk2BlobSize)
+	batch2 := &Batch{Chunks: []*Chunk{chunk2}}
+	batch2BatchBytesSize, batch2BlobSize, err := codecv3.EstimateBatchL1CommitBatchSizeAndBlobSize(batch2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(412), batch2BatchBytesSize)
+	assert.Equal(t, uint64(237), batch2BlobSize)
+
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{block3}}
+	chunk3BatchBytesSize, chunk3BlobSize, err := codecv3.EstimateChunkL1CommitBatchSizeAndBlobSize(chunk3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(5863), chunk3BatchBytesSize)
+	assert.Equal(t, uint64(2933), chunk3BlobSize)
+	batch3 := &Batch{Chunks: []*Chunk{chunk3}}
+	batch3BatchBytesSize, batch3BlobSize, err := codecv3.EstimateBatchL1CommitBatchSizeAndBlobSize(batch3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(5863), batch3BatchBytesSize)
+	assert.Equal(t, uint64(2933), batch3BlobSize)
+
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{block4}}
+	chunk4BatchBytesSize, chunk4BlobSize, err := codecv3.EstimateChunkL1CommitBatchSizeAndBlobSize(chunk4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(214), chunk4BatchBytesSize)
+	assert.Equal(t, uint64(54), chunk4BlobSize)
+	batch4 := &Batch{Chunks: []*Chunk{chunk4}}
+	blob4BatchBytesSize, batch4BlobSize, err := codecv3.EstimateBatchL1CommitBatchSizeAndBlobSize(batch4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(214), blob4BatchBytesSize)
+	assert.Equal(t, uint64(54), batch4BlobSize)
+
+	chunk5 := &Chunk{Blocks: []*Block{block2, block3}}
+	chunk5BatchBytesSize, chunk5BlobSize, err := codecv3.EstimateChunkL1CommitBatchSizeAndBlobSize(chunk5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(6093), chunk5BatchBytesSize)
+	assert.Equal(t, uint64(3149), chunk5BlobSize)
+	chunk6 := &Chunk{Blocks: []*Block{block4}}
+	chunk6BatchBytesSize, chunk6BlobSize, err := codecv3.EstimateChunkL1CommitBatchSizeAndBlobSize(chunk6)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(214), chunk6BatchBytesSize)
+	assert.Equal(t, uint64(54), chunk6BlobSize)
+	batch5 := &Batch{Chunks: []*Chunk{chunk5, chunk6}}
+	batch5BatchBytesSize, batch5BlobSize, err := codecv3.EstimateBatchL1CommitBatchSizeAndBlobSize(batch5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(6125), batch5BatchBytesSize)
+	assert.Equal(t, uint64(3186), batch5BlobSize)
+}
