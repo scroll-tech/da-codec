@@ -50,11 +50,11 @@ func (d *DACodecV2) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
-		return nil, errors.New("too many chunks in batch")
+		return nil, fmt.Errorf("too many chunks in batch: got %d, max allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
 	if len(batch.Chunks) == 0 {
-		return nil, errors.New("too few chunks in batch")
+		return nil, errors.New("batch must contain at least one chunk")
 	}
 
 	// batch data hash
@@ -208,7 +208,7 @@ func (d *DACodecV2) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	if CodecVersion(data[0]) != CodecV2 {
-		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV2)
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV2, data[0])
 	}
 
 	b := newDABatchV1(

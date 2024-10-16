@@ -22,11 +22,11 @@ func (d *DACodecV3) Version() CodecVersion {
 func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
-		return nil, errors.New("too many chunks in batch")
+		return nil, fmt.Errorf("too many chunks in batch: got %d, max allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
 	if len(batch.Chunks) == 0 {
-		return nil, errors.New("too few chunks in batch")
+		return nil, errors.New("batch must contain at least one chunk")
 	}
 
 	if len(batch.Chunks[len(batch.Chunks)-1].Blocks) == 0 {
@@ -78,7 +78,7 @@ func (d *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	if CodecVersion(data[0]) != CodecV3 {
-		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV3)
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV3, data[0])
 	}
 
 	b := newDABatchV3WithProof(

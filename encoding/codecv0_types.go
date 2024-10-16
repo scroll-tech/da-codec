@@ -268,8 +268,8 @@ func (b *daBatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
 }
 
 // Version returns the version of the DABatch.
-func (b *daBatchV0) Version() uint8 {
-	return b.version
+func (b *daBatchV0) Version() CodecVersion {
+	return CodecVersion(b.version)
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.

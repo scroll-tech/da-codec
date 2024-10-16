@@ -33,7 +33,7 @@ type DABatch interface {
 	BlobDataProofForPointEvaluation() ([]byte, error)
 	Blob() *kzg4844.Blob
 	BlobBytes() []byte
-	Version() uint8
+	Version() CodecVersion
 	SkippedL1MessageBitmap() []byte
 }
 

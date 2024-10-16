@@ -103,11 +103,11 @@ func (d *DACodecV1) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 func (d *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
-		return nil, errors.New("too many chunks in batch")
+		return nil, fmt.Errorf("too many chunks in batch: got %d, max allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
 	if len(batch.Chunks) == 0 {
-		return nil, errors.New("too few chunks in batch")
+		return nil, errors.New("batch must contain at least one chunk")
 	}
 
 	// batch data hash
@@ -241,7 +241,7 @@ func (d *DACodecV1) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	if CodecVersion(data[0]) != CodecV1 {
-		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV1)
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV1, data[0])
 	}
 
 	b := newDABatchV1(
@@ -426,7 +426,7 @@ func (d *DACodecV1) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 
 // computeBatchDataHash computes the data hash of the batch.
 // Note: The batch hash and batch data hash are two different hashes,
-// the former is used for identifying a badge in the contracts,
+// the former is used for identifying a batch in the contracts,
 // the latter is used in the public input to the provers.
 func (d *DACodecV1) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
 	var dataBytes []byte

@@ -189,8 +189,8 @@ func (b *daBatchV3) MarshalJSON() ([]byte, error) {
 }
 
 // Version returns the version of the DABatch.
-func (b *daBatchV3) Version() uint8 {
-	return b.version
+func (b *daBatchV3) Version() CodecVersion {
+	return CodecVersion(b.version)
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
