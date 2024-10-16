@@ -480,3 +480,51 @@ func TestCodecV1CalldataSizeEstimation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(180), batch5CalldataSize)
 }
+
+func TestCodecV1CommitGasEstimation(t *testing.T) {
+	codecv1, err := CodecFromVersion(CodecV1)
+	assert.NoError(t, err)
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	chunk2 := &Chunk{Blocks: []*Block{block2}}
+	chunk2Gas, err := codecv1.EstimateChunkL1CommitGas(chunk2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1124), chunk2Gas)
+	batch2 := &Batch{Chunks: []*Chunk{chunk2}}
+	batch2Gas, err := codecv1.EstimateBatchL1CommitGas(batch2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(157649), batch2Gas)
+
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{block3}}
+	chunk3Gas, err := codecv1.EstimateChunkL1CommitGas(chunk3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1124), chunk3Gas)
+	batch3 := &Batch{Chunks: []*Chunk{chunk3}}
+	batch3Gas, err := codecv1.EstimateBatchL1CommitGas(batch3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(157649), batch3Gas)
+
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{block4}}
+	chunk4Gas, err := codecv1.EstimateChunkL1CommitGas(chunk4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(3745), chunk4Gas)
+	batch4 := &Batch{Chunks: []*Chunk{chunk4}}
+	batch4Gas, err := codecv1.EstimateBatchL1CommitGas(batch4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(160302), batch4Gas)
+
+	chunk5 := &Chunk{Blocks: []*Block{block2, block3}}
+	chunk5Gas, err := codecv1.EstimateChunkL1CommitGas(chunk5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2202), chunk5Gas)
+	chunk6 := &Chunk{Blocks: []*Block{block4}}
+	chunk6Gas, err := codecv1.EstimateChunkL1CommitGas(chunk6)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(3745), chunk6Gas)
+	batch5 := &Batch{Chunks: []*Chunk{chunk5, chunk6}}
+	batch5Gas, err := codecv1.EstimateBatchL1CommitGas(batch5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(163087), batch5Gas)
+}

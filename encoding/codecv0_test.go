@@ -436,3 +436,52 @@ func TestCodecV0CalldataSizeEstimation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(6139), batch5CalldataSize)
 }
+
+func TestCodecV0CommitGasEstimation(t *testing.T) {
+	codecv0, err := CodecFromVersion(CodecV0)
+	assert.NoError(t, err)
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	assert.NoError(t, err)
+	chunk2 := &Chunk{Blocks: []*Block{block2}}
+	chunk2Gas, err := codecv0.EstimateChunkL1CommitGas(chunk2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(5082), chunk2Gas)
+	batch2 := &Batch{Chunks: []*Chunk{chunk2}}
+	batch2Gas, err := codecv0.EstimateBatchL1CommitGas(batch2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(161631), batch2Gas)
+
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{block3}}
+	chunk3Gas, err := codecv0.EstimateChunkL1CommitGas(chunk3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(93786), chunk3Gas)
+	batch3 := &Batch{Chunks: []*Chunk{chunk3}}
+	batch3Gas, err := codecv0.EstimateBatchL1CommitGas(batch3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(250908), batch3Gas)
+
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{block4}}
+	chunk4Gas, err := codecv0.EstimateChunkL1CommitGas(chunk4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(4369), chunk4Gas)
+	batch4 := &Batch{Chunks: []*Chunk{chunk4}}
+	batch4Gas, err := codecv0.EstimateBatchL1CommitGas(batch4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(160929), batch4Gas)
+
+	chunk5 := &Chunk{Blocks: []*Block{block2, block3}}
+	chunk5Gas, err := codecv0.EstimateChunkL1CommitGas(chunk5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(98822), chunk5Gas)
+	chunk6 := &Chunk{Blocks: []*Block{block4}}
+	chunk6Gas, err := codecv0.EstimateChunkL1CommitGas(chunk6)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(4369), chunk6Gas)
+	batch5 := &Batch{Chunks: []*Chunk{chunk5, chunk6}}
+	batch5Gas, err := codecv0.EstimateBatchL1CommitGas(batch5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(260958), batch5Gas)
+}
