@@ -2,12 +2,10 @@ package encoding
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
 	"math/big"
-	"strings"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -181,10 +179,9 @@ func (c *daChunkV0) Hash() (common.Hash, error) {
 		var l1TxHashes []byte
 		var l2TxHashes []byte
 		for _, txData := range blockTxs {
-			txHash := strings.TrimPrefix(txData.TxHash, "0x")
-			hashBytes, err := hex.DecodeString(txHash)
-			if err != nil {
-				return common.Hash{}, fmt.Errorf("failed to decode tx hash from TransactionData: hash=%v, err=%w", txData.TxHash, err)
+			hashBytes := common.FromHex(txData.TxHash)
+			if len(hashBytes) != common.HashLength {
+				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
 			}
 			if txData.Type == types.L1MessageTxType {
 				l1TxHashes = append(l1TxHashes, hashBytes...)

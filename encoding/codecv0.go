@@ -163,7 +163,7 @@ func (d *DACodecV0) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
-		return nil, fmt.Errorf("too many chunks in batch: got %d, max allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
+		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
 	if len(batch.Chunks) == 0 {

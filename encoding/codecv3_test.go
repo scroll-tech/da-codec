@@ -75,6 +75,7 @@ func TestCodecV3BlockEncode(t *testing.T) {
 		assert.Equal(t, encodedv0, encodedv3)
 	}
 }
+
 func TestCodecV3ChunkEncode(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
 	assert.NoError(t, err)

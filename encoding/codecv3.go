@@ -22,7 +22,7 @@ func (d *DACodecV3) Version() CodecVersion {
 func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
-		return nil, fmt.Errorf("too many chunks in batch: got %d, max allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
+		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
 	if len(batch.Chunks) == 0 {

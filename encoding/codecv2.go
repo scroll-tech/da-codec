@@ -50,7 +50,7 @@ func (d *DACodecV2) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
-		return nil, fmt.Errorf("too many chunks in batch: got %d, max allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
+		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
 	if len(batch.Chunks) == 0 {
@@ -230,11 +230,11 @@ func (d *DACodecV2) NewDABatchFromBytes(data []byte) (DABatch, error) {
 func (d *DACodecV2) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
 	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
 	return uint64(len(batchBytes)), calculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
@@ -257,11 +257,11 @@ func (d *DACodecV2) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 func (d *DACodecV2) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
 	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
 	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
 	if len(batchBytes) <= minCompressedDataCheckSize {

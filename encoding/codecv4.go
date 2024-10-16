@@ -47,7 +47,7 @@ func (d *DACodecV4) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
 	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
-		return nil, fmt.Errorf("too many chunks in batch: got %d, max allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
+		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
 	if len(batch.Chunks) == 0 {
@@ -250,12 +250,12 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
 	var blobBytesLength uint64
 	enableCompression, err := d.CheckChunkCompressedDataCompatibility(c)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
 	if enableCompression {
 		blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
@@ -297,11 +297,11 @@ func (d *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 func (d *DACodecV4) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
 	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
 	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
 	if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
 		log.Warn("CheckChunkCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))

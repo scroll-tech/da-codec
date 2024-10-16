@@ -27,7 +27,8 @@ type daBatchV3 struct {
 // newDABatchV3 is a constructor for daBatchV3 that calls blobDataProofForPICircuit internally.
 func newDABatchV3(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob,
-	z *kzg4844.Point, blobBytes []byte) (*daBatchV3, error) {
+	z *kzg4844.Point, blobBytes []byte,
+) (*daBatchV3, error) {
 	daBatch := &daBatchV3{
 		daBatchV0: daBatchV0{
 			version:                version,
@@ -58,7 +59,8 @@ func newDABatchV3(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopp
 // newDABatchV3WithProof is a constructor for daBatchV3 that allows directly passing blobDataProof.
 func newDABatchV3WithProof(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte,
-	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte, blobDataProof [2]common.Hash) *daBatchV3 {
+	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte, blobDataProof [2]common.Hash,
+) *daBatchV3 {
 	return &daBatchV3{
 		daBatchV0: daBatchV0{
 			version:                version,

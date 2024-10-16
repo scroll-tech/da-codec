@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -55,11 +54,7 @@ func (c *daChunkV1) Hash() (common.Hash, error) {
 				continue
 			}
 
-			txHash := strings.TrimPrefix(txData.TxHash, "0x")
-			hashBytes, err := hex.DecodeString(txHash)
-			if err != nil {
-				return common.Hash{}, err
-			}
+			hashBytes := common.FromHex(txData.TxHash)
 			if len(hashBytes) != common.HashLength {
 				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
 			}
