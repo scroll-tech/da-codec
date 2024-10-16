@@ -229,3 +229,79 @@ func TestCodecV2ChunkHash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "0xb65521bea7daff75838de07951c3c055966750fb5a270fead5e0e727c32455c3", hash.Hex())
 }
+
+func TestCodecV2BatchEncode(t *testing.T) {
+	codecv2, err := CodecFromVersion(CodecV2)
+	assert.NoError(t, err)
+
+	// empty batch
+	batch := &daBatchV1{
+		daBatchV0: daBatchV0{
+			version: uint8(CodecV2),
+		},
+	}
+	encoded := hex.EncodeToString(batch.Encode())
+	assert.Equal(t, "02000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", encoded)
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	chunk2 := &Chunk{Blocks: []*Block{block2}}
+	originalBatch := &Batch{Chunks: []*Chunk{chunk2}}
+	daBatch, err := codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "020000000000000000000000000000000000000000000000009f81f6879f121da5b7a37535cdb21b3d53099266de57b1fdf603ce32100ed54101bbc6b98d7d3783730b6208afac839ad37dcf211b9d9e7c83a5f9d02125ddd70000000000000000000000000000000000000000000000000000000000000000", encoded)
+
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{block3}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk3}}
+	daBatch, err = codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "02000000000000000000000000000000000000000000000000d46d19f6d48083dc7905a68e6a20ea6a8fbcd445d56b549b324a8485b5b574a601fae670a781fb1ea366dad9c02caf4ea1de4f699214c8171f9219b0c72f6ad40000000000000000000000000000000000000000000000000000000000000000", encoded)
+
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{block4}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk4}}
+	daBatch, err = codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "020000000000000000000000000000000b000000000000000bcaece1705bf2ce5e94154469d910ffe8d102419c5eb3152c0c6d237cf35c885f012e15203534ae3f4cbe1b0f58fe6db6e5c29432115a8ece6ef5550bf2ffce4c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003ff", encoded)
+
+	block5 := readBlockFromJSON(t, "testdata/blockTrace_05.json")
+	chunk5 := &Chunk{Blocks: []*Block{block5}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk5}}
+	daBatch, err = codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "020000000000000000000000000000002a000000000000002a93255aa24dd468c5645f1e6901b8131a7a78a0eeb2a17cbb09ba64688a8de6b4015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc53394137000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001fffffffff", encoded)
+
+	block6 := readBlockFromJSON(t, "testdata/blockTrace_06.json")
+	chunk6 := &Chunk{Blocks: []*Block{block6}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk6}}
+	daBatch, err = codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "020000000000000000000000000000000a000000000000000ac7bcc8da943dd83404e84d9ce7e894ab97ce4829df4eb51ebbbe13c90b5a3f4d015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001dd", encoded)
+
+	block7 := readBlockFromJSON(t, "testdata/blockTrace_07.json")
+	chunk7 := &Chunk{Blocks: []*Block{block7}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk7}}
+	daBatch, err = codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "02000000000000000000000000000001010000000000000101899a411a3309c6491701b7b955c7b1115ac015414bbb71b59a0ca561668d5208015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc5339413700000000000000000000000000000000000000000000000000000000000000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd0000000000000000000000000000000000000000000000000000000000000000", encoded)
+
+	originalBatch = &Batch{Chunks: []*Chunk{chunk2, chunk3, chunk4, chunk5}}
+	daBatch, err = codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "020000000000000000000000000000002a000000000000002ae7740182b0948139505b6b296d0c6c6f7717708323e6e687917acad823b559d8013750f6cb783ce2e8fec5a8aff6c45512f2496d6861204b11b6010fb4aa002900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001ffffffbff", encoded)
+
+	chunk8 := &Chunk{Blocks: []*Block{block2, block3, block4}}
+	chunk9 := &Chunk{Blocks: []*Block{block5}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk8, chunk9}}
+	daBatch, err = codecv2.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	encoded = hex.EncodeToString(daBatch.Encode())
+	assert.Equal(t, "020000000000000000000000000000002a000000000000002a9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e1347670128f90d5edbcb10d13521824ccc7f47f85aff6e2da01004f9a402854eb3363200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001ffffffbff", encoded)
+}
