@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -304,4 +305,71 @@ func TestCodecV1BatchEncode(t *testing.T) {
 	assert.NoError(t, err)
 	encoded = hex.EncodeToString(daBatch.Encode())
 	assert.Equal(t, "010000000000000000000000000000002a000000000000002a9b0f37c563d27d9717ab16d47075df996c54fe110130df6b11bfd7230e13476701b63f87bdd2caa8d43500d47ee59204f61af95339483c62ff436c6beabf47bf00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001ffffffbff", encoded)
+}
+
+func TestCodecV1BatchHash(t *testing.T) {
+	codecv1, err := CodecFromVersion(CodecV1)
+	assert.NoError(t, err)
+
+	// empty batch
+	batch := &daBatchV1{
+		daBatchV0: daBatchV0{
+			version: uint8(CodecV1),
+		},
+	}
+	assert.Equal(t, common.HexToHash("0x4b6fe410f63051f6e93532087b42ece79fb7b966e2ba5845e6cd1c091f27e564"), batch.Hash())
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	chunk2 := &Chunk{Blocks: []*Block{block2}}
+	originalBatch := &Batch{Chunks: []*Chunk{chunk2}}
+	daBatch, err := codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0xd557b02638c0385d5124f7fc188a025b33f8819b7f78c000751404997148ab8b"), daBatch.Hash())
+
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{block3}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk3}}
+	daBatch, err = codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0xf13c7e249d00941c59fe4cd970241bbd6753eede8e043c438165674031792b3b"), daBatch.Hash())
+
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{block4}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk4}}
+	daBatch, err = codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0xb64208f07fab641f7ebf831686d05ad667da0c7bfabcbd9c878cc22cbc8032fd"), daBatch.Hash())
+
+	block5 := readBlockFromJSON(t, "testdata/blockTrace_05.json")
+	chunk5 := &Chunk{Blocks: []*Block{block5}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk5}}
+	daBatch, err = codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0x4f7426d164e885574a661838406083f5292b0a1bc6dc20c51129eed0723b8a27"), daBatch.Hash())
+
+	block6 := readBlockFromJSON(t, "testdata/blockTrace_06.json")
+	chunk6 := &Chunk{Blocks: []*Block{block6}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk6}}
+	daBatch, err = codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0xfce89ec2aed85cebeb20eea722e3ae4ec622bff49218dbe249a2d358e2e85451"), daBatch.Hash())
+
+	block7 := readBlockFromJSON(t, "testdata/blockTrace_07.json")
+	chunk7 := &Chunk{Blocks: []*Block{block7}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk7}}
+	daBatch, err = codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0x8fc063179b709bab338674278bb7b70dce2879a4e11ea857b3a202fb3313559f"), daBatch.Hash())
+
+	originalBatch = &Batch{Chunks: []*Chunk{chunk2, chunk3, chunk4, chunk5}}
+	daBatch, err = codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0xf1c94cdf45967bc60bfccd599edd8cb07fd0201f41ab068637834f86140f62bf"), daBatch.Hash())
+
+	chunk8 := &Chunk{Blocks: []*Block{block2, block3, block4}}
+	chunk9 := &Chunk{Blocks: []*Block{block5}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk8, chunk9}}
+	daBatch, err = codecv1.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, common.HexToHash("0xfef0b56bd889529e3a1d884c88dd1c867e084fdc1369496907be8f865f43f0e0"), daBatch.Hash())
 }
