@@ -388,3 +388,51 @@ func TestCodecV0BatchDataHash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, common.HexToHash("0x1f9b3d942a6ee14e7afc52225c91fa44faa0a7ec511df9a2d9348d33bcd142fc"), daBatch.DataHash())
 }
+
+func TestCodecV0CalldataSizeEstimation(t *testing.T) {
+	codecv0, err := CodecFromVersion(CodecV0)
+	assert.NoError(t, err)
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	chunk2 := &Chunk{Blocks: []*Block{block2}}
+	chunk2CalldataSize, err := codecv0.EstimateChunkL1CommitCalldataSize(chunk2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(298), chunk2CalldataSize)
+	batch2 := &Batch{Chunks: []*Chunk{chunk2}}
+	batch2CalldataSize, err := codecv0.EstimateBatchL1CommitCalldataSize(batch2)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(298), batch2CalldataSize)
+
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{block3}}
+	chunk3CalldataSize, err := codecv0.EstimateChunkL1CommitCalldataSize(chunk3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(5745), chunk3CalldataSize)
+	batch3 := &Batch{Chunks: []*Chunk{chunk3}}
+	batch3CalldataSize, err := codecv0.EstimateBatchL1CommitCalldataSize(batch3)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(5745), batch3CalldataSize)
+
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{block4}}
+	chunk4CalldataSize, err := codecv0.EstimateChunkL1CommitCalldataSize(chunk4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(96), chunk4CalldataSize)
+	batch4 := &Batch{Chunks: []*Chunk{chunk4}}
+	batch4CalldataSize, err := codecv0.EstimateBatchL1CommitCalldataSize(batch4)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(96), batch4CalldataSize)
+
+	chunk5 := &Chunk{Blocks: []*Block{block2, block3}}
+	chunk5CalldataSize, err := codecv0.EstimateChunkL1CommitCalldataSize(chunk5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(6043), chunk5CalldataSize)
+	chunk6 := &Chunk{Blocks: []*Block{block4}}
+	chunk6CalldataSize, err := codecv0.EstimateChunkL1CommitCalldataSize(chunk6)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(96), chunk6CalldataSize)
+	batch5 := &Batch{Chunks: []*Chunk{chunk5, chunk6}}
+	batch5CalldataSize, err := codecv0.EstimateBatchL1CommitCalldataSize(batch5)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(6139), batch5CalldataSize)
+}
