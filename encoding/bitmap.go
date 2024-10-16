@@ -64,8 +64,8 @@ func constructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePo
 	return bitmapBytes, nextIndex, nil
 }
 
-// DecodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's
-func DecodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*big.Int, error) {
+// decodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's.
+func decodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*big.Int, error) {
 	length := len(skippedL1MessageBitmap)
 	if length%32 != 0 {
 		return nil, fmt.Errorf("skippedL1MessageBitmap length doesn't match, skippedL1MessageBitmap length should be equal 0 modulo 32, length of skippedL1MessageBitmap: %v", length)
@@ -81,8 +81,8 @@ func DecodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*b
 	return skippedBitmap, nil
 }
 
-// IsL1MessageSkipped checks if index is skipped in bitmap
-func IsL1MessageSkipped(skippedBitmap []*big.Int, index uint64) bool {
+// isL1MessageSkipped checks if index is skipped in bitmap.
+func isL1MessageSkipped(skippedBitmap []*big.Int, index uint64) bool {
 	if index > uint64(len(skippedBitmap))*256 {
 		return false
 	}
