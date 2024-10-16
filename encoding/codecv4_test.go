@@ -727,3 +727,82 @@ func TestCodecV4BatchSizeAndBlobSizeEstimation(t *testing.T) {
 	assert.Equal(t, uint64(6125), batch5BatchBytesSize)
 	assert.Equal(t, uint64(3187), batch5BlobSize)
 }
+
+func TestCodecV4BatchL1MessagePopped(t *testing.T) {
+	codecv4, err := CodecFromVersion(CodecV4)
+	assert.NoError(t, err)
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	chunk2 := &Chunk{Blocks: []*Block{block2}}
+	originalBatch := &Batch{Chunks: []*Chunk{chunk2}}
+	daBatch, err := codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), daBatch.(*daBatchV3).l1MessagePopped)
+	assert.Equal(t, uint64(0), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	trace3 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk3 := &Chunk{Blocks: []*Block{trace3}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk3}}
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), daBatch.(*daBatchV3).l1MessagePopped)
+	assert.Equal(t, uint64(0), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	trace4 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	chunk4 := &Chunk{Blocks: []*Block{trace4}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk4}}
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(11), daBatch.(*daBatchV3).l1MessagePopped)
+	assert.Equal(t, uint64(11), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	trace5 := readBlockFromJSON(t, "testdata/blockTrace_05.json")
+	chunk5 := &Chunk{Blocks: []*Block{trace5}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk5}}
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(42), daBatch.(*daBatchV3).l1MessagePopped) // skip 37, include 5
+	assert.Equal(t, uint64(42), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	originalBatch.TotalL1MessagePoppedBefore = 37
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(5), daBatch.(*daBatchV3).l1MessagePopped) // skip 37, include 5
+	assert.Equal(t, uint64(42), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	trace6 := readBlockFromJSON(t, "testdata/blockTrace_06.json")
+	chunk6 := &Chunk{Blocks: []*Block{trace6}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk6}}
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(10), daBatch.(*daBatchV3).l1MessagePopped) // skip 7, include 3
+	assert.Equal(t, uint64(10), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	trace7 := readBlockFromJSON(t, "testdata/blockTrace_07.json")
+	chunk7 := &Chunk{Blocks: []*Block{trace7}}
+	originalBatch = &Batch{Chunks: []*Chunk{chunk7}}
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(257), daBatch.(*daBatchV3).l1MessagePopped) // skip 255, include 2
+	assert.Equal(t, uint64(257), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	originalBatch.TotalL1MessagePoppedBefore = 1
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(256), daBatch.(*daBatchV3).l1MessagePopped) // skip 254, include 2
+	assert.Equal(t, uint64(257), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	chunk8 := &Chunk{Blocks: []*Block{block2, trace3, trace4}} // queue index 10
+	chunk9 := &Chunk{Blocks: []*Block{trace5}}                 // queue index 37-41
+	originalBatch = &Batch{Chunks: []*Chunk{chunk8, chunk9}}
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(42), daBatch.(*daBatchV3).l1MessagePopped)
+	assert.Equal(t, uint64(42), daBatch.(*daBatchV3).totalL1MessagePopped)
+
+	originalBatch.TotalL1MessagePoppedBefore = 10
+	daBatch, err = codecv4.NewDABatch(originalBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(32), daBatch.(*daBatchV3).l1MessagePopped)
+	assert.Equal(t, uint64(42), daBatch.(*daBatchV3).totalL1MessagePopped)
+}
