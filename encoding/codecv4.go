@@ -247,7 +247,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	return blob, blobVersionedHash, &z, blobBytes, nil
 }
 
-// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
+// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
 func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
 	if err != nil {
@@ -270,7 +270,7 @@ func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 	return uint64(len(batchBytes)), calculatePaddedBlobSize(blobBytesLength), nil
 }
 
-// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
+// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
 func (d *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
 	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, d)
 	if err != nil {

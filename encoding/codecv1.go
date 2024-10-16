@@ -398,7 +398,7 @@ func (d *DACodecV1) EstimateBatchL1CommitCalldataSize(b *Batch) (uint64, error) 
 	return totalL1CommitCalldataSize, nil
 }
 
-// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a single chunk.
+// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
 func (d *DACodecV1) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
 	metadataSize := 2 + 4*d.MaxNumChunksPerBatch()
 	batchDataSize, err := d.chunkL1CommitBlobDataSize(c)
@@ -406,10 +406,10 @@ func (d *DACodecV1) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 		return 0, 0, err
 	}
 	blobSize := calculatePaddedBlobSize(metadataSize + batchDataSize)
-	return blobSize, blobSize, nil
+	return metadataSize + batchDataSize, blobSize, nil
 }
 
-// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit uncompressed batch size and compressed blob size for a batch.
+// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
 func (d *DACodecV1) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
 	metadataSize := 2 + 4*d.MaxNumChunksPerBatch()
 	var batchDataSize uint64
@@ -421,7 +421,7 @@ func (d *DACodecV1) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 		batchDataSize += chunkDataSize
 	}
 	blobSize := calculatePaddedBlobSize(metadataSize + batchDataSize)
-	return blobSize, blobSize, nil
+	return metadataSize + batchDataSize, blobSize, nil
 }
 
 // computeBatchDataHash computes the data hash of the batch.
