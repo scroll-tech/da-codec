@@ -54,7 +54,7 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	lastChunk := batch.Chunks[len(batch.Chunks)-1]
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
-	return newDABatchV2(
+	return newDABatchV3(
 		uint8(CodecV3), // version
 		batch.Index,    // batchIndex
 		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
@@ -81,7 +81,7 @@ func (d *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("invalid codec version: %d, expected: %d", data[0], CodecV3)
 	}
 
-	b := newDABatchV2WithProof(
+	b := newDABatchV3WithProof(
 		data[0],                                // Version
 		binary.BigEndian.Uint64(data[1:9]),     // BatchIndex
 		binary.BigEndian.Uint64(data[9:17]),    // L1MessagePopped
@@ -182,7 +182,7 @@ func (d *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 	return totalL1CommitGas, nil
 }
 
-// JSONFromBytes converts the bytes to a daBatchV2 and then marshals it to JSON.
+// JSONFromBytes converts the bytes to a daBatchV3 and then marshals it to JSON.
 func (d *DACodecV3) JSONFromBytes(data []byte) ([]byte, error) {
 	batch, err := d.NewDABatchFromBytes(data)
 	if err != nil {
