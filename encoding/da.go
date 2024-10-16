@@ -27,6 +27,17 @@ const blockContextByteSize = 60
 // txLenByteSize is the size of the transaction length in bytes.
 const txLenByteSize = 4
 
+// maxBlobBytes is the maximum number of bytes that can be stored in a blob.
+const maxBlobBytes = 131072
+
+// maxEffectiveBlobBytes is the maximum number of bytes that can be stored in a blob.
+// We can only utilize 31/32 of a blob.
+const maxEffectiveBlobBytes = maxBlobBytes / 32 * 31
+
+// minCompressedDataCheckSize is the minimum size of compressed data to check compatibility.
+// only used in codecv2 and codecv3.
+const minCompressedDataCheckSize = 131072
+
 // Block represents an L2 block.
 type Block struct {
 	Header         *types.Header
@@ -324,9 +335,8 @@ func CheckCompressedDataCompatibility(data []byte) error {
 
 // makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
 func makeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
-	// blob contains 131072 bytes but we can only utilize 31/32 of these
-	if len(blobBytes) > 126976 {
-		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
+	if len(blobBytes) > maxEffectiveBlobBytes {
+		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), maxEffectiveBlobBytes)
 	}
 
 	// the canonical (padded) blob payload
@@ -348,8 +358,8 @@ func makeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 }
 
 // bytesFromBlobCanonical converts the canonical blob representation into the raw blob data
-func bytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
-	var blobBytes [126976]byte
+func bytesFromBlobCanonical(blob *kzg4844.Blob) [maxEffectiveBlobBytes]byte {
+	var blobBytes [maxEffectiveBlobBytes]byte
 	for from := 0; from < len(blob); from += 32 {
 		copy(blobBytes[from/32*31:], blob[from+1:from+32])
 	}
@@ -360,7 +370,7 @@ func bytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
 func decompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
 	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
 	var res []byte
-	readBatchSize := 131072
+	readBatchSize := maxBlobBytes
 	batchOfBytes := make([]byte, readBatchSize)
 
 	r := bytes.NewReader(compressedBytes)

@@ -158,7 +158,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	}
 
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if !useMockTxData && len(batchBytes) > 131072 {
+	if !useMockTxData && len(batchBytes) > minCompressedDataCheckSize {
 		// Check compressed data compatibility.
 		if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("constructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
@@ -166,7 +166,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		}
 	}
 
-	if len(blobBytes) > 126976 {
+	if len(blobBytes) > maxEffectiveBlobBytes {
 		log.Error("constructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return nil, common.Hash{}, nil, nil, errors.New("Blob payload exceeds maximum size")
 	}
@@ -265,7 +265,7 @@ func (d *DACodecV2) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 		return false, err
 	}
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) <= 131072 {
+	if len(batchBytes) <= minCompressedDataCheckSize {
 		return true, nil
 	}
 	if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
@@ -287,7 +287,7 @@ func (d *DACodecV2) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 		return false, err
 	}
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) <= 131072 {
+	if len(batchBytes) <= minCompressedDataCheckSize {
 		return true, nil
 	}
 	if err = CheckCompressedDataCompatibility(blobBytes); err != nil {

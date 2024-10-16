@@ -70,13 +70,13 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, err
 	}
 
-	enableCompress, err := d.CheckBatchCompressedDataCompatibility(batch)
+	enableCompression, err := d.CheckBatchCompressedDataCompatibility(batch)
 	if err != nil {
 		return nil, err
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, int(d.MaxNumChunksPerBatch()), enableCompress, false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, int(d.MaxNumChunksPerBatch()), enableCompression, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (d *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
-func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int, enableCompress bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
+func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int, enableCompression bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + maxNumChunksPerBatch*4
 
@@ -194,7 +194,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	copy(challengePreimage[0:], hash[:])
 
 	var blobBytes []byte
-	if enableCompress {
+	if enableCompression {
 		// blobBytes represents the compressed blob payload (batchBytes)
 		var err error
 		blobBytes, err = zstd.CompressScrollBatchBytes(batchBytes)
@@ -213,7 +213,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		blobBytes = append([]byte{0}, batchBytes...)
 	}
 
-	if len(blobBytes) > 126976 {
+	if len(blobBytes) > maxEffectiveBlobBytes {
 		log.Error("ConstructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return nil, common.Hash{}, nil, nil, errors.New("Blob payload exceeds maximum size")
 	}
@@ -254,11 +254,11 @@ func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 		return 0, 0, err
 	}
 	var blobBytesLength uint64
-	enableCompress, err := d.CheckChunkCompressedDataCompatibility(c)
+	enableCompression, err := d.CheckChunkCompressedDataCompatibility(c)
 	if err != nil {
 		return 0, 0, err
 	}
-	if enableCompress {
+	if enableCompression {
 		blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 		if err != nil {
 			return 0, 0, err
@@ -277,11 +277,11 @@ func (d *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 		return 0, 0, err
 	}
 	var blobBytesLength uint64
-	enableCompress, err := d.CheckBatchCompressedDataCompatibility(b)
+	enableCompression, err := d.CheckBatchCompressedDataCompatibility(b)
 	if err != nil {
 		return 0, 0, err
 	}
-	if enableCompress {
+	if enableCompression {
 		blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 		if err != nil {
 			return 0, 0, err

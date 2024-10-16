@@ -3,11 +3,14 @@ package encoding
 import (
 	"encoding/hex"
 	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/scroll-tech/go-ethereum/crypto"
+	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1019,4 +1022,152 @@ func TestCodecV3DecodeDAChunksRawTx(t *testing.T) {
 	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
 	assert.Equal(t, 1, len(daChunksRawTx[1].Transactions[0]))
 	assert.Equal(t, 0, len(daChunksRawTx[1].Transactions[1]))
+}
+
+func TestCodecV3BatchStandardTestCases(t *testing.T) {
+	codecv3, err := CodecFromVersion(CodecV3)
+	assert.NoError(t, err)
+
+	// Taking into consideration compression, we allow up to 5x of max blob bytes.
+	// We then ignore the metadata rows for MaxNumChunksPerBatch chunks.
+	nRowsData := 5*maxEffectiveBlobBytes - (int(codecv3.MaxNumChunksPerBatch())*4 + 2)
+
+	repeat := func(element byte, count int) string {
+		result := make([]byte, 0, count)
+		for i := 0; i < count; i++ {
+			result = append(result, element)
+		}
+		return "0x" + common.Bytes2Hex(result)
+	}
+
+	for _, tc := range []struct {
+		chunks                    [][]string
+		expectedz                 string
+		expectedy                 string
+		expectedBlobVersionedHash string
+		expectedBatchHash         string
+	}{
+		// single empty chunk
+		{chunks: [][]string{{}}, expectedz: "30ba77ffda1712a0cfbbfce9facbc25a2370dc67d6480c686da47b7f181d527e", expectedy: "132f281fd2bc8409114826d70e3148c93b9b4fee7b21c7680e750b3b0c5f6df2", expectedBlobVersionedHash: "015b4e3d3dcd64cc0eb6a5ad535d7a1844a8c4cdad366ec73557bcc533941370", expectedBatchHash: "edde6b1becf302856884f0b9da5879d58eeb822ddab14a06bacd8de9276dbc79"},
+		// single non-empty chunk
+		{chunks: [][]string{{"0x010203"}}, expectedz: "13c58784e6eeed40130ab43baa13a1f2d5a6d895c66f554456e00c480568a42d", expectedy: "248ace7f7f0fb3718b80b8cf04be560b97d083a3dbbd79d169e0fe9c80c9668c", expectedBlobVersionedHash: "0161d97a72d600ed5aa264bc8fc409a87e60b768ffb52b9c1106858c2ae57f04", expectedBatchHash: "4c30ec3d03ecf70c479e802640a185cadf971e61acf68dac149ac73bdc645195"},
+		// multiple empty chunks
+		{chunks: [][]string{{}, {}}, expectedz: "102e7bf1335a8a86e8ecac2283843eff536555e464bb6ba01a29ff1ca8d4b8cb", expectedy: "033a0272284ae81eb693588e731fc19ad24c44a332405e471966335b37f1a2c2", expectedBlobVersionedHash: "01c0a83d1c0ee2ee06f030ca2f0ec36827b3e9682cbc8c00a27b0bdd3530488b", expectedBatchHash: "31fd0237208587df3ddbea413673b479e2daa84fd1143a519940267c37257b1a"},
+		// multiple non-empty chunks
+		{chunks: [][]string{{"0x010203"}, {"0x070809"}}, expectedz: "0ac462d144c9aa1a7538aebd9087e34e9f9590e59b58ffa08f03cd9e43382ed0", expectedy: "6ac7fc7686c900c9e27fd0ca69736cf77016c8b9e8fd3ebab0ee6be1d6c30c93", expectedBlobVersionedHash: "0104efe2cfccfb25e5ae40250af541bd217cae4c9bc14daaf0360a0a36aa2d03", expectedBatchHash: "0e0e8fd8b4f8ceb0215a29cc8b95750c0d1969706573af8872f397747809a479"},
+		// empty chunk followed by non-empty chunk
+		{chunks: [][]string{{}, {"0x010203"}}, expectedz: "1d81a4d2c78fbbf379562a998edde942b2019ec88ede9150a4c2a52a4e271ace", expectedy: "656603441f898b3dd64e0963fea53bfd6a445cb4f838c5caf181186cf45dd7ec", expectedBlobVersionedHash: "0131b881bdc8d8b70a62d9a6f249dc7a48f37428ac10809299489e5e60911f80", expectedBatchHash: "d6b97dde29d4b8afb1a036ee54757af4087c939cb96cf17c2720e9f59eff19da"},
+		// non-empty chunk followed by empty chunk
+		{chunks: [][]string{{"0x070809"}, {}}, expectedz: "275116a8ff16b17b90d7287fb567e766d1f79f54f8ac3c6d80e2de59fd34f115", expectedy: "5fea2c1bbed12ccdcf9edef780330ee1d13439de4d3b8f4968f2bda9e4fb8b1f", expectedBlobVersionedHash: "01c44c7e70df601a245e714be4f0aa7c918a0056bff379c20a7128e5926db664", expectedBatchHash: "3d56e12359c8b565f9cbe1c8f81e848be4635d9df84bc6ef0eb9986a15e08c20"},
+		// max number of chunks all empty
+		{chunks: [][]string{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}}, expectedz: "4583c59de31759dbc54109bb2d5825a36655e71db62225fc5d7d758191e59a6b", expectedy: "0b119ffd6c88037d62e1bee05f609d801c6cc6e724214555b97affe3b852819a", expectedBlobVersionedHash: "013ac7e2db84a2f26ee2cba3a5cabbfffd1f7c053e7ea17add4f84a82cf8285a", expectedBatchHash: "2e8078e277221a0d0e235ef825eef02653677bd50e259aeed64af5b95477645c"},
+		// max number of chunks all non-empty
+		{chunks: [][]string{
+			{"0x0a"},
+			{"0x0a0b"},
+			{"0x0a0b0c"},
+			{"0x0a0b0c0d"},
+			{"0x0a0b0c0d0e"},
+			{"0x0a0b0c0d0e0f"},
+			{"0x0a0b0c0d0e0f10"},
+			{"0x0a0b0c0d0e0f1011"},
+			{"0x0a0b0c0d0e0f101112"},
+			{"0x0a0b0c0d0e0f10111213"},
+			{"0x0a0b0c0d0e0f1011121314"},
+			{"0x0a0b0c0d0e0f101112131415"},
+			{"0x0a0b0c0d0e0f10111213141516"},
+			{"0x0a0b0c0d0e0f1011121314151617"},
+			{"0x0a0b0c0d0e0f101112131415161718"},
+			{"0x0a0b0c0d0e0f10111213141516171819"},
+			{"0x0a0b0c0d0e0f101112131415161718191a"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526272829"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30313233"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031323334"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435"},
+			{"0x0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30313233343536"},
+		}, expectedz: "08454da7c353fa9d7c4d044cca3972dab6aa38e583276848b1aec904f5592837", expectedy: "36cbc815c329e864a018cadf25070d62184d570ef031f5b5c8a5385e65babe9c", expectedBlobVersionedHash: "0198009a5e0941a6acb7dcd95a5016d7f25ca92d66fb300cf6f9918102ef66c0", expectedBatchHash: "e366eeacd45fbc2f43756f66d0a8f82f7f390a9aa7795df82e7df2d724856e7e"},
+		// single chunk blob full
+		{chunks: [][]string{{repeat(123, nRowsData)}}, expectedz: "63bebf986e2f0fc8bf5f7067108ea4a2b35a5927296e17d5c0bbc5ec04d8dce4", expectedy: "013b762f02e95a62f08977b1a43a017cd84f785b52ebf8ef25e9ebba6c9b76cb", expectedBlobVersionedHash: "01f68a6b3c0ba2ea0406f80f9c88b9905d9b3cc5b2d8ef12923b20fb24b81855", expectedBatchHash: "88e6df6a5e1112485995fe5957d57c90ff306343a9d8d80831b7a6c041daf728"},
+		// multiple chunks blob full
+		{chunks: [][]string{{repeat(123, 1111)}, {repeat(231, nRowsData-1111)}}, expectedz: "465e095b082136f20ca975c10eafbb3bf2b71724798da87bd62d3f8795c615dc", expectedy: "6f2ff37b255e0da8b5678a9b1157fdc8a1213c17bd248efd50a4c1540c26295c", expectedBlobVersionedHash: "01da6bdac6237fcba7742cf48868467bf95a5e7f33d16c172b36852e506b46b6", expectedBatchHash: "7bd97fc7c8c7e918029e5bd85d3c9e0335117475c449d5c6dd24e5af9d55cfc6"},
+		// max number of chunks only last one non-empty not full blob
+		{chunks: [][]string{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {repeat(132, nRowsData-1111)}}, expectedz: "1ca17fdb4dea8396d7e2f10ef7b2a587750517df70ec0ce0d853e61310aec0f3", expectedy: "1b686f2eb8d7e3e2325d9101dd799f5e13af8482b402661325545646a9c96ec0", expectedBlobVersionedHash: "019d11fab4509a83623a64b466a00344552fd44421e78726cda537d06c8425d3", expectedBatchHash: "8b50a41e08000b7617de7204d8082870c8446f591fadffcb5190fdeadf47fae5"},
+		// max number of chunks only last one non-empty full blob
+		{chunks: [][]string{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {repeat(132, nRowsData)}}, expectedz: "29c684b13d22cb43d81b9b449c281c15126fdc73512606de81c2d3fc9c7793b1", expectedy: "574418d83d77f6096934c2c4281edf61d48925a268411df0e0c818c6d43156d1", expectedBlobVersionedHash: "01f8da934ada220153abee70e85604ef8fbbf98c203b5eae14d23be088a41f45", expectedBatchHash: "cc0592160b2fcdb58750d29c36662b55437f4bc69ba3d45a965590f534a0228c"},
+		// max number of chunks but last is empty
+		{chunks: [][]string{{repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {repeat(111, 100)}, {}}, expectedz: "16d2883b0797d3420fabf4591f9dbe9f850ce600ce6133c98c9d291d8b3ce0a9", expectedy: "5bdc1ca8f09efa9c544d2b03d565fec500d5347acd5b3fd4d88e881f9459d83a", expectedBlobVersionedHash: "01f51532d6bb0afe8a0a61351888f322cba40dc664408a3201eb761aaba66671", expectedBatchHash: "043a40c8fbc4edb6a820ba4162f1368d157d1d59c07f969b2c584cc6a47385ca"},
+	} {
+		chunks := []*Chunk{}
+
+		for _, c := range tc.chunks {
+			block := &Block{Transactions: []*types.TransactionData{}}
+
+			for _, data := range c {
+				tx := &types.TransactionData{Type: 0xff, Data: data}
+				block.Transactions = append(block.Transactions, tx)
+			}
+
+			chunk := &Chunk{Blocks: []*Block{block}}
+			chunks = append(chunks, chunk)
+		}
+
+		blob, blobVersionedHash, z, _, err := codecv3.(*DACodecV3).constructBlobPayload(chunks, int(codecv3.MaxNumChunksPerBatch()), true /* use mock */)
+		require.NoError(t, err)
+		actualZ := hex.EncodeToString(z[:])
+		assert.Equal(t, tc.expectedz, actualZ)
+		assert.Equal(t, common.HexToHash(tc.expectedBlobVersionedHash), blobVersionedHash)
+
+		_, y, err := kzg4844.ComputeProof(blob, *z)
+		require.NoError(t, err)
+		actualY := hex.EncodeToString(y[:])
+		assert.Equal(t, tc.expectedy, actualY)
+
+		// Note: this is a dummy dataHash (for each chunk, we use 0xff00..0000)
+		dataBytes := make([]byte, 32*len(chunks))
+		for i := range chunks {
+			copy(dataBytes[32*i:32*i+32], []byte{math.MaxUint8 - uint8(i), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+		}
+		dataHash := crypto.Keccak256Hash(dataBytes)
+
+		batch := daBatchV3{
+			daBatchV0: daBatchV0{
+				version:              uint8(CodecV3),
+				batchIndex:           6789,
+				l1MessagePopped:      101,
+				totalL1MessagePopped: 10101,
+				dataHash:             dataHash,
+				parentBatchHash:      common.BytesToHash([]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
+			},
+			lastBlockTimestamp: 192837,
+			blobVersionedHash:  blobVersionedHash,
+			blob:               blob,
+			z:                  z,
+		}
+		batch.blobDataProof, err = batch.blobDataProofForPICircuit()
+		require.NoError(t, err)
+		assert.Equal(t, common.HexToHash(tc.expectedBatchHash), batch.Hash())
+	}
 }
