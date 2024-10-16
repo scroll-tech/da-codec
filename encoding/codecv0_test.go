@@ -564,3 +564,56 @@ func TestCodecV0BatchL1MessagePopped(t *testing.T) {
 	assert.Equal(t, uint64(32), daBatch.(*daBatchV0).l1MessagePopped)
 	assert.Equal(t, uint64(42), daBatch.(*daBatchV0).totalL1MessagePopped)
 }
+
+func TestCodecV0DecodeDAChunksRawTx(t *testing.T) {
+	codecv0, err := CodecFromVersion(CodecV0)
+	assert.NoError(t, err)
+
+	block0 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	block1 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	chunk0 := &Chunk{Blocks: []*Block{block0, block1}}
+	daChunk0, err := codecv0.NewDAChunk(chunk0, 0)
+	assert.NoError(t, err)
+	chunkBytes0, err := daChunk0.Encode()
+	assert.NoError(t, err)
+
+	block2 := readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	block3 := readBlockFromJSON(t, "testdata/blockTrace_05.json")
+	chunk1 := &Chunk{Blocks: []*Block{block2, block3}}
+	daChunk1, err := codecv0.NewDAChunk(chunk1, 0)
+	assert.NoError(t, err)
+	chunkBytes1, err := daChunk1.Encode()
+	assert.NoError(t, err)
+
+	daChunksRawTx, err := codecv0.DecodeDAChunksRawTx([][]byte{chunkBytes0, chunkBytes1})
+	assert.NoError(t, err)
+	// assert number of chunks
+	assert.Equal(t, 2, len(daChunksRawTx))
+
+	// assert block in first chunk
+	assert.Equal(t, 2, len(daChunksRawTx[0].Blocks))
+	assert.Equal(t, daChunk0.(*daChunkV0).blocks[0], daChunksRawTx[0].Blocks[0])
+	assert.Equal(t, daChunk0.(*daChunkV0).blocks[1], daChunksRawTx[0].Blocks[1])
+
+	// assert block in second chunk
+	assert.Equal(t, 2, len(daChunksRawTx[1].Blocks))
+	daChunksRawTx[1].Blocks[0].(*daBlockV0).baseFee = nil
+	assert.Equal(t, daChunk1.(*daChunkV0).blocks[0].(*daBlockV0), daChunksRawTx[1].Blocks[0])
+	daChunksRawTx[1].Blocks[1].(*daBlockV0).baseFee = nil
+	assert.Equal(t, daChunk1.(*daChunkV0).blocks[1].(*daBlockV0), daChunksRawTx[1].Blocks[1])
+
+	// assert transactions in first chunk
+	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions))
+	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
+	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions[0]))
+	assert.Equal(t, 1, len(daChunksRawTx[0].Transactions[1]))
+
+	assert.EqualValues(t, daChunk0.(*daChunkV0).transactions[0][0].TxHash, daChunksRawTx[0].Transactions[0][0].Hash().String())
+	assert.EqualValues(t, daChunk0.(*daChunkV0).transactions[0][1].TxHash, daChunksRawTx[0].Transactions[0][1].Hash().String())
+
+	// assert transactions in second chunk
+	assert.Equal(t, 2, len(daChunksRawTx[1].Transactions))
+	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
+	assert.Equal(t, 1, len(daChunksRawTx[1].Transactions[0]))
+	assert.Equal(t, 0, len(daChunksRawTx[1].Transactions[1]))
+}
