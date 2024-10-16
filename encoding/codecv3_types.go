@@ -161,30 +161,26 @@ func (b *daBatchV3) BlobBytes() []byte {
 // This method is designed to provide prover with batch info in snake_case format.
 func (b *daBatchV3) MarshalJSON() ([]byte, error) {
 	type daBatchV3JSON struct {
-		Version                uint8     `json:"version"`
-		BatchIndex             uint64    `json:"batch_index"`
-		L1MessagePopped        uint64    `json:"l1_message_popped"`
-		TotalL1MessagePopped   uint64    `json:"total_l1_message_popped"`
-		DataHash               string    `json:"data_hash"`
-		ParentBatchHash        string    `json:"parent_batch_hash"`
-		SkippedL1MessageBitmap string    `json:"skipped_l1_message_bitmap"`
-		BlobVersionedHash      string    `json:"blob_versioned_hash"`
-		LastBlockTimestamp     uint64    `json:"last_block_timestamp"`
-		BlobBytes              string    `json:"blob_bytes"`
-		BlobDataProof          [2]string `json:"blob_data_proof"`
+		Version              uint8     `json:"version"`
+		BatchIndex           uint64    `json:"batch_index"`
+		L1MessagePopped      uint64    `json:"l1_message_popped"`
+		TotalL1MessagePopped uint64    `json:"total_l1_message_popped"`
+		DataHash             string    `json:"data_hash"`
+		ParentBatchHash      string    `json:"parent_batch_hash"`
+		BlobVersionedHash    string    `json:"blob_versioned_hash"`
+		LastBlockTimestamp   uint64    `json:"last_block_timestamp"`
+		BlobDataProof        [2]string `json:"blob_data_proof"`
 	}
 
 	return json.Marshal(&daBatchV3JSON{
-		Version:                b.version,
-		BatchIndex:             b.batchIndex,
-		L1MessagePopped:        b.l1MessagePopped,
-		TotalL1MessagePopped:   b.totalL1MessagePopped,
-		DataHash:               b.dataHash.Hex(),
-		ParentBatchHash:        b.parentBatchHash.Hex(),
-		SkippedL1MessageBitmap: common.Bytes2Hex(b.skippedL1MessageBitmap),
-		BlobVersionedHash:      b.blobVersionedHash.Hex(),
-		LastBlockTimestamp:     b.lastBlockTimestamp,
-		BlobBytes:              common.Bytes2Hex(b.blobBytes),
+		Version:              b.version,
+		BatchIndex:           b.batchIndex,
+		L1MessagePopped:      b.l1MessagePopped,
+		TotalL1MessagePopped: b.totalL1MessagePopped,
+		DataHash:             b.dataHash.Hex(),
+		ParentBatchHash:      b.parentBatchHash.Hex(),
+		BlobVersionedHash:    b.blobVersionedHash.Hex(),
+		LastBlockTimestamp:   b.lastBlockTimestamp,
 		BlobDataProof: [2]string{
 			b.blobDataProof[0].Hex(),
 			b.blobDataProof[1].Hex(),
