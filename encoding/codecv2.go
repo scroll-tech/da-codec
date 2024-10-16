@@ -159,7 +159,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
 	if !useMockTxData && len(batchBytes) > minCompressedDataCheckSize {
 		// Check compressed data compatibility.
-		if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
+		if err = checkCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("constructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 			return nil, common.Hash{}, nil, nil, err
 		}
@@ -173,7 +173,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// convert raw data to BLSFieldElements
 	blob, err := makeBlobCanonical(blobBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
 	}
 
 	// compute blob versioned hash
@@ -216,8 +216,8 @@ func (d *DACodecV2) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		binary.BigEndian.Uint64(data[9:17]),  // l1MessagePopped
 		binary.BigEndian.Uint64(data[17:25]), // totalL1MessagePopped
 		common.BytesToHash(data[25:57]),      // dataHash
-		common.BytesToHash(data[89:121]),     // parentBatchHash
 		common.BytesToHash(data[57:89]),      // blobVersionedHash
+		common.BytesToHash(data[89:121]),     // parentBatchHash
 		data[121:],                           // skippedL1MessageBitmap
 		nil,                                  // blob
 		nil,                                  // z
@@ -267,7 +267,7 @@ func (d *DACodecV2) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 	if len(batchBytes) <= minCompressedDataCheckSize {
 		return true, nil
 	}
-	if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
+	if err = checkCompressedDataCompatibility(blobBytes); err != nil {
 		log.Warn("CheckChunkCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return false, nil
 	}
@@ -289,7 +289,7 @@ func (d *DACodecV2) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 	if len(batchBytes) <= minCompressedDataCheckSize {
 		return true, nil
 	}
-	if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
+	if err = checkCompressedDataCompatibility(blobBytes); err != nil {
 		log.Warn("CheckBatchCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return false, nil
 	}

@@ -122,7 +122,7 @@ func (c *daChunkV0) Encode() ([]byte, error) {
 	}
 
 	if len(c.blocks) > math.MaxUint8 {
-		return nil, errors.New("number of blocks exceeds 1 byte")
+		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(c.blocks), math.MaxUint8)
 	}
 
 	var chunkBytes []byte

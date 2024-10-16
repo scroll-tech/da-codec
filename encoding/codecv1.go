@@ -37,7 +37,7 @@ func (d *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	}
 
 	if len(chunk.Blocks) > math.MaxUint8 {
-		return nil, errors.New("number of blocks exceeds 1 byte")
+		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint8)
 	}
 
 	for _, block := range chunk.Blocks {
@@ -207,7 +207,7 @@ func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// convert raw data to BLSFieldElements
 	blob, err := makeBlobCanonical(blobBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, err
+		return nil, common.Hash{}, nil, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
 	}
 
 	// compute blob versioned hash
@@ -250,8 +250,8 @@ func (d *DACodecV1) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		binary.BigEndian.Uint64(data[9:17]),  // l1MessagePopped
 		binary.BigEndian.Uint64(data[17:25]), // totalL1MessagePopped
 		common.BytesToHash(data[25:57]),      // dataHash
-		common.BytesToHash(data[89:121]),     // parentBatchHash
 		common.BytesToHash(data[57:89]),      // blobVersionedHash
+		common.BytesToHash(data[89:121]),     // parentBatchHash
 		data[121:],                           // skippedL1MessageBitmap
 		nil,                                  // blob
 		nil,                                  // z

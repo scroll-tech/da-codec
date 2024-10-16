@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/params"
 )
 
 type DACodecV3 struct {
@@ -130,7 +131,7 @@ func (d *DACodecV3) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
+	totalL1CommitGas += params.BlobTxPointEvaluationPrecompileGas // plus gas cost for the point-evaluation precompile call.
 	return totalL1CommitGas, nil
 }
 
@@ -178,7 +179,7 @@ func (d *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 		totalL1CommitGas += getMemoryExpansionCost(chunkL1CommitCalldataSize)
 	}
 
-	totalL1CommitGas += 50000 // plus 50000 for the point-evaluation precompile call.
+	totalL1CommitGas += params.BlobTxPointEvaluationPrecompileGas // plus gas cost for the point-evaluation precompile call.
 	return totalL1CommitGas, nil
 }
 

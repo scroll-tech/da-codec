@@ -72,7 +72,7 @@ func (d *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	}
 
 	if len(chunk.Blocks) > math.MaxUint8 {
-		return nil, errors.New("number of blocks exceeds 1 byte")
+		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint8)
 	}
 
 	for _, block := range chunk.Blocks {

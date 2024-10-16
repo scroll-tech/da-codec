@@ -202,7 +202,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		}
 		if !useMockTxData {
 			// Check compressed data compatibility.
-			if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
+			if err = checkCompressedDataCompatibility(blobBytes); err != nil {
 				log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 				return nil, common.Hash{}, nil, nil, err
 			}
@@ -220,7 +220,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// convert raw data to BLSFieldElements
 	blob, err := makeBlobCanonical(blobBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
 	}
 
 	// compute blob versioned hash
@@ -246,14 +246,13 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	return blob, blobVersionedHash, &z, blobBytes, nil
 }
 
-// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
-func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
-	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
+func (d *DACodecV4) estimateL1CommitBatchSizeAndBlobSize(chunks []*Chunk) (uint64, uint64, error) {
+	batchBytes, err := constructBatchPayloadInBlob(chunks, d)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
 	var blobBytesLength uint64
-	enableCompression, err := d.CheckChunkCompressedDataCompatibility(c)
+	enableCompression, err := d.CheckBatchCompressedDataCompatibility(&Batch{Chunks: chunks})
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
@@ -269,33 +268,20 @@ func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 	return uint64(len(batchBytes)), calculatePaddedBlobSize(blobBytesLength), nil
 }
 
-// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
-func (d *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
-	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, d)
-	if err != nil {
-		return 0, 0, err
-	}
-	var blobBytesLength uint64
-	enableCompression, err := d.CheckBatchCompressedDataCompatibility(b)
-	if err != nil {
-		return 0, 0, err
-	}
-	if enableCompression {
-		blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
-		if err != nil {
-			return 0, 0, err
-		}
-		blobBytesLength = 1 + uint64(len(blobBytes))
-	} else {
-		blobBytesLength = 1 + uint64(len(batchBytes))
-	}
-	return uint64(len(batchBytes)), calculatePaddedBlobSize(blobBytesLength), nil
+// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
+func (d *DACodecV4) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
+	return d.estimateL1CommitBatchSizeAndBlobSize([]*Chunk{c})
 }
 
-// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
-// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
-func (d *DACodecV4) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
-	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
+// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
+func (d *DACodecV4) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
+	return d.estimateL1CommitBatchSizeAndBlobSize(b.Chunks)
+}
+
+// checkCompressedDataCompatibility checks the compressed data compatibility for a batch's chunks.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility.
+func (d *DACodecV4) checkCompressedDataCompatibility(chunks []*Chunk) (bool, error) {
+	batchBytes, err := constructBatchPayloadInBlob(chunks, d)
 	if err != nil {
 		return false, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
@@ -303,27 +289,19 @@ func (d *DACodecV4) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 	if err != nil {
 		return false, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
-	if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
-		log.Warn("CheckChunkCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+	if err = checkCompressedDataCompatibility(blobBytes); err != nil {
+		log.Warn("Compressed data compatibility check failed", "err", err)
 		return false, nil
 	}
 	return true, nil
 }
 
+// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
+func (d *DACodecV4) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+	return d.checkCompressedDataCompatibility([]*Chunk{c})
+}
+
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
-// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
 func (d *DACodecV4) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
-	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, d)
-	if err != nil {
-		return false, err
-	}
-	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
-	if err != nil {
-		return false, err
-	}
-	if err = CheckCompressedDataCompatibility(blobBytes); err != nil {
-		log.Warn("CheckBatchCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-		return false, nil
-	}
-	return true, nil
+	return d.checkCompressedDataCompatibility(b.Chunks)
 }

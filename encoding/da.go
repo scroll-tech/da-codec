@@ -285,7 +285,7 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 
 // Fast testing if the compressed data is compatible with our circuit
 // (require specified frame header and each block is compressed)
-func CheckCompressedDataCompatibility(data []byte) error {
+func checkCompressedDataCompatibility(data []byte) error {
 	if len(data) < 16 {
 		return fmt.Errorf("too small size (%x), what is it?", data)
 	}
@@ -575,13 +575,14 @@ func decodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks i
 
 // GetHardforkName returns the name of the hardfork active at the given block height and timestamp.
 func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uint64) string {
-	if !config.IsBernoulli(new(big.Int).SetUint64(blockHeight)) {
+	blockHeightBigInt := new(big.Int).SetUint64(blockHeight)
+	if !config.IsBernoulli(blockHeightBigInt) {
 		return "homestead"
-	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
+	} else if !config.IsCurie(blockHeightBigInt) {
 		return "bernoulli"
-	} else if !config.IsDarwin(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
+	} else if !config.IsDarwin(blockHeightBigInt, blockTimestamp) {
 		return "curie"
-	} else if !config.IsDarwinV2(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
+	} else if !config.IsDarwinV2(blockHeightBigInt, blockTimestamp) {
 		return "darwin"
 	} else {
 		return "darwinV2"
@@ -590,13 +591,14 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 
 // GetCodecVersion returns the encoding codec version for the given block height and timestamp.
 func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uint64) CodecVersion {
-	if !config.IsBernoulli(new(big.Int).SetUint64(blockHeight)) {
+	blockHeightBigInt := new(big.Int).SetUint64(blockHeight)
+	if !config.IsBernoulli(blockHeightBigInt) {
 		return CodecV0
-	} else if !config.IsCurie(new(big.Int).SetUint64(blockHeight)) {
+	} else if !config.IsCurie(blockHeightBigInt) {
 		return CodecV1
-	} else if !config.IsDarwin(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
+	} else if !config.IsDarwin(blockHeightBigInt, blockTimestamp) {
 		return CodecV2
-	} else if !config.IsDarwinV2(new(big.Int).SetUint64(blockHeight), blockTimestamp) {
+	} else if !config.IsDarwinV2(blockHeightBigInt, blockTimestamp) {
 		return CodecV3
 	} else {
 		return CodecV4
@@ -624,13 +626,9 @@ func CheckBatchCompressedDataCompatibility(batch *Batch, codecVersion CodecVersi
 // GetChunkEnableCompression returns whether to enable compression for the given block height and timestamp.
 func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, error) {
 	switch codecVersion {
-	case CodecV0:
+	case CodecV0, CodecV1:
 		return false, nil
-	case CodecV1:
-		return false, nil
-	case CodecV2:
-		return true, nil
-	case CodecV3:
+	case CodecV2, CodecV3:
 		return true, nil
 	case CodecV4:
 		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
