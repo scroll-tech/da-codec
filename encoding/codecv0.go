@@ -122,7 +122,10 @@ func (d *DACodecV0) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, e
 		for _, block := range blocks {
 			var blockTransactions types.Transactions
 			// ignore L1 msg transactions from the block, consider only L2 transactions
-			txNum := int(block.NumTransactions() - block.NumL1Messages())
+			txNum := int(block.NumTransactions()) - int(block.NumL1Messages())
+			if txNum < 0 {
+				return nil, fmt.Errorf("invalid transaction count: NumL1Messages (%d) exceeds NumTransactions (%d)", block.NumL1Messages(), block.NumTransactions())
+			}
 			for i := 0; i < txNum; i++ {
 				if len(chunk) < currentIndex+txLenByteSize {
 					return nil, fmt.Errorf("chunk size doesn't match, next tx size is less then 4, byte length of chunk: %v, expected minimum length: %v, txNum without l1 msgs: %d", len(chunk), currentIndex+txLenByteSize, i)

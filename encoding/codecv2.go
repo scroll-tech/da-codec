@@ -130,9 +130,8 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		}
 
 		// blob metadata: chunki_size
-		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
-			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
-		}
+		chunkSize := len(batchBytes) - currentChunkStartIndex
+		binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
 
 		// challenge: compute chunk data hash
 		chunkDataHash = crypto.Keccak256Hash(batchBytes[currentChunkStartIndex:])

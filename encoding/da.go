@@ -439,9 +439,8 @@ func constructBatchPayloadInBlob(chunks []*Chunk, codec Codec) ([]byte, error) {
 		}
 
 		// batch metadata: chunki_size
-		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
-			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
-		}
+		chunkSize := len(batchBytes) - currentChunkStartIndex
+		binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
 	}
 	return batchBytes, nil
 }
@@ -554,7 +553,10 @@ func decodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks i
 		curIndex := 0
 		for _, block := range chunk.Blocks {
 			var blockTransactions types.Transactions
-			txNum := int(block.NumTransactions() - block.NumL1Messages())
+			txNum := int(block.NumTransactions()) - int(block.NumL1Messages())
+			if txNum < 0 {
+				return fmt.Errorf("invalid transaction count: NumL1Messages (%d) exceeds NumTransactions (%d)", block.NumL1Messages(), block.NumTransactions())
+			}
 			for i := 0; i < txNum; i++ {
 				tx, nextIndex, err := getNextTx(chunkBytes, curIndex)
 				if err != nil {
