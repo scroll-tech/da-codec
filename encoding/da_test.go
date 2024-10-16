@@ -8,10 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/scroll-tech/da-codec/encoding/zstd"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/log"
+
+	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
 func TestMain(m *testing.M) {
