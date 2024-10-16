@@ -60,7 +60,7 @@ func (c *daChunkV1) Hash() (common.Hash, error) {
 			if err != nil {
 				return common.Hash{}, err
 			}
-			if len(hashBytes) != 32 {
+			if len(hashBytes) != common.HashLength {
 				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
 			}
 			dataBytes = append(dataBytes, hashBytes...)

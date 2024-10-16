@@ -71,7 +71,7 @@ func (d *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of blocks is 0")
 	}
 
-	if len(chunk.Blocks) > 255 {
+	if len(chunk.Blocks) > math.MaxUint8 {
 		return nil, errors.New("number of blocks exceeds 1 byte")
 	}
 

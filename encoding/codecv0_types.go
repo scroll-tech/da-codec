@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"strings"
 
@@ -122,7 +123,7 @@ func (c *daChunkV0) Encode() ([]byte, error) {
 		return nil, errors.New("number of blocks is 0")
 	}
 
-	if len(c.blocks) > 255 {
+	if len(c.blocks) > math.MaxUint8 {
 		return nil, errors.New("number of blocks exceeds 1 byte")
 	}
 
