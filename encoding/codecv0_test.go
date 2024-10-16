@@ -120,3 +120,68 @@ func TestCodecV0ChunkEncode(t *testing.T) {
 	encoded = hex.EncodeToString(encodedBytes)
 	assert.Equal(t, "01000000000000001100000000646b6ed0000000000000000000000000000000000000000000000000000000000000000000000000007a120001010101", encoded)
 }
+
+func TestCodecV0ChunkHash(t *testing.T) {
+	codecv0, err := CodecFromVersion(CodecV0)
+	assert.NoError(t, err)
+
+	// chunk with a single empty block
+	daBlock := &daBlockV0{}
+	chunk := &daChunkV0{blocks: []DABlock{daBlock}, transactions: [][]*types.TransactionData{nil}}
+	hash, err := chunk.Hash()
+	assert.NoError(t, err)
+	assert.Equal(t, "0x7cdb9d7f02ea58dfeb797ed6b4f7ea68846e4f2b0e30ed1535fc98b60c4ec809", hash.Hex())
+
+	// invalid hash
+	chunk.transactions[0] = append(chunk.transactions[0], &types.TransactionData{Type: types.L1MessageTxType, TxHash: "0xg"})
+	_, err = chunk.Hash()
+	assert.Error(t, err)
+
+	block := readBlockFromJSON(t, "testdata/blockTrace_02.json")
+	originalChunk := &Chunk{Blocks: []*Block{block}}
+	daChunk, err := codecv0.NewDAChunk(originalChunk, 0)
+	assert.NoError(t, err)
+	hash, err = daChunk.Hash()
+	assert.NoError(t, err)
+	assert.Equal(t, "0xde642c68122634b33fa1e6e4243b17be3bfd0dc6f996f204ef6d7522516bd840", hash.Hex())
+
+	block = readBlockFromJSON(t, "testdata/blockTrace_03.json")
+	originalChunk = &Chunk{Blocks: []*Block{block}}
+	daChunk, err = codecv0.NewDAChunk(originalChunk, 0)
+	assert.NoError(t, err)
+	hash, err = daChunk.Hash()
+	assert.NoError(t, err)
+	assert.Equal(t, "0xde29f4371cc396b2e7c536cdc7a7c20ac5c728cbb8af3247074c746ff452632b", hash.Hex())
+
+	block = readBlockFromJSON(t, "testdata/blockTrace_04.json")
+	originalChunk = &Chunk{Blocks: []*Block{block}}
+	daChunk, err = codecv0.NewDAChunk(originalChunk, 0)
+	assert.NoError(t, err)
+	hash, err = daChunk.Hash()
+	assert.NoError(t, err)
+	assert.Equal(t, "0x9e643c8a9203df542e39d9bfdcb07c99575b3c3d557791329fef9d83cc4147d0", hash.Hex())
+
+	block = readBlockFromJSON(t, "testdata/blockTrace_05.json")
+	originalChunk = &Chunk{Blocks: []*Block{block}}
+	daChunk, err = codecv0.NewDAChunk(originalChunk, 0)
+	assert.NoError(t, err)
+	hash, err = daChunk.Hash()
+	assert.NoError(t, err)
+	assert.Equal(t, "0x854fc3136f47ce482ec85ee3325adfa16a1a1d60126e1c119eaaf0c3a9e90f8e", hash.Hex())
+
+	block = readBlockFromJSON(t, "testdata/blockTrace_06.json")
+	originalChunk = &Chunk{Blocks: []*Block{block}}
+	daChunk, err = codecv0.NewDAChunk(originalChunk, 0)
+	assert.NoError(t, err)
+	hash, err = daChunk.Hash()
+	assert.NoError(t, err)
+	assert.Equal(t, "0x2aa220ca7bd1368e59e8053eb3831e30854aa2ec8bd3af65cee350c1c0718ba6", hash.Hex())
+
+	block = readBlockFromJSON(t, "testdata/blockTrace_07.json")
+	originalChunk = &Chunk{Blocks: []*Block{block}}
+	daChunk, err = codecv0.NewDAChunk(originalChunk, 0)
+	assert.NoError(t, err)
+	hash, err = daChunk.Hash()
+	assert.NoError(t, err)
+	assert.Equal(t, "0xb65521bea7daff75838de07951c3c055966750fb5a270fead5e0e727c32455c3", hash.Hex())
+}
