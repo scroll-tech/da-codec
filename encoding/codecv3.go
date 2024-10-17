@@ -107,37 +107,13 @@ func (d *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	), nil
 }
 
-// estimateChunkL1CommitGasWithoutPointEvaluation calculates the total L1 commit gas without point-evaluation for this chunk approximately.
-func (d *DACodecV3) estimateChunkL1CommitGasWithoutPointEvaluation(c *Chunk) (uint64, error) {
-	var totalNonSkippedL1Messages uint64
-	var totalL1CommitGas uint64
-	for _, block := range c.Blocks {
-		transactions := uint64(len(block.Transactions))
-		l2Transactions := block.NumL2Transactions()
-		if transactions < l2Transactions {
-			return 0, fmt.Errorf("number of L2 transactions (%d) exceeds total transactions (%d)", l2Transactions, transactions)
-		}
-		totalNonSkippedL1Messages += transactions - l2Transactions
-		blockL1CommitGas, err := d.EstimateBlockL1CommitGas(block)
-		if err != nil {
-			return 0, err
-		}
-		totalL1CommitGas += blockL1CommitGas
-	}
-
-	numBlocks := uint64(len(c.Blocks))
-	totalL1CommitGas += 100 * numBlocks                                              // numBlocks times warm sload
-	totalL1CommitGas += calldataNonZeroByteGas                                       // numBlocks field of chunk encoding in calldata
-	totalL1CommitGas += getKeccak256Gas(58*numBlocks + 32*totalNonSkippedL1Messages) // chunk hash
-
-	return totalL1CommitGas, nil
-}
-
 // EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
 func (d *DACodecV3) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
-	totalL1CommitGas, err := d.estimateChunkL1CommitGasWithoutPointEvaluation(c)
+	// Reuse the V2 implementation, should have slightly different gas cost, but sufficient for estimation in practice,
+	// since we have extraGasCost to over-estimate the gas cost.
+	totalL1CommitGas, err := d.DACodecV2.EstimateChunkL1CommitGas(c)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to estimate L1 commit gas for chunk: %w", err)
 	}
 	totalL1CommitGas += params.BlobTxPointEvaluationPrecompileGas // plus gas cost for the point-evaluation precompile call.
 	return totalL1CommitGas, nil
@@ -145,48 +121,12 @@ func (d *DACodecV3) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 
 // EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
 func (d *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
-	var totalL1CommitGas uint64
-
-	// Add extra gas costs
-	totalL1CommitGas += 100000                 // constant to account for ops like _getAdmin, _implementation, _requireNotPaused, etc
-	totalL1CommitGas += 4 * 2100               // 4 one-time cold sload for commitBatch
-	totalL1CommitGas += 20000                  // 1 time sstore
-	totalL1CommitGas += 21000                  // base fee for tx
-	totalL1CommitGas += calldataNonZeroByteGas // version in calldata
-
-	// adjusting gas:
-	// add 1 time cold sload (2100 gas) for L1MessageQueue
-	// add 1 time cold address access (2600 gas) for L1MessageQueue
-	// minus 1 time warm sload (100 gas) & 1 time warm address access (100 gas)
-	totalL1CommitGas += (2100 + 2600 - 100 - 100)
-	totalL1CommitGas += getKeccak256Gas(89 + 32)           // parent batch header hash, length is estimated as 89 (constant part)+ 32 (1 skippedL1MessageBitmap)
-	totalL1CommitGas += calldataNonZeroByteGas * (89 + 32) // parent batch header in calldata
-
-	// adjust batch data hash gas cost
-	totalL1CommitGas += getKeccak256Gas(uint64(32 * len(b.Chunks)))
-
-	totalL1MessagePoppedBefore := b.TotalL1MessagePoppedBefore
-
-	for _, chunk := range b.Chunks {
-		chunkL1CommitGas, err := d.estimateChunkL1CommitGasWithoutPointEvaluation(chunk)
-		if err != nil {
-			return 0, err
-		}
-		totalL1CommitGas += chunkL1CommitGas
-
-		totalL1MessagePoppedInChunk := chunk.NumL1Messages(totalL1MessagePoppedBefore)
-		totalL1MessagePoppedBefore += totalL1MessagePoppedInChunk
-
-		totalL1CommitGas += calldataNonZeroByteGas * (32 * (totalL1MessagePoppedInChunk + 255) / 256)
-		totalL1CommitGas += getKeccak256Gas(89 + 32*(totalL1MessagePoppedInChunk+255)/256)
-
-		chunkL1CommitCalldataSize, err := d.EstimateChunkL1CommitCalldataSize(chunk)
-		if err != nil {
-			return 0, err
-		}
-		totalL1CommitGas += getMemoryExpansionCost(chunkL1CommitCalldataSize)
+	// Reuse the V2 implementation, should have slightly different gas cost, but sufficient for estimation in practice,
+	// since we have extraGasCost to over-estimate the gas cost.
+	totalL1CommitGas, err := d.DACodecV2.EstimateBatchL1CommitGas(b)
+	if err != nil {
+		return 0, fmt.Errorf("failed to estimate L1 commit gas for batch: %w", err)
 	}
-
 	totalL1CommitGas += params.BlobTxPointEvaluationPrecompileGas // plus gas cost for the point-evaluation precompile call.
 	return totalL1CommitGas, nil
 }

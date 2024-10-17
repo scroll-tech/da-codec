@@ -54,11 +54,11 @@ func constructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePo
 		}
 	}
 
-	bitmapBytes := make([]byte, len(skippedBitmap)*32)
+	bitmapBytes := make([]byte, len(skippedBitmap)*skippedL1MessageBitmapByteSize)
 	for ii, num := range skippedBitmap {
 		bytes := num.Bytes()
-		padding := 32 - len(bytes)
-		copy(bitmapBytes[32*ii+padding:], bytes)
+		padding := skippedL1MessageBitmapByteSize - len(bytes)
+		copy(bitmapBytes[skippedL1MessageBitmapByteSize*ii+padding:], bytes)
 	}
 
 	return bitmapBytes, nextIndex, nil
@@ -67,15 +67,15 @@ func constructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePo
 // decodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's.
 func decodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*big.Int, error) {
 	length := len(skippedL1MessageBitmap)
-	if length%32 != 0 {
-		return nil, fmt.Errorf("skippedL1MessageBitmap length doesn't match, skippedL1MessageBitmap length should be equal 0 modulo 32, length of skippedL1MessageBitmap: %v", length)
+	if length%skippedL1MessageBitmapByteSize != 0 {
+		return nil, fmt.Errorf("skippedL1MessageBitmap length doesn't match, skippedL1MessageBitmap length should be equal 0 modulo %v, length of skippedL1MessageBitmap: %v", skippedL1MessageBitmapByteSize, length)
 	}
 	if length*8 < totalL1MessagePopped {
 		return nil, fmt.Errorf("skippedL1MessageBitmap length is too small, skippedL1MessageBitmap length should be at least %v, length of skippedL1MessageBitmap: %v", (totalL1MessagePopped+7)/8, length)
 	}
 	var skippedBitmap []*big.Int
-	for index := 0; index < length/32; index++ {
-		bitmap := big.NewInt(0).SetBytes(skippedL1MessageBitmap[index*32 : index*32+32])
+	for index := 0; index < length/skippedL1MessageBitmapByteSize; index++ {
+		bitmap := big.NewInt(0).SetBytes(skippedL1MessageBitmap[index*skippedL1MessageBitmapByteSize : index*skippedL1MessageBitmapByteSize+skippedL1MessageBitmapByteSize])
 		skippedBitmap = append(skippedBitmap, bitmap)
 	}
 	return skippedBitmap, nil

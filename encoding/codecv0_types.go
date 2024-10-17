@@ -13,6 +13,15 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
+const (
+	numberOffset          = 0
+	timestampOffset       = numberOffset + 8
+	baseFeeOffset         = timestampOffset + 8
+	gasLimitOffset        = baseFeeOffset + 32
+	numTransactionsOffset = gasLimitOffset + 8
+	numL1MessagesOffset   = numTransactionsOffset + 2
+)
+
 // daBlockV0 represents a Data Availability Block.
 type daBlockV0 struct {
 	number          uint64
@@ -38,14 +47,14 @@ func newDABlockV0(number uint64, timestamp uint64, baseFee *big.Int, gasLimit ui
 // Encode serializes the DABlock into a slice of bytes.
 func (b *daBlockV0) Encode() []byte {
 	bytes := make([]byte, blockContextByteSize)
-	binary.BigEndian.PutUint64(bytes[0:], b.number)
-	binary.BigEndian.PutUint64(bytes[8:], b.timestamp)
+	binary.BigEndian.PutUint64(bytes[numberOffset:timestampOffset], b.number)
+	binary.BigEndian.PutUint64(bytes[timestampOffset:baseFeeOffset], b.timestamp)
 	if b.baseFee != nil {
-		binary.BigEndian.PutUint64(bytes[40:], b.baseFee.Uint64())
+		b.baseFee.FillBytes(bytes[baseFeeOffset:gasLimitOffset])
 	}
-	binary.BigEndian.PutUint64(bytes[48:], b.gasLimit)
-	binary.BigEndian.PutUint16(bytes[56:], b.numTransactions)
-	binary.BigEndian.PutUint16(bytes[58:], b.numL1Messages)
+	binary.BigEndian.PutUint64(bytes[gasLimitOffset:numTransactionsOffset], b.gasLimit)
+	binary.BigEndian.PutUint16(bytes[numTransactionsOffset:numL1MessagesOffset], b.numTransactions)
+	binary.BigEndian.PutUint16(bytes[numL1MessagesOffset:], b.numL1Messages)
 	return bytes
 }
 
@@ -55,12 +64,12 @@ func (b *daBlockV0) Decode(bytes []byte) error {
 		return errors.New("block encoding is not blockContextByteSize bytes long")
 	}
 
-	b.number = binary.BigEndian.Uint64(bytes[0:8])
-	b.timestamp = binary.BigEndian.Uint64(bytes[8:16])
-	b.baseFee = new(big.Int).SetUint64(binary.BigEndian.Uint64(bytes[40:48]))
-	b.gasLimit = binary.BigEndian.Uint64(bytes[48:56])
-	b.numTransactions = binary.BigEndian.Uint16(bytes[56:58])
-	b.numL1Messages = binary.BigEndian.Uint16(bytes[58:60])
+	b.number = binary.BigEndian.Uint64(bytes[numberOffset:timestampOffset])
+	b.timestamp = binary.BigEndian.Uint64(bytes[timestampOffset:baseFeeOffset])
+	b.baseFee = new(big.Int).SetBytes(bytes[baseFeeOffset:gasLimitOffset])
+	b.gasLimit = binary.BigEndian.Uint64(bytes[gasLimitOffset:numTransactionsOffset])
+	b.numTransactions = binary.BigEndian.Uint16(bytes[numTransactionsOffset:numL1MessagesOffset])
+	b.numL1Messages = binary.BigEndian.Uint16(bytes[numL1MessagesOffset:])
 
 	return nil
 }
@@ -163,7 +172,7 @@ func (c *daChunkV0) Hash() (common.Hash, error) {
 	var dataBytes []byte
 	for i := 0; i < int(numBlocks); i++ {
 		start := 1 + blockContextByteSize*i
-		end := start + blockContextByteSize - 2 // last 2 bytes of each BlockContext are not used in hashing
+		end := start + blockContextBytesForHashing
 		if end > len(chunkBytes) {
 			return common.Hash{}, fmt.Errorf("unexpected end index: %d, chunkBytes length: %d", end, len(chunkBytes))
 		}

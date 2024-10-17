@@ -18,11 +18,11 @@ import (
 // blsModulus is the BLS modulus defined in EIP-4844.
 var blsModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
 
-// calldataNonZeroByteGas is the gas consumption per non zero byte in calldata.
-const calldataNonZeroByteGas = 16
-
 // blockContextByteSize is the size of the block context in bytes.
 const blockContextByteSize = 60
+
+// blockContextBytesForHashing is the size of the block context in bytes for hashing.
+const blockContextBytesForHashing = blockContextByteSize - 2
 
 // txLenByteSize is the size of the transaction length in bytes.
 const txLenByteSize = 4
@@ -75,6 +75,21 @@ const (
 	daBatchV3OffsetLastBlockTimestamp   = 121
 	daBatchV3OffsetBlobDataProof        = 129
 	daBatchV3EncodedLength              = 193
+)
+
+const (
+	payloadLengthBytes             = 4
+	calldataNonZeroByteGas         = 16
+	coldSloadGas                   = 2100
+	coldAddressAccessGas           = 2600
+	warmAddressAccessGas           = 100
+	warmSloadGas                   = 100
+	baseTxGas                      = 21000
+	sstoreGas                      = 20000
+	extraGasCost                   = 100000 // over-estimate the gas cost for ops like _getAdmin, _implementation, _requireNotPaused, etc
+	skippedL1MessageBitmapByteSize = 32
+	functionSignatureBytes         = 4
+	defaultParameterBytes          = 32
 )
 
 // Block represents an L2 block.

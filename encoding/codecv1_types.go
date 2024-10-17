@@ -43,8 +43,7 @@ func (c *daChunkV1) Hash() (common.Hash, error) {
 	// concatenate block contexts
 	for _, block := range c.blocks {
 		encodedBlock := block.Encode()
-		// only the first 58 bytes are used in the hashing process
-		dataBytes = append(dataBytes, encodedBlock[:58]...)
+		dataBytes = append(dataBytes, encodedBlock[:blockContextBytesForHashing]...)
 	}
 
 	// concatenate l1 tx hashes

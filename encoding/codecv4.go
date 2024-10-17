@@ -145,7 +145,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 
 	// challenge digest preimage
 	// 1 hash for metadata, 1 hash for each chunk, 1 hash for blob versioned hash
-	challengePreimage := make([]byte, (1+maxNumChunksPerBatch+1)*32)
+	challengePreimage := make([]byte, (1+maxNumChunksPerBatch+1)*common.HashLength)
 
 	// the chunk data hash used for calculating the challenge preimage
 	var chunkDataHash common.Hash
@@ -179,7 +179,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 
 		// challenge: compute chunk data hash
 		chunkDataHash = crypto.Keccak256Hash(batchBytes[currentChunkStartIndex:])
-		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
+		copy(challengePreimage[common.HashLength+chunkID*common.HashLength:], chunkDataHash[:])
 	}
 
 	// if we have fewer than maxNumChunksPerBatch chunks, the rest
@@ -187,7 +187,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// but we need to add padding to the challenge preimage
 	for chunkID := len(chunks); chunkID < maxNumChunksPerBatch; chunkID++ {
 		// use the last chunk's data hash as padding
-		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
+		copy(challengePreimage[common.HashLength+chunkID*common.HashLength:], chunkDataHash[:])
 	}
 
 	// challenge: compute metadata hash
@@ -233,7 +233,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
 	// challenge: append blob versioned hash
-	copy(challengePreimage[(1+maxNumChunksPerBatch)*32:], blobVersionedHash[:])
+	copy(challengePreimage[(1+maxNumChunksPerBatch)*common.HashLength:], blobVersionedHash[:])
 
 	// compute z = challenge_digest % BLS_MODULUS
 	challengeDigest := crypto.Keccak256Hash(challengePreimage)
