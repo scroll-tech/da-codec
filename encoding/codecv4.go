@@ -295,7 +295,7 @@ func (d *DACodecV4) checkCompressedDataCompatibility(chunks []*Chunk) (bool, err
 		return false, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
 	if err = checkCompressedDataCompatibility(blobBytes); err != nil {
-		log.Warn("Compressed data compatibility check failed", "err", err)
+		log.Warn("Compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return false, nil
 	}
 	return true, nil

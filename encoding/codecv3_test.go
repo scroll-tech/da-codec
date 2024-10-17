@@ -17,7 +17,7 @@ import (
 
 func TestCodecV3BlockEncode(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block := &daBlockV0{}
 	encoded := hex.EncodeToString(block.Encode())
@@ -60,7 +60,7 @@ func TestCodecV3BlockEncode(t *testing.T) {
 	assert.Equal(t, "000000000000001100000000646b6ed0000000000000000000000000000000000000000000000000000000000000000000000000007a120001010101", encoded)
 
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// sanity check: v0 and v3 block encodings are identical
 	for _, trace := range []*Block{block2, block3, block4, block5, block6, block7} {
@@ -78,7 +78,7 @@ func TestCodecV3BlockEncode(t *testing.T) {
 
 func TestCodecV3ChunkEncode(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// chunk with a single empty block
 	daBlock := &daBlockV0{}
@@ -153,7 +153,7 @@ func TestCodecV3ChunkEncode(t *testing.T) {
 
 func TestCodecV3ChunkHash(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// chunk with a single empty block
 	daBlock := &daBlockV0{}
@@ -239,7 +239,7 @@ func TestCodecV3ChunkHash(t *testing.T) {
 
 func TestCodecV3BatchEncode(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// empty daBatch
 	daBatchV3 := &daBatchV3{
@@ -315,7 +315,7 @@ func TestCodecV3BatchEncode(t *testing.T) {
 
 func TestCodecV3BatchHash(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// empty daBatch
 	daBatchV3 := &daBatchV3{
@@ -382,7 +382,7 @@ func TestCodecV3BatchHash(t *testing.T) {
 
 func TestCodecV3BatchDataHash(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -581,7 +581,7 @@ func TestCodecV3DABatchJSONMarshalUnmarshal(t *testing.T) {
 
 func TestCodecV3CalldataSizeEstimation(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -629,7 +629,7 @@ func TestCodecV3CalldataSizeEstimation(t *testing.T) {
 
 func TestCodecV3CommitGasEstimation(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -677,7 +677,7 @@ func TestCodecV3CommitGasEstimation(t *testing.T) {
 
 func TestCodecV3BatchSizeAndBlobSizeEstimation(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -734,7 +734,7 @@ func TestCodecV3BatchSizeAndBlobSizeEstimation(t *testing.T) {
 
 func TestCodecV3BatchL1MessagePopped(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -813,7 +813,7 @@ func TestCodecV3BatchL1MessagePopped(t *testing.T) {
 
 func TestCodecV3BlobEncodingAndHashing(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -890,7 +890,7 @@ func TestCodecV3BlobEncodingAndHashing(t *testing.T) {
 
 func TestCodecV3BatchBlobDataProofForPointEvaluation(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -966,7 +966,7 @@ func TestCodecV3BatchBlobDataProofForPointEvaluation(t *testing.T) {
 
 func TestCodecV3DecodeDAChunksRawTx(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block0 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	block1 := readBlockFromJSON(t, "testdata/blockTrace_03.json")
@@ -1027,7 +1027,7 @@ func TestCodecV3DecodeDAChunksRawTx(t *testing.T) {
 
 func TestCodecV3BatchStandardTestCases(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Taking into consideration compression, we allow up to 5x of max blob bytes.
 	// We then ignore the metadata rows for MaxNumChunksPerBatch chunks.

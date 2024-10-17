@@ -7,11 +7,12 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCodecV0BlockEncode(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block := &daBlockV0{}
 	encoded := hex.EncodeToString(block.Encode())
@@ -56,7 +57,7 @@ func TestCodecV0BlockEncode(t *testing.T) {
 
 func TestCodecV0ChunkEncode(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// chunk with a single empty block
 	daBlock := &daBlockV0{}
@@ -124,7 +125,7 @@ func TestCodecV0ChunkEncode(t *testing.T) {
 
 func TestCodecV0ChunkHash(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// chunk with a single empty block
 	daBlock := &daBlockV0{}
@@ -189,7 +190,7 @@ func TestCodecV0ChunkHash(t *testing.T) {
 
 func TestCodecV0BatchEncode(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// empty batch
 	batch := &daBatchV1{
@@ -265,7 +266,7 @@ func TestCodecV0BatchEncode(t *testing.T) {
 
 func TestCodecV0BatchHash(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// empty batch
 	batch := &daBatchV1{
@@ -332,7 +333,7 @@ func TestCodecV0BatchHash(t *testing.T) {
 
 func TestCodecV0BatchDataHash(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -391,7 +392,7 @@ func TestCodecV0BatchDataHash(t *testing.T) {
 
 func TestCodecV0CalldataSizeEstimation(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -439,7 +440,7 @@ func TestCodecV0CalldataSizeEstimation(t *testing.T) {
 
 func TestCodecV0CommitGasEstimation(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	assert.NoError(t, err)
@@ -488,7 +489,7 @@ func TestCodecV0CommitGasEstimation(t *testing.T) {
 
 func TestCodecV0BatchL1MessagePopped(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	chunk2 := &Chunk{Blocks: []*Block{block2}}
@@ -567,7 +568,7 @@ func TestCodecV0BatchL1MessagePopped(t *testing.T) {
 
 func TestCodecV0DecodeDAChunksRawTx(t *testing.T) {
 	codecv0, err := CodecFromVersion(CodecV0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	block0 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
 	block1 := readBlockFromJSON(t, "testdata/blockTrace_03.json")

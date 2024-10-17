@@ -257,10 +257,10 @@ func (d *DACodecV2) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 	return uint64(len(batchBytes)), calculatePaddedBlobSize(uint64(len(blobBytes))), nil
 }
 
-// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
-// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
-func (d *DACodecV2) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
-	batchBytes, err := constructBatchPayloadInBlob([]*Chunk{c}, d)
+// checkCompressedDataCompatibility checks the compressed data compatibility for a batch's chunks.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility.
+func (d *DACodecV2) checkCompressedDataCompatibility(chunks []*Chunk) (bool, error) {
+	batchBytes, err := constructBatchPayloadInBlob(chunks, d)
 	if err != nil {
 		return false, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
@@ -273,30 +273,20 @@ func (d *DACodecV2) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 		return true, nil
 	}
 	if err = checkCompressedDataCompatibility(blobBytes); err != nil {
-		log.Warn("CheckChunkCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+		log.Warn("Compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
 		return false, nil
 	}
 	return true, nil
 }
 
+// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
+// It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
+func (d *DACodecV2) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+	return d.checkCompressedDataCompatibility([]*Chunk{c})
+}
+
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 // It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
 func (d *DACodecV2) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
-	batchBytes, err := constructBatchPayloadInBlob(b.Chunks, d)
-	if err != nil {
-		return false, err
-	}
-	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
-	if err != nil {
-		return false, err
-	}
-	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if len(batchBytes) <= minCompressedDataCheckSize {
-		return true, nil
-	}
-	if err = checkCompressedDataCompatibility(blobBytes); err != nil {
-		log.Warn("CheckBatchCompressedDataCompatibility: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-		return false, nil
-	}
-	return true, nil
+	return d.checkCompressedDataCompatibility(b.Chunks)
 }

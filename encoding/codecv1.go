@@ -439,7 +439,7 @@ func (d *DACodecV1) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 // the former is used for identifying a batch in the contracts,
 // the latter is used in the public input to the provers.
 func (d *DACodecV1) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
-	var dataBytes []byte
+	dataBytes := make([]byte, 0, len(chunks)*common.HashLength)
 	totalL1MessagePoppedBeforeChunk := totalL1MessagePoppedBefore
 
 	for _, chunk := range chunks {

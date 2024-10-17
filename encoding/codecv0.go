@@ -86,7 +86,7 @@ func (d *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	}
 
 	if len(blocks) != len(txs) {
-		return nil, fmt.Errorf("number of blocks (%d) does not match number of transactions (%d)", len(blocks), len(transactions))
+		return nil, fmt.Errorf("number of blocks (%d) does not match number of transactions (%d)", len(blocks), len(txs))
 	}
 
 	return &daChunkV0{
@@ -173,25 +173,10 @@ func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// compute batch data hash
-	var dataBytes []byte
-	totalL1MessagePoppedBeforeChunk := batch.TotalL1MessagePoppedBefore
-
-	for _, chunk := range batch.Chunks {
-		// build data hash
-		daChunk, err := d.NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
-		if err != nil {
-			return nil, err
-		}
-		totalL1MessagePoppedBeforeChunk += chunk.NumL1Messages(totalL1MessagePoppedBeforeChunk)
-		daChunkHash, err := daChunk.Hash()
-		if err != nil {
-			return nil, err
-		}
-		dataBytes = append(dataBytes, daChunkHash.Bytes()...)
+	dataHash, err := d.computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	if err != nil {
+		return nil, err
 	}
-
-	// compute data hash
-	dataHash := crypto.Keccak256Hash(dataBytes)
 
 	// skipped L1 messages bitmap
 	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
@@ -413,4 +398,29 @@ func (d *DACodecV0) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 func (c *DACodecV0) JSONFromBytes(data []byte) ([]byte, error) {
 	// DACodecV0 doesn't need this, so just return empty values
 	return nil, nil
+}
+
+// computeBatchDataHash computes the data hash of the batch.
+// Note: The batch hash and batch data hash are two different hashes,
+// the former is used for identifying a batch in the contracts,
+// the latter is used in the public input to the provers.
+func (d *DACodecV0) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBefore uint64) (common.Hash, error) {
+	dataBytes := make([]byte, 0, len(chunks)*common.HashLength)
+	totalL1MessagePoppedBeforeChunk := totalL1MessagePoppedBefore
+
+	for _, chunk := range chunks {
+		daChunk, err := d.NewDAChunk(chunk, totalL1MessagePoppedBeforeChunk)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		totalL1MessagePoppedBeforeChunk += chunk.NumL1Messages(totalL1MessagePoppedBeforeChunk)
+		chunkHash, err := daChunk.Hash()
+		if err != nil {
+			return common.Hash{}, err
+		}
+		dataBytes = append(dataBytes, chunkHash.Bytes()...)
+	}
+
+	dataHash := crypto.Keccak256Hash(dataBytes)
+	return dataHash, nil
 }
