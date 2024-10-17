@@ -102,17 +102,17 @@ func newDABatchV1(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopp
 	}
 }
 
-// Encode serializes the DABatch into bytes.
+// Encode serializes the DABatchV1 into bytes.
 func (b *daBatchV1) Encode() []byte {
-	batchBytes := make([]byte, 121+len(b.skippedL1MessageBitmap))
-	batchBytes[0] = b.version
-	binary.BigEndian.PutUint64(batchBytes[1:], b.batchIndex)
-	binary.BigEndian.PutUint64(batchBytes[9:], b.l1MessagePopped)
-	binary.BigEndian.PutUint64(batchBytes[17:], b.totalL1MessagePopped)
-	copy(batchBytes[25:], b.dataHash[:])
-	copy(batchBytes[57:], b.blobVersionedHash[:])
-	copy(batchBytes[89:], b.parentBatchHash[:])
-	copy(batchBytes[121:], b.skippedL1MessageBitmap[:])
+	batchBytes := make([]byte, daBatchV1OffsetSkippedL1MessageBitmap+len(b.skippedL1MessageBitmap))
+	batchBytes[daBatchOffsetVersion] = b.version
+	binary.BigEndian.PutUint64(batchBytes[daBatchOffsetBatchIndex:daBatchV1OffsetL1MessagePopped], b.batchIndex)
+	binary.BigEndian.PutUint64(batchBytes[daBatchV1OffsetL1MessagePopped:daBatchV1OffsetTotalL1MessagePopped], b.l1MessagePopped)
+	binary.BigEndian.PutUint64(batchBytes[daBatchV1OffsetTotalL1MessagePopped:daBatchOffsetDataHash], b.totalL1MessagePopped)
+	copy(batchBytes[daBatchOffsetDataHash:daBatchV1OffsetBlobVersionedHash], b.dataHash[:])
+	copy(batchBytes[daBatchV1OffsetBlobVersionedHash:daBatchV1OffsetParentBatchHash], b.blobVersionedHash[:])
+	copy(batchBytes[daBatchV1OffsetParentBatchHash:daBatchV1OffsetSkippedL1MessageBitmap], b.parentBatchHash[:])
+	copy(batchBytes[daBatchV1OffsetSkippedL1MessageBitmap:], b.skippedL1MessageBitmap[:])
 	return batchBytes
 }
 

@@ -241,28 +241,26 @@ func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func (d *DACodecV1) NewDABatchFromBytes(data []byte) (DABatch, error) {
-	if len(data) < 121 {
-		return nil, fmt.Errorf("insufficient data for DABatch, expected at least 121 bytes but got %d", len(data))
+	if len(data) < daBatchV1EncodedMinLength {
+		return nil, fmt.Errorf("insufficient data for DABatch, expected at least %d bytes but got %d", daBatchV1EncodedMinLength, len(data))
 	}
 
-	if CodecVersion(data[0]) != CodecV1 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV1, data[0])
+	if CodecVersion(data[daBatchOffsetVersion]) != CodecV1 {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV1, data[daBatchOffsetVersion])
 	}
 
-	b := newDABatchV1(
-		data[0],                              // version
-		binary.BigEndian.Uint64(data[1:9]),   // batchIndex
-		binary.BigEndian.Uint64(data[9:17]),  // l1MessagePopped
-		binary.BigEndian.Uint64(data[17:25]), // totalL1MessagePopped
-		common.BytesToHash(data[25:57]),      // dataHash
-		common.BytesToHash(data[57:89]),      // blobVersionedHash
-		common.BytesToHash(data[89:121]),     // parentBatchHash
-		data[121:],                           // skippedL1MessageBitmap
-		nil,                                  // blob
-		nil,                                  // z
-	)
-
-	return b, nil
+	return newDABatchV1(
+		data[daBatchOffsetVersion], // version
+		binary.BigEndian.Uint64(data[daBatchOffsetBatchIndex:daBatchV1OffsetL1MessagePopped]),             // batchIndex
+		binary.BigEndian.Uint64(data[daBatchV1OffsetL1MessagePopped:daBatchV1OffsetTotalL1MessagePopped]), // l1MessagePopped
+		binary.BigEndian.Uint64(data[daBatchV1OffsetTotalL1MessagePopped:daBatchOffsetDataHash]),          // totalL1MessagePopped
+		common.BytesToHash(data[daBatchOffsetDataHash:daBatchV1OffsetBlobVersionedHash]),                  // dataHash
+		common.BytesToHash(data[daBatchV1OffsetBlobVersionedHash:daBatchV1OffsetParentBatchHash]),         // blobVersionedHash
+		common.BytesToHash(data[daBatchV1OffsetParentBatchHash:daBatchV1OffsetSkippedL1MessageBitmap]),    // parentBatchHash
+		data[daBatchV1OffsetSkippedL1MessageBitmap:],                                                      // skippedL1MessageBitmap
+		nil, // blob
+		nil, // z
+	), nil
 }
 
 func (d *DACodecV1) chunkL1CommitBlobDataSize(c *Chunk) (uint64, error) {

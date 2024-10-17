@@ -204,25 +204,23 @@ func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
 func (d *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
-	if len(data) < 89 {
-		return nil, fmt.Errorf("insufficient data for DABatch, expected at least 89 bytes but got %d", len(data))
+	if len(data) < daBatchV0EncodedMinLength {
+		return nil, fmt.Errorf("insufficient data for DABatch, expected at least %d bytes but got %d", daBatchV0EncodedMinLength, len(data))
 	}
 
-	if CodecVersion(data[0]) != CodecV0 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV0, data[0])
+	if CodecVersion(data[daBatchOffsetVersion]) != CodecV0 {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV0, data[daBatchOffsetVersion])
 	}
 
-	b := newDABatchV0(
-		data[0],                              // version
-		binary.BigEndian.Uint64(data[1:9]),   // batchIndex
-		binary.BigEndian.Uint64(data[9:17]),  // l1MessagePopped
-		binary.BigEndian.Uint64(data[17:25]), // totalL1MessagePopped
-		common.BytesToHash(data[25:57]),      // dataHash
-		common.BytesToHash(data[57:89]),      // parentBatchHash
-		data[89:],                            // skippedL1MessageBitmap
-	)
-
-	return b, nil
+	return newDABatchV0(
+		data[daBatchOffsetVersion], // version
+		binary.BigEndian.Uint64(data[daBatchOffsetBatchIndex:daBatchV0OffsetL1MessagePopped]),             // batchIndex
+		binary.BigEndian.Uint64(data[daBatchV0OffsetL1MessagePopped:daBatchV0OffsetTotalL1MessagePopped]), // l1MessagePopped
+		binary.BigEndian.Uint64(data[daBatchV0OffsetTotalL1MessagePopped:daBatchOffsetDataHash]),          // totalL1MessagePopped
+		common.BytesToHash(data[daBatchOffsetDataHash:daBatchV0OffsetParentBatchHash]),                    // dataHash
+		common.BytesToHash(data[daBatchV0OffsetParentBatchHash:daBatchV0OffsetSkippedL1MessageBitmap]),    // parentBatchHash
+		data[daBatchV0OffsetSkippedL1MessageBitmap:],                                                      // skippedL1MessageBitmap
+	), nil
 }
 
 // EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.

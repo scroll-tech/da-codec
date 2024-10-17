@@ -38,6 +38,42 @@ const maxEffectiveBlobBytes = maxBlobBytes / 32 * 31
 // only used in codecv2 and codecv3.
 const minCompressedDataCheckSize = 131072
 
+// kzgPointLength is the length of a KZG point (z and y) in bytes.
+const kzgPointLength = 32
+
+const (
+	daBatchOffsetVersion    = 0
+	daBatchOffsetBatchIndex = 1
+	daBatchOffsetDataHash   = 25
+)
+
+const (
+	daBatchV0OffsetL1MessagePopped        = 9
+	daBatchV0OffsetTotalL1MessagePopped   = 17
+	daBatchV0OffsetParentBatchHash        = 57
+	daBatchV0OffsetSkippedL1MessageBitmap = 89
+	daBatchV0EncodedMinLength             = 89 // min length of a v0 da batch, when there are no skipped L1 messages
+)
+
+const (
+	daBatchV1OffsetL1MessagePopped        = 9
+	daBatchV1OffsetTotalL1MessagePopped   = 17
+	daBatchV1OffsetBlobVersionedHash      = 57
+	daBatchV1OffsetParentBatchHash        = 89
+	daBatchV1OffsetSkippedL1MessageBitmap = 121
+	daBatchV1EncodedMinLength             = 121 // min length of a v1 da batch, when there are no skipped L1 messages
+)
+
+const (
+	daBatchV3OffsetL1MessagePopped      = 9
+	daBatchV3OffsetTotalL1MessagePopped = 17
+	daBatchV3OffsetBlobVersionedHash    = 57
+	daBatchV3OffsetParentBatchHash      = 89
+	daBatchV3OffsetLastBlockTimestamp   = 121
+	daBatchV3OffsetBlobDataProof        = 129
+	daBatchV3EncodedLength              = 193
+)
+
 // Block represents an L2 block.
 type Block struct {
 	Header         *types.Header

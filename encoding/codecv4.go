@@ -106,36 +106,34 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
-// Note: This function only populates the batch header, it leaves the blob-related fields empty.
+// Note: This function only populates the batch header, it leaves the blob-related fields and skipped L1 message bitmap empty.
 func (d *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
-	if len(data) != 193 {
-		return nil, fmt.Errorf("invalid data length for DABatch, expected 193 bytes but got %d", len(data))
+	if len(data) != daBatchV3EncodedLength {
+		return nil, fmt.Errorf("invalid data length for DABatch, expected %d bytes but got %d", daBatchV3EncodedLength, len(data))
 	}
 
-	if CodecVersion(data[0]) != CodecV4 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV4, data[0])
+	if CodecVersion(data[daBatchOffsetVersion]) != CodecV4 {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV4, data[daBatchOffsetVersion])
 	}
 
-	b := newDABatchV3WithProof(
-		data[0],                                // Version
-		binary.BigEndian.Uint64(data[1:9]),     // BatchIndex
-		binary.BigEndian.Uint64(data[9:17]),    // L1MessagePopped
-		binary.BigEndian.Uint64(data[17:25]),   // TotalL1MessagePopped
-		binary.BigEndian.Uint64(data[121:129]), // LastBlockTimestamp
-		common.BytesToHash(data[25:57]),        // DataHash
-		common.BytesToHash(data[89:121]),       // ParentBatchHash
-		common.BytesToHash(data[57:89]),        // BlobVersionedHash
-		nil,                                    // skippedL1MessageBitmap
-		nil,                                    // blob
-		nil,                                    // z
-		nil,                                    // blobBytes
-		[2]common.Hash{ // BlobDataProof
-			common.BytesToHash(data[129:161]),
-			common.BytesToHash(data[161:193]),
+	return newDABatchV3WithProof(
+		data[daBatchOffsetVersion], // version
+		binary.BigEndian.Uint64(data[daBatchOffsetBatchIndex:daBatchV3OffsetL1MessagePopped]),             // batchIndex
+		binary.BigEndian.Uint64(data[daBatchV3OffsetL1MessagePopped:daBatchV3OffsetTotalL1MessagePopped]), // l1MessagePopped
+		binary.BigEndian.Uint64(data[daBatchV3OffsetTotalL1MessagePopped:daBatchOffsetDataHash]),          // totalL1MessagePopped
+		binary.BigEndian.Uint64(data[daBatchV3OffsetLastBlockTimestamp:daBatchV3OffsetBlobDataProof]),     // lastBlockTimestamp
+		common.BytesToHash(data[daBatchOffsetDataHash:daBatchV3OffsetBlobVersionedHash]),                  // dataHash
+		common.BytesToHash(data[daBatchV3OffsetParentBatchHash:daBatchV3OffsetLastBlockTimestamp]),        // parentBatchHash
+		common.BytesToHash(data[daBatchV3OffsetBlobVersionedHash:daBatchV3OffsetParentBatchHash]),         // blobVersionedHash
+		nil, // skippedL1MessageBitmap
+		nil, // blob
+		nil, // z
+		nil, // blobBytes
+		[2]common.Hash{ // blobDataProof
+			common.BytesToHash(data[daBatchV3OffsetBlobDataProof : daBatchV3OffsetBlobDataProof+kzgPointLength]),
+			common.BytesToHash(data[daBatchV3OffsetBlobDataProof+kzgPointLength : daBatchV3EncodedLength]),
 		},
-	)
-
-	return b, nil
+	), nil
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
