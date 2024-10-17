@@ -84,7 +84,7 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
 	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
-		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+		return nil, fmt.Errorf("batch index: %d, totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", batch.Index, totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
 	}
 	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
 
@@ -167,7 +167,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				// encode L2 txs into blob payload
 				rlpTxData, err := convertTxDataToRLPEncoding(tx, useMockTxData)
 				if err != nil {
-					return nil, common.Hash{}, nil, nil, err
+					return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 				}
 				batchBytes = append(batchBytes, rlpTxData...)
 			}

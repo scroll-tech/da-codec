@@ -56,7 +56,7 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
 	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
-		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+		return nil, fmt.Errorf("batch index: %d, totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", batch.Index, totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
 	}
 	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
 

@@ -58,23 +58,23 @@ func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 	// batch data hash
 	dataHash, err := d.computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute batch data hash, index: %d, err: %w", batch.Index, err)
 	}
 
 	// skipped L1 messages bitmap
 	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct skipped bitmap, index: %d, err: %w", batch.Index, err)
 	}
 
 	// blob payload
 	blob, blobVersionedHash, z, _, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct blob payload, index: %d, err: %w", batch.Index, err)
 	}
 
 	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
-		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+		return nil, fmt.Errorf("batch index: %d, totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", batch.Index, totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
 	}
 	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
 
@@ -126,7 +126,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				// encode L2 txs into blob payload
 				rlpTxData, err := convertTxDataToRLPEncoding(tx, useMockTxData)
 				if err != nil {
-					return nil, common.Hash{}, nil, nil, err
+					return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 				}
 				batchBytes = append(batchBytes, rlpTxData...)
 			}

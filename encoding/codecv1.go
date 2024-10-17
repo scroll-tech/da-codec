@@ -83,11 +83,9 @@ func (d *DACodecV1) DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error)
 			}
 		}
 
-		var transactions []types.Transactions
-
 		chunks = append(chunks, &DAChunkRawTx{
 			Blocks:       blocks,
-			Transactions: transactions, // Transactions field is still empty in the phase of DecodeDAChunksRawTx, because txs moved to blobs and filled in DecodeTxsFromBlob method.
+			Transactions: nil, // Transactions field is still empty in the phase of DecodeDAChunksRawTx, because txs moved to blobs and filled in DecodeTxsFromBlob method.
 		})
 	}
 	return chunks, nil
@@ -113,23 +111,23 @@ func (d *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	// batch data hash
 	dataHash, err := d.computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute batch data hash, index: %d, err: %w", batch.Index, err)
 	}
 
 	// skipped L1 messages bitmap
 	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct skipped bitmap, index: %d, err: %w", batch.Index, err)
 	}
 
 	// blob payload
 	blob, blobVersionedHash, z, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct blob payload, index: %d, err: %w", batch.Index, err)
 	}
 
 	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
-		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+		return nil, fmt.Errorf("batch index: %d, totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", batch.Index, totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
 	}
 	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
 
@@ -181,16 +179,15 @@ func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				// encode L2 txs into blob payload
 				rlpTxData, err := convertTxDataToRLPEncoding(tx, useMockTxData)
 				if err != nil {
-					return nil, common.Hash{}, nil, err
+					return nil, common.Hash{}, nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 				}
 				blobBytes = append(blobBytes, rlpTxData...)
 			}
 		}
 
 		// blob metadata: chunki_size
-		if chunkSize := len(blobBytes) - currentChunkStartIndex; chunkSize != 0 {
-			binary.BigEndian.PutUint32(blobBytes[2+4*chunkID:], uint32(chunkSize))
-		}
+		chunkSize := len(blobBytes) - currentChunkStartIndex
+		binary.BigEndian.PutUint32(blobBytes[2+4*chunkID:], uint32(chunkSize))
 
 		// challenge: compute chunk data hash
 		chunkDataHash = crypto.Keccak256Hash(blobBytes[currentChunkStartIndex:])
@@ -273,7 +270,7 @@ func (d *DACodecV1) chunkL1CommitBlobDataSize(c *Chunk) (uint64, error) {
 
 			rlpTxData, err := convertTxDataToRLPEncoding(tx, false /* no mock */)
 			if err != nil {
-				return 0, err
+				return 0, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 			}
 			dataSize += uint64(len(rlpTxData))
 		}

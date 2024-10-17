@@ -135,7 +135,7 @@ func (c *daChunkV0) Encode() ([]byte, error) {
 			var txLen [4]byte
 			rlpTxData, err := convertTxDataToRLPEncoding(txData, false /* no mock */)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 			}
 			binary.BigEndian.PutUint32(txLen[:], uint32(len(rlpTxData)))
 			l2TxDataBytes = append(l2TxDataBytes, txLen[:]...)
@@ -151,7 +151,7 @@ func (c *daChunkV0) Encode() ([]byte, error) {
 func (c *daChunkV0) Hash() (common.Hash, error) {
 	chunkBytes, err := c.Encode()
 	if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, fmt.Errorf("failed to encode DAChunk: %w", err)
 	}
 
 	if len(chunkBytes) == 0 {
@@ -162,8 +162,8 @@ func (c *daChunkV0) Hash() (common.Hash, error) {
 	// concatenate block contexts
 	var dataBytes []byte
 	for i := 0; i < int(numBlocks); i++ {
-		start := 1 + 60*i
-		end := start + 58 // only the first 58 bytes of each BlockContext are needed for the hashing process
+		start := 1 + blockContextByteSize*i
+		end := start + blockContextByteSize - 2 // last 2 bytes of each BlockContext are not used in hashing
 		if end > len(chunkBytes) {
 			return common.Hash{}, fmt.Errorf("unexpected end index: %d, chunkBytes length: %d", end, len(chunkBytes))
 		}

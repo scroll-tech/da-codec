@@ -175,17 +175,17 @@ func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	// compute batch data hash
 	dataHash, err := d.computeBatchDataHash(batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compute batch data hash, index: %d, err: %w", batch.Index, err)
 	}
 
 	// skipped L1 messages bitmap
 	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct skipped bitmap, index: %d, err: %w", batch.Index, err)
 	}
 
 	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
-		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+		return nil, fmt.Errorf("batch index: %d, totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", batch.Index, totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
 	}
 	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
 
