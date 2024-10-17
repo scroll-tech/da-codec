@@ -38,8 +38,8 @@ const maxEffectiveBlobBytes = maxBlobBytes / 32 * 31
 // only used in codecv2 and codecv3.
 const minCompressedDataCheckSize = 131072
 
-// kzgPointLength is the length of a KZG point (z and y) in bytes.
-const kzgPointLength = 32
+// kzgPointByteSize is the size of a KZG point (z and y) in bytes.
+const kzgPointByteSize = 32
 
 // zstdMagicNumber is the magic number for zstd compressed data header.
 var zstdMagicNumber = []byte{0x28, 0xb5, 0x2f, 0xfd}

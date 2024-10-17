@@ -101,8 +101,8 @@ func (d *DACodecV3) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		nil, // z
 		nil, // blobBytes
 		[2]common.Hash{ // blobDataProof
-			common.BytesToHash(data[daBatchV3OffsetBlobDataProof : daBatchV3OffsetBlobDataProof+kzgPointLength]),
-			common.BytesToHash(data[daBatchV3OffsetBlobDataProof+kzgPointLength : daBatchV3EncodedLength]),
+			common.BytesToHash(data[daBatchV3OffsetBlobDataProof : daBatchV3OffsetBlobDataProof+kzgPointByteSize]),
+			common.BytesToHash(data[daBatchV3OffsetBlobDataProof+kzgPointByteSize : daBatchV3EncodedLength]),
 		},
 	), nil
 }

@@ -229,7 +229,10 @@ func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 
 	// the challenge point z
 	var z kzg4844.Point
-	start := 32 - len(pointBytes)
+	if len(pointBytes) > kzgPointByteSize {
+		return nil, common.Hash{}, nil, fmt.Errorf("pointBytes length exceeds %d bytes, got %d bytes", kzgPointByteSize, len(pointBytes))
+	}
+	start := kzgPointByteSize - len(pointBytes)
 	copy(z[start:], pointBytes)
 
 	return blob, blobVersionedHash, &z, nil

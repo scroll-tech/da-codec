@@ -91,8 +91,8 @@ func (b *daBatchV3) Encode() []byte {
 	copy(batchBytes[daBatchV3OffsetBlobVersionedHash:daBatchV3OffsetParentBatchHash], b.blobVersionedHash[:])
 	copy(batchBytes[daBatchV3OffsetParentBatchHash:daBatchV3OffsetLastBlockTimestamp], b.parentBatchHash[:])
 	binary.BigEndian.PutUint64(batchBytes[daBatchV3OffsetLastBlockTimestamp:daBatchV3OffsetBlobDataProof], b.lastBlockTimestamp)
-	copy(batchBytes[daBatchV3OffsetBlobDataProof:daBatchV3OffsetBlobDataProof+kzgPointLength], b.blobDataProof[0].Bytes())
-	copy(batchBytes[daBatchV3OffsetBlobDataProof+kzgPointLength:daBatchV3EncodedLength], b.blobDataProof[1].Bytes())
+	copy(batchBytes[daBatchV3OffsetBlobDataProof:daBatchV3OffsetBlobDataProof+kzgPointByteSize], b.blobDataProof[0].Bytes())
+	copy(batchBytes[daBatchV3OffsetBlobDataProof+kzgPointByteSize:daBatchV3EncodedLength], b.blobDataProof[1].Bytes())
 	return batchBytes
 }
 
