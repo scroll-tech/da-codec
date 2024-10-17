@@ -23,7 +23,7 @@ func (d *DACodecV0) Version() CodecVersion {
 }
 
 // MaxNumChunksPerBatch returns the maximum number of chunks per batch.
-func (d *DACodecV0) MaxNumChunksPerBatch() uint64 {
+func (d *DACodecV0) MaxNumChunksPerBatch() int {
 	return codecv0MaxNumChunks
 }
 
@@ -164,7 +164,7 @@ func (d *DACodecV0) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 // NewDABatch creates a DABatch from the provided Batch.
 func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
+	if len(batch.Chunks) > d.MaxNumChunksPerBatch() {
 		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 

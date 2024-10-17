@@ -1031,7 +1031,7 @@ func TestCodecV4BatchStandardTestCasesEnableCompression(t *testing.T) {
 
 	// Taking into consideration compression, we allow up to 5x of max blob bytes minus 1 byte for the compression flag.
 	// We then ignore the metadata rows for MaxNumChunksPerBatch chunks.
-	nRowsData := 5*(maxEffectiveBlobBytes-1) - (int(codecv4.MaxNumChunksPerBatch())*4 + 2)
+	nRowsData := 5*(maxEffectiveBlobBytes-1) - (codecv4.MaxNumChunksPerBatch()*4 + 2)
 
 	repeat := func(element byte, count int) string {
 		result := make([]byte, 0, count)
@@ -1135,7 +1135,7 @@ func TestCodecV4BatchStandardTestCasesEnableCompression(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, int(codecv4.MaxNumChunksPerBatch()), true /* enable encode */, true /* use mock */)
+		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), true /* enable encode */, true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
@@ -1179,7 +1179,7 @@ func TestCodecV4BatchStandardTestCasesDisableCompression(t *testing.T) {
 
 	// Taking into consideration disabling compression, we allow up to max effective blob bytes.
 	// We then ignore the metadata rows for MaxNumChunksPerBatch chunks, plus 1 byte for the compression flag.
-	nRowsData := maxEffectiveBlobBytes - (int(codecv4.MaxNumChunksPerBatch())*4 + 2) - 1
+	nRowsData := maxEffectiveBlobBytes - (codecv4.MaxNumChunksPerBatch()*4 + 2) - 1
 
 	repeat := func(element byte, count int) string {
 		result := make([]byte, 0, count)
@@ -1283,7 +1283,7 @@ func TestCodecV4BatchStandardTestCasesDisableCompression(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, int(codecv4.MaxNumChunksPerBatch()), false /* disable encode */, true /* use mock */)
+		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), false /* disable encode */, true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)

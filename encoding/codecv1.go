@@ -96,13 +96,13 @@ func (d *DACodecV1) DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error)
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func (d *DACodecV1) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	batchBytes := bytesFromBlobCanonical(blob)
-	return decodeTxsFromBytes(batchBytes[:], chunks, int(d.MaxNumChunksPerBatch()))
+	return decodeTxsFromBytes(batchBytes[:], chunks, d.MaxNumChunksPerBatch())
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
 func (d *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
+	if len(batch.Chunks) > d.MaxNumChunksPerBatch() {
 		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
@@ -123,7 +123,7 @@ func (d *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := d.constructBlobPayload(batch.Chunks, int(d.MaxNumChunksPerBatch()), false /* no mock */)
+	blob, blobVersionedHash, z, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
 
-	// if we have fewer than MaxNumChunksPerBatch chunks, the rest
+	// if we have fewer than maxNumChunksPerBatch chunks, the rest
 	// of the blob metadata is correctly initialized to 0,
 	// but we need to add padding to the challenge preimage
 	for chunkID := len(chunks); chunkID < maxNumChunksPerBatch; chunkID++ {
@@ -408,7 +408,7 @@ func (d *DACodecV1) EstimateBatchL1CommitCalldataSize(b *Batch) (uint64, error) 
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
 func (d *DACodecV1) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64, uint64, error) {
-	metadataSize := 2 + 4*d.MaxNumChunksPerBatch()
+	metadataSize := uint64(2 + 4*d.MaxNumChunksPerBatch())
 	batchDataSize, err := d.chunkL1CommitBlobDataSize(c)
 	if err != nil {
 		return 0, 0, err
@@ -419,7 +419,7 @@ func (d *DACodecV1) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
 func (d *DACodecV1) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64, uint64, error) {
-	metadataSize := 2 + 4*d.MaxNumChunksPerBatch()
+	metadataSize := uint64(2 + 4*d.MaxNumChunksPerBatch())
 	var batchDataSize uint64
 	for _, c := range b.Chunks {
 		chunkDataSize, err := d.chunkL1CommitBlobDataSize(c)

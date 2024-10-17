@@ -30,26 +30,24 @@ func (d *DACodecV2) Version() CodecVersion {
 }
 
 // MaxNumChunksPerBatch returns the maximum number of chunks per batch.
-func (d *DACodecV2) MaxNumChunksPerBatch() uint64 {
+func (d *DACodecV2) MaxNumChunksPerBatch() int {
 	return codecv2MaxNumChunks
 }
 
 // DecodeTxsFromBlob decodes txs from blob bytes and writes to chunks
 func (d *DACodecV2) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	compressedBytes := bytesFromBlobCanonical(blob)
-	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
-
-	batchBytes, err := decompressScrollBlobToBatch(append(magics, compressedBytes[:]...))
+	batchBytes, err := decompressScrollBlobToBatch(append(zstdMagicNumber, compressedBytes[:]...))
 	if err != nil {
 		return err
 	}
-	return decodeTxsFromBytes(batchBytes, chunks, int(d.MaxNumChunksPerBatch()))
+	return decodeTxsFromBytes(batchBytes, chunks, d.MaxNumChunksPerBatch())
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
 func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
+	if len(batch.Chunks) > d.MaxNumChunksPerBatch() {
 		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
@@ -70,7 +68,7 @@ func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, _, err := d.constructBlobPayload(batch.Chunks, int(d.MaxNumChunksPerBatch()), false /* no mock */)
+	blob, blobVersionedHash, z, _, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +141,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		copy(challengePreimage[32+chunkID*32:], chunkDataHash[:])
 	}
 
-	// if we have fewer than MaxNumChunksPerBatch chunks, the rest
+	// if we have fewer than maxNumChunksPerBatch chunks, the rest
 	// of the blob metadata is correctly initialized to 0,
 	// but we need to add padding to the challenge preimage
 	for chunkID := len(chunks); chunkID < maxNumChunksPerBatch; chunkID++ {

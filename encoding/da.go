@@ -41,6 +41,9 @@ const minCompressedDataCheckSize = 131072
 // kzgPointLength is the length of a KZG point (z and y) in bytes.
 const kzgPointLength = 32
 
+// zstdMagicNumber is the magic number for zstd compressed data header.
+var zstdMagicNumber = []byte{0x28, 0xb5, 0x2f, 0xfd}
+
 const (
 	daBatchOffsetVersion    = 0
 	daBatchOffsetBatchIndex = 1

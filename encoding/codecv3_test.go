@@ -1031,7 +1031,7 @@ func TestCodecV3BatchStandardTestCases(t *testing.T) {
 
 	// Taking into consideration compression, we allow up to 5x of max blob bytes.
 	// We then ignore the metadata rows for MaxNumChunksPerBatch chunks.
-	nRowsData := 5*maxEffectiveBlobBytes - (int(codecv3.MaxNumChunksPerBatch())*4 + 2)
+	nRowsData := 5*maxEffectiveBlobBytes - (codecv3.MaxNumChunksPerBatch()*4 + 2)
 
 	repeat := func(element byte, count int) string {
 		result := make([]byte, 0, count)
@@ -1135,7 +1135,7 @@ func TestCodecV3BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, _, err := codecv3.(*DACodecV3).constructBlobPayload(chunks, int(codecv3.MaxNumChunksPerBatch()), true /* use mock */)
+		blob, blobVersionedHash, z, _, err := codecv3.(*DACodecV3).constructBlobPayload(chunks, codecv3.MaxNumChunksPerBatch(), true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)

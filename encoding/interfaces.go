@@ -40,7 +40,7 @@ type DABatch interface {
 // Codec represents the interface for encoding and decoding DA-related structures.
 type Codec interface {
 	Version() CodecVersion
-	MaxNumChunksPerBatch() uint64
+	MaxNumChunksPerBatch() int
 
 	NewDABlock(*Block, uint64) (DABlock, error)
 	NewDAChunk(*Chunk, uint64) (DAChunk, error)
@@ -50,17 +50,18 @@ type Codec interface {
 	DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error)
 	DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error
 
-	EstimateChunkL1CommitBatchSizeAndBlobSize(*Chunk) (uint64, uint64, error)
-	EstimateBatchL1CommitBatchSizeAndBlobSize(*Batch) (uint64, uint64, error)
 	CheckChunkCompressedDataCompatibility(*Chunk) (bool, error)
 	CheckBatchCompressedDataCompatibility(*Batch) (bool, error)
+
+	EstimateChunkL1CommitBatchSizeAndBlobSize(*Chunk) (uint64, uint64, error)
+	EstimateBatchL1CommitBatchSizeAndBlobSize(*Batch) (uint64, uint64, error)
 	EstimateBlockL1CommitCalldataSize(*Block) (uint64, error)
 	EstimateChunkL1CommitCalldataSize(*Chunk) (uint64, error)
 	EstimateChunkL1CommitGas(*Chunk) (uint64, error)
 	EstimateBatchL1CommitGas(*Batch) (uint64, error)
 	EstimateBatchL1CommitCalldataSize(*Batch) (uint64, error)
 
-	JSONFromBytes([]byte) ([]byte, error)
+	JSONFromBytes([]byte) ([]byte, error) // convert batch header bytes to JSON, this is only used to provide witness data for the prover.
 }
 
 // CodecVersion represents the version of the codec.

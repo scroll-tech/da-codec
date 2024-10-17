@@ -22,7 +22,7 @@ func (d *DACodecV3) Version() CodecVersion {
 // NewDABatch creates a DABatch from the provided Batch.
 func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
+	if len(batch.Chunks) > d.MaxNumChunksPerBatch() {
 		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
@@ -47,7 +47,7 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, int(d.MaxNumChunksPerBatch()), false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
 	if err != nil {
 		return nil, err
 	}

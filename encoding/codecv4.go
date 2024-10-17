@@ -32,21 +32,20 @@ func (d *DACodecV4) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 
 	// if first byte is 1 - data compressed, 0 - not compressed
 	if rawBytes[0] == 0x1 {
-		magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
-		batchBytes, err := decompressScrollBlobToBatch(append(magics, rawBytes[1:]...))
+		batchBytes, err := decompressScrollBlobToBatch(append(zstdMagicNumber, rawBytes[1:]...))
 		if err != nil {
 			return err
 		}
-		return decodeTxsFromBytes(batchBytes, chunks, int(d.MaxNumChunksPerBatch()))
+		return decodeTxsFromBytes(batchBytes, chunks, d.MaxNumChunksPerBatch())
 	} else {
-		return decodeTxsFromBytes(rawBytes[1:], chunks, int(d.MaxNumChunksPerBatch()))
+		return decodeTxsFromBytes(rawBytes[1:], chunks, d.MaxNumChunksPerBatch())
 	}
 }
 
 // NewDABatch creates a DABatch from the provided Batch.
 func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
-	if len(batch.Chunks) > int(d.MaxNumChunksPerBatch()) {
+	if len(batch.Chunks) > d.MaxNumChunksPerBatch() {
 		return nil, fmt.Errorf("too many chunks in batch: got %d, maximum allowed is %d", len(batch.Chunks), d.MaxNumChunksPerBatch())
 	}
 
@@ -76,7 +75,7 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, int(d.MaxNumChunksPerBatch()), enableCompression, false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), enableCompression, false /* no mock */)
 	if err != nil {
 		return nil, err
 	}

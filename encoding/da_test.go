@@ -128,8 +128,7 @@ func TestBlobCompressDecompress(t *testing.T) {
 
 	res := bytesFromBlobCanonical(blob)
 	compressedBytes := res[:]
-	magics := []byte{0x28, 0xb5, 0x2f, 0xfd}
-	compressedBytes = append(magics, compressedBytes...)
+	compressedBytes = append(zstdMagicNumber, compressedBytes...)
 
 	decompressedBlobBytes, err := decompressScrollBlobToBatch(compressedBytes)
 	assert.NoError(t, err)

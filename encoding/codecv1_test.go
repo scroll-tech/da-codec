@@ -895,7 +895,7 @@ func TestCodecV1BatchStandardTestCases(t *testing.T) {
 	require.NoError(t, err)
 
 	// We then ignore the metadata rows for MaxNumChunksPerBatch chunks.
-	nRowsData := maxEffectiveBlobBytes - (int(codecv1.MaxNumChunksPerBatch())*4 + 2)
+	nRowsData := maxEffectiveBlobBytes - (codecv1.MaxNumChunksPerBatch()*4 + 2)
 
 	repeat := func(element byte, count int) string {
 		result := make([]byte, 0, count)
@@ -953,7 +953,7 @@ func TestCodecV1BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := codecv1.(*DACodecV1).constructBlobPayload(chunks, int(codecv1.MaxNumChunksPerBatch()), true /* use mock */)
+		blob, blobVersionedHash, z, err := codecv1.(*DACodecV1).constructBlobPayload(chunks, codecv1.MaxNumChunksPerBatch(), true /* use mock */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
