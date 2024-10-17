@@ -107,14 +107,6 @@ type daChunkV0 struct {
 	transactions [][]*types.TransactionData
 }
 
-// newDAChunkV0 is a constructor for daChunkV0, initializing with blocks and transactions.
-func newDAChunkV0(blocks []DABlock, transactions [][]*types.TransactionData) *daChunkV0 {
-	return &daChunkV0{
-		blocks:       blocks,
-		transactions: transactions,
-	}
-}
-
 // Encode serializes the DAChunk into a slice of bytes.
 func (c *daChunkV0) Encode() ([]byte, error) {
 	if len(c.blocks) == 0 {
@@ -170,8 +162,12 @@ func (c *daChunkV0) Hash() (common.Hash, error) {
 	// concatenate block contexts
 	var dataBytes []byte
 	for i := 0; i < int(numBlocks); i++ {
-		// only the first 58 bytes of each BlockContext are needed for the hashing process
-		dataBytes = append(dataBytes, chunkBytes[1+60*i:60*i+59]...)
+		start := 1 + 60*i
+		end := start + 58 // only the first 58 bytes of each BlockContext are needed for the hashing process
+		if end > len(chunkBytes) {
+			return common.Hash{}, fmt.Errorf("unexpected end index: %d, chunkBytes length: %d", end, len(chunkBytes))
+		}
+		dataBytes = append(dataBytes, chunkBytes[start:end]...)
 	}
 
 	// concatenate l1 and l2 tx hashes

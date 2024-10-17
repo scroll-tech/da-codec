@@ -128,17 +128,22 @@ func (d *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, err
 	}
 
+	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
+		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+	}
+	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
+
 	daBatch := newDABatchV1(
-		uint8(CodecV1), // version
-		batch.Index,    // batchIndex
-		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
-		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
-		dataHash,                                                   // dataHash
-		batch.ParentBatchHash,                                      // parentBatchHash
-		blobVersionedHash,                                          // blobVersionedHash
-		bitmapBytes,                                                // skippedL1MessageBitmap
-		blob,                                                       // blob
-		z,                                                          // z
+		uint8(CodecV1),            // version
+		batch.Index,               // batchIndex
+		l1MessagePopped,           // l1MessagePopped
+		totalL1MessagePoppedAfter, // totalL1MessagePopped
+		dataHash,                  // dataHash
+		batch.ParentBatchHash,     // parentBatchHash
+		blobVersionedHash,         // blobVersionedHash
+		bitmapBytes,               // skippedL1MessageBitmap
+		blob,                      // blob
+		z,                         // z
 	)
 
 	return daBatch, nil
@@ -312,7 +317,12 @@ func (d *DACodecV1) EstimateChunkL1CommitGas(c *Chunk) (uint64, error) {
 	var totalNonSkippedL1Messages uint64
 	var totalL1CommitGas uint64
 	for _, block := range c.Blocks {
-		totalNonSkippedL1Messages += uint64(len(block.Transactions)) - block.NumL2Transactions()
+		transactions := uint64(len(block.Transactions))
+		l2Transactions := block.NumL2Transactions()
+		if transactions < l2Transactions {
+			return 0, fmt.Errorf("number of L2 transactions (%d) exceeds total transactions (%d)", l2Transactions, transactions)
+		}
+		totalNonSkippedL1Messages += transactions - l2Transactions
 		blockL1CommitGas, err := d.EstimateBlockL1CommitGas(block)
 		if err != nil {
 			return 0, err

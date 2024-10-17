@@ -84,19 +84,24 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	lastChunk := batch.Chunks[len(batch.Chunks)-1]
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
+	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
+		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+	}
+	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
+
 	return newDABatchV3(
-		uint8(CodecV4), // version
-		batch.Index,    // batchIndex
-		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
-		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
-		lastBlock.Header.Time,                                      // lastBlockTimestamp
-		dataHash,                                                   // dataHash
-		batch.ParentBatchHash,                                      // parentBatchHash
-		blobVersionedHash,                                          // blobVersionedHash
-		bitmapBytes,                                                // skippedL1MessageBitmap
-		blob,                                                       // blob
-		z,                                                          // z
-		blobBytes,                                                  // blobBytes
+		uint8(CodecV4),            // version
+		batch.Index,               // batchIndex
+		l1MessagePopped,           // l1MessagePopped
+		totalL1MessagePoppedAfter, // totalL1MessagePopped
+		lastBlock.Header.Time,     // lastBlockTimestamp
+		dataHash,                  // dataHash
+		batch.ParentBatchHash,     // parentBatchHash
+		blobVersionedHash,         // blobVersionedHash
+		bitmapBytes,               // skippedL1MessageBitmap
+		blob,                      // blob
+		z,                         // z
+		blobBytes,                 // blobBytes
 	)
 }
 

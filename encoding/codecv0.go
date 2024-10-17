@@ -85,12 +85,14 @@ func (d *DACodecV0) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		txs = append(txs, block.Transactions)
 	}
 
-	daChunk := newDAChunkV0(
-		blocks, // blocks
-		txs,    // transactions
-	)
+	if len(blocks) != len(txs) {
+		return nil, fmt.Errorf("number of blocks (%d) does not match number of transactions (%d)", len(blocks), len(transactions))
+	}
 
-	return daChunk, nil
+	return &daChunkV0{
+		blocks:       blocks,
+		transactions: txs,
+	}, nil
 }
 
 // DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
@@ -197,14 +199,19 @@ func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, err
 	}
 
+	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
+		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+	}
+	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
+
 	daBatch := newDABatchV0(
-		uint8(CodecV0), // version
-		batch.Index,    // batchIndex
-		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
-		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
-		dataHash,                                                   // dataHash
-		batch.ParentBatchHash,                                      // parentBatchHash
-		bitmapBytes,                                                // skippedL1MessageBitmap
+		uint8(CodecV0),            // version
+		batch.Index,               // batchIndex
+		l1MessagePopped,           // l1MessagePopped
+		totalL1MessagePoppedAfter, // totalL1MessagePopped
+		dataHash,                  // dataHash
+		batch.ParentBatchHash,     // parentBatchHash
+		bitmapBytes,               // skippedL1MessageBitmap
 	)
 
 	return daBatch, nil

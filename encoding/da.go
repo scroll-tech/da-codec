@@ -640,13 +640,9 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, e
 // GetBatchEnableCompression returns whether to enable compression for the given block height and timestamp.
 func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, error) {
 	switch codecVersion {
-	case CodecV0:
+	case CodecV0, CodecV1:
 		return false, nil
-	case CodecV1:
-		return false, nil
-	case CodecV2:
-		return true, nil
-	case CodecV3:
+	case CodecV2, CodecV3:
 		return true, nil
 	case CodecV4:
 		return CheckBatchCompressedDataCompatibility(batch, codecVersion)

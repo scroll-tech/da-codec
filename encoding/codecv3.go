@@ -55,19 +55,24 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	lastChunk := batch.Chunks[len(batch.Chunks)-1]
 	lastBlock := lastChunk.Blocks[len(lastChunk.Blocks)-1]
 
+	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
+		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+	}
+	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
+
 	return newDABatchV3(
-		uint8(CodecV3), // version
-		batch.Index,    // batchIndex
-		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
-		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
-		lastBlock.Header.Time,                                      // lastBlockTimestamp
-		dataHash,                                                   // dataHash
-		batch.ParentBatchHash,                                      // parentBatchHash
-		blobVersionedHash,                                          // blobVersionedHash
-		bitmapBytes,                                                // skippedL1MessageBitmap
-		blob,                                                       // blob
-		z,                                                          // z
-		blobBytes,                                                  // blobBytes
+		uint8(CodecV3),            // version
+		batch.Index,               // batchIndex
+		l1MessagePopped,           // l1MessagePopped
+		totalL1MessagePoppedAfter, // totalL1MessagePopped
+		lastBlock.Header.Time,     // lastBlockTimestamp
+		dataHash,                  // dataHash
+		batch.ParentBatchHash,     // parentBatchHash
+		blobVersionedHash,         // blobVersionedHash
+		bitmapBytes,               // skippedL1MessageBitmap
+		blob,                      // blob
+		z,                         // z
+		blobBytes,                 // blobBytes
 	)
 }
 
@@ -109,7 +114,12 @@ func (d *DACodecV3) estimateChunkL1CommitGasWithoutPointEvaluation(c *Chunk) (ui
 	var totalNonSkippedL1Messages uint64
 	var totalL1CommitGas uint64
 	for _, block := range c.Blocks {
-		totalNonSkippedL1Messages += uint64(len(block.Transactions)) - block.NumL2Transactions()
+		transactions := uint64(len(block.Transactions))
+		l2Transactions := block.NumL2Transactions()
+		if transactions < l2Transactions {
+			return 0, fmt.Errorf("number of L2 transactions (%d) exceeds total transactions (%d)", l2Transactions, transactions)
+		}
+		totalNonSkippedL1Messages += transactions - l2Transactions
 		blockL1CommitGas, err := d.EstimateBlockL1CommitGas(block)
 		if err != nil {
 			return 0, err

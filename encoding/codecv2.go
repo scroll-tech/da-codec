@@ -75,17 +75,22 @@ func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, err
 	}
 
+	if totalL1MessagePoppedAfter < batch.TotalL1MessagePoppedBefore {
+		return nil, fmt.Errorf("totalL1MessagePoppedAfter (%d) is less than batch.TotalL1MessagePoppedBefore (%d)", totalL1MessagePoppedAfter, batch.TotalL1MessagePoppedBefore)
+	}
+	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
+
 	daBatch := newDABatchV1(
-		uint8(CodecV2), // version
-		batch.Index,    // batchIndex
-		totalL1MessagePoppedAfter-batch.TotalL1MessagePoppedBefore, // l1MessagePopped
-		totalL1MessagePoppedAfter,                                  // totalL1MessagePopped
-		dataHash,                                                   // dataHash
-		batch.ParentBatchHash,                                      // parentBatchHash
-		blobVersionedHash,                                          // blobVersionedHash
-		bitmapBytes,                                                // skippedL1MessageBitmap
-		blob,                                                       // blob
-		z,                                                          // z
+		uint8(CodecV2),            // version
+		batch.Index,               // batchIndex
+		l1MessagePopped,           // l1MessagePopped
+		totalL1MessagePoppedAfter, // totalL1MessagePopped
+		dataHash,                  // dataHash
+		batch.ParentBatchHash,     // parentBatchHash
+		blobVersionedHash,         // blobVersionedHash
+		bitmapBytes,               // skippedL1MessageBitmap
+		blob,                      // blob
+		z,                         // z
 	)
 
 	return daBatch, nil
