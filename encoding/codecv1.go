@@ -25,9 +25,6 @@ func (d *DACodecV1) Version() CodecVersion {
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
 func (d *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
-	var blocks []DABlock
-	var txs [][]*types.TransactionData
-
 	if chunk == nil {
 		return nil, errors.New("chunk is nil")
 	}
@@ -39,6 +36,9 @@ func (d *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	if len(chunk.Blocks) > math.MaxUint8 {
 		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint8)
 	}
+
+	blocks := make([]DABlock, 0, len(chunk.Blocks))
+	txs := make([][]*types.TransactionData, 0, len(chunk.Blocks))
 
 	for _, block := range chunk.Blocks {
 		b, err := d.NewDABlock(block, totalL1MessagePoppedBefore)
@@ -60,9 +60,9 @@ func (d *DACodecV1) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 
 // DecodeDAChunksRawTx takes a byte slice and decodes it into a []*DAChunkRawTx.
 // Beginning from codecv1 tx data posted to blobs, not to chunk bytes in calldata
-func (d *DACodecV1) DecodeDAChunksRawTx(bytes [][]byte) ([]*DAChunkRawTx, error) {
-	var chunks []*DAChunkRawTx
-	for _, chunk := range bytes {
+func (d *DACodecV1) DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error) {
+	chunks := make([]*DAChunkRawTx, 0, len(chunkBytes))
+	for _, chunk := range chunkBytes {
 		if len(chunk) < 1 {
 			return nil, fmt.Errorf("invalid chunk, length is less than 1")
 		}

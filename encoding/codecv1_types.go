@@ -103,7 +103,7 @@ func newDABatchV1(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopp
 
 // Encode serializes the DABatchV1 into bytes.
 func (b *daBatchV1) Encode() []byte {
-	batchBytes := make([]byte, daBatchV1OffsetSkippedL1MessageBitmap+len(b.skippedL1MessageBitmap))
+	batchBytes := make([]byte, daBatchV1EncodedMinLength+len(b.skippedL1MessageBitmap))
 	batchBytes[daBatchOffsetVersion] = b.version
 	binary.BigEndian.PutUint64(batchBytes[daBatchOffsetBatchIndex:daBatchV1OffsetL1MessagePopped], b.batchIndex)
 	binary.BigEndian.PutUint64(batchBytes[daBatchV1OffsetL1MessagePopped:daBatchV1OffsetTotalL1MessagePopped], b.l1MessagePopped)
