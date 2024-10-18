@@ -84,7 +84,7 @@ type daBatchV1 struct {
 }
 
 // newDABatchV1 is a constructor for daBatchV1.
-func newDABatchV1(version CodecVersion, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob, z *kzg4844.Point) *daBatchV1 {
+func newDABatchV1(version CodecVersion, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, blobVersionedHash, parentBatchHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob, z *kzg4844.Point) *daBatchV1 {
 	return &daBatchV1{
 		daBatchV0: daBatchV0{
 			version:                version,
