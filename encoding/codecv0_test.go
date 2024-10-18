@@ -194,8 +194,8 @@ func TestCodecV0BatchEncode(t *testing.T) {
 	require.NoError(t, err)
 
 	// empty batch
-	daBatchV0 := daBatchV0{version: CodecV0}
-	encoded := hex.EncodeToString(daBatchV0.Encode())
+	emptyDABatchV0 := daBatchV0{version: CodecV0}
+	encoded := hex.EncodeToString(emptyDABatchV0.Encode())
 	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", encoded)
 
 	block2 := readBlockFromJSON(t, "testdata/blockTrace_02.json")
@@ -349,7 +349,7 @@ func TestCodecV0NewDABatchFromBytes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var batch *Batch
 			var daBatch DABatch
-			var err error
+			var createErr1 error
 
 			if tc.jsonFile == "" {
 				// Empty daBatch
@@ -358,16 +358,16 @@ func TestCodecV0NewDABatchFromBytes(t *testing.T) {
 				block := readBlockFromJSON(t, tc.jsonFile)
 				chunk := &Chunk{Blocks: []*Block{block}}
 				batch = &Batch{Chunks: []*Chunk{chunk}}
-				daBatch, err = codecv0.NewDABatch(batch)
-				assert.NoError(t, err)
+				daBatch, createErr1 = codecv0.NewDABatch(batch)
+				assert.NoError(t, createErr1)
 			}
 
 			// Encode the DABatch
 			encodedBytes := daBatch.Encode()
 
 			// Decode the bytes back into a DABatch
-			decodedDABatch, err := codecv0.NewDABatchFromBytes(encodedBytes)
-			assert.NoError(t, err)
+			decodedDABatch, createErr2 := codecv0.NewDABatchFromBytes(encodedBytes)
+			assert.NoError(t, createErr2)
 
 			// Compare the hashes of the original and decoded DABatch
 			assert.Equal(t, daBatch.Hash(), decodedDABatch.Hash(), "Hashes should match for %s", tc.name)
