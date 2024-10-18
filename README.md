@@ -10,7 +10,7 @@ To use the DA codec library in your project, follow these steps:
 1. Install Go on your machine if you haven't already: [Installing Go](https://golang.org/doc/install).
 2. Clone this repository:
    ```bash
-   git clone https://github.com/saintmoritzz/da-codec.git
+   git clone https://github.com/scroll-tech/da-codec.git
    ```
 3. Navigate to the project directory:
    ```bash
@@ -22,7 +22,6 @@ To use the DA codec library in your project, follow these steps:
    ```
 
 5. Use the encoding and decoding functions as needed in your application.
-
 ## Running Unit Tests
 
 To ensure code integrity, run the following command:
