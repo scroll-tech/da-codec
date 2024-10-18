@@ -25,7 +25,7 @@ type daBatchV3 struct {
 }
 
 // newDABatchV3 is a constructor for daBatchV3 that calls blobDataProofForPICircuit internally.
-func newDABatchV3(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
+func newDABatchV3(version CodecVersion, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob,
 	z *kzg4844.Point, blobBytes []byte,
 ) (*daBatchV3, error) {
@@ -57,7 +57,7 @@ func newDABatchV3(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopp
 }
 
 // newDABatchV3WithProof is a constructor for daBatchV3 that allows directly passing blobDataProof.
-func newDABatchV3WithProof(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
+func newDABatchV3WithProof(version CodecVersion, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte,
 	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte, blobDataProof [2]common.Hash,
 ) *daBatchV3 {
@@ -83,7 +83,7 @@ func newDABatchV3WithProof(version uint8, batchIndex, l1MessagePopped, totalL1Me
 // Encode serializes the DABatchV3 into bytes.
 func (b *daBatchV3) Encode() []byte {
 	batchBytes := make([]byte, daBatchV3EncodedLength)
-	batchBytes[daBatchOffsetVersion] = b.version
+	batchBytes[daBatchOffsetVersion] = byte(b.version)
 	binary.BigEndian.PutUint64(batchBytes[daBatchOffsetBatchIndex:daBatchV3OffsetL1MessagePopped], b.batchIndex)
 	binary.BigEndian.PutUint64(batchBytes[daBatchV3OffsetL1MessagePopped:daBatchV3OffsetTotalL1MessagePopped], b.l1MessagePopped)
 	binary.BigEndian.PutUint64(batchBytes[daBatchV3OffsetTotalL1MessagePopped:daBatchOffsetDataHash], b.totalL1MessagePopped)
@@ -163,15 +163,15 @@ func (b *daBatchV3) BlobBytes() []byte {
 // This method is designed to provide prover with batch info in snake_case format.
 func (b *daBatchV3) MarshalJSON() ([]byte, error) {
 	type daBatchV3JSON struct {
-		Version              uint8     `json:"version"`
-		BatchIndex           uint64    `json:"batch_index"`
-		L1MessagePopped      uint64    `json:"l1_message_popped"`
-		TotalL1MessagePopped uint64    `json:"total_l1_message_popped"`
-		DataHash             string    `json:"data_hash"`
-		ParentBatchHash      string    `json:"parent_batch_hash"`
-		BlobVersionedHash    string    `json:"blob_versioned_hash"`
-		LastBlockTimestamp   uint64    `json:"last_block_timestamp"`
-		BlobDataProof        [2]string `json:"blob_data_proof"`
+		Version              CodecVersion `json:"version"`
+		BatchIndex           uint64       `json:"batch_index"`
+		L1MessagePopped      uint64       `json:"l1_message_popped"`
+		TotalL1MessagePopped uint64       `json:"total_l1_message_popped"`
+		DataHash             string       `json:"data_hash"`
+		ParentBatchHash      string       `json:"parent_batch_hash"`
+		BlobVersionedHash    string       `json:"blob_versioned_hash"`
+		LastBlockTimestamp   uint64       `json:"last_block_timestamp"`
+		BlobDataProof        [2]string    `json:"blob_data_proof"`
 	}
 
 	return json.Marshal(&daBatchV3JSON{
@@ -192,7 +192,7 @@ func (b *daBatchV3) MarshalJSON() ([]byte, error) {
 
 // Version returns the version of the DABatch.
 func (b *daBatchV3) Version() CodecVersion {
-	return CodecVersion(b.version)
+	return b.version
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.

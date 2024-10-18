@@ -243,7 +243,7 @@ func TestCodecV1BatchEncode(t *testing.T) {
 	// empty batch
 	batch := &daBatchV1{
 		daBatchV0: daBatchV0{
-			version: uint8(CodecV1),
+			version: CodecV1,
 		},
 	}
 	encoded := hex.EncodeToString(batch.Encode())
@@ -319,7 +319,7 @@ func TestCodecV1BatchHash(t *testing.T) {
 	// empty batch
 	batch := &daBatchV1{
 		daBatchV0: daBatchV0{
-			version: uint8(CodecV1),
+			version: CodecV1,
 		},
 	}
 	assert.Equal(t, common.HexToHash("0x4b6fe410f63051f6e93532087b42ece79fb7b966e2ba5845e6cd1c091f27e564"), batch.Hash())
@@ -973,7 +973,7 @@ func TestCodecV1BatchStandardTestCases(t *testing.T) {
 
 		batch := daBatchV1{
 			daBatchV0: daBatchV0{
-				version:              uint8(CodecV3),
+				version:              CodecV3,
 				batchIndex:           6789,
 				l1MessagePopped:      101,
 				totalL1MessagePopped: 10101,

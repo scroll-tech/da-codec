@@ -244,7 +244,7 @@ func TestCodecV4BatchEncode(t *testing.T) {
 	// empty daBatch
 	daBatchV3 := &daBatchV3{
 		daBatchV0: daBatchV0{
-			version: uint8(CodecV4),
+			version: CodecV4,
 		},
 	}
 	encoded := hex.EncodeToString(daBatchV3.Encode())
@@ -320,7 +320,7 @@ func TestCodecV4BatchHash(t *testing.T) {
 	// empty daBatch
 	daBatchV3 := &daBatchV3{
 		daBatchV0: daBatchV0{
-			version: uint8(CodecV4),
+			version: CodecV4,
 		},
 	}
 	assert.Equal(t, common.HexToHash("0xdaf0827d02b32d41458aea0d5796dd0072d0a016f9834a2cb1a964d2c6ee135c"), daBatchV3.Hash())
@@ -1155,7 +1155,7 @@ func TestCodecV4BatchStandardTestCasesEnableCompression(t *testing.T) {
 
 		batch := daBatchV3{
 			daBatchV0: daBatchV0{
-				version:              uint8(CodecV4),
+				version:              CodecV4,
 				batchIndex:           6789,
 				l1MessagePopped:      101,
 				totalL1MessagePopped: 10101,
@@ -1303,7 +1303,7 @@ func TestCodecV4BatchStandardTestCasesDisableCompression(t *testing.T) {
 
 		batch := daBatchV3{
 			daBatchV0: daBatchV0{
-				version:              uint8(CodecV4),
+				version:              CodecV4,
 				batchIndex:           6789,
 				l1MessagePopped:      101,
 				totalL1MessagePopped: 10101,

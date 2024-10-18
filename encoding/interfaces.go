@@ -65,7 +65,7 @@ type Codec interface {
 }
 
 // CodecVersion represents the version of the codec.
-type CodecVersion int
+type CodecVersion uint8
 
 const (
 	CodecV0 CodecVersion = iota

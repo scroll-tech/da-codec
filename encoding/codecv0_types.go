@@ -213,7 +213,7 @@ func (c *daChunkV0) BlockRange() (uint64, uint64, error) {
 
 // daBatchV0 contains metadata about a batch of DAChunks.
 type daBatchV0 struct {
-	version                uint8
+	version                CodecVersion
 	batchIndex             uint64
 	l1MessagePopped        uint64
 	totalL1MessagePopped   uint64
@@ -223,7 +223,7 @@ type daBatchV0 struct {
 }
 
 // newDABatchV0 is a constructor for daBatchV0.
-func newDABatchV0(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash common.Hash, skippedL1MessageBitmap []byte) *daBatchV0 {
+func newDABatchV0(version CodecVersion, batchIndex, l1MessagePopped, totalL1MessagePopped uint64, dataHash, parentBatchHash common.Hash, skippedL1MessageBitmap []byte) *daBatchV0 {
 	return &daBatchV0{
 		version:                version,
 		batchIndex:             batchIndex,
@@ -238,7 +238,7 @@ func newDABatchV0(version uint8, batchIndex, l1MessagePopped, totalL1MessagePopp
 // Encode serializes the DABatchV0 into bytes.
 func (b *daBatchV0) Encode() []byte {
 	batchBytes := make([]byte, daBatchV0EncodedMinLength+len(b.skippedL1MessageBitmap))
-	batchBytes[daBatchOffsetVersion] = b.version
+	batchBytes[daBatchOffsetVersion] = byte(b.version)
 	binary.BigEndian.PutUint64(batchBytes[daBatchOffsetBatchIndex:daBatchV0OffsetL1MessagePopped], b.batchIndex)
 	binary.BigEndian.PutUint64(batchBytes[daBatchV0OffsetL1MessagePopped:daBatchV0OffsetTotalL1MessagePopped], b.l1MessagePopped)
 	binary.BigEndian.PutUint64(batchBytes[daBatchV0OffsetTotalL1MessagePopped:daBatchOffsetDataHash], b.totalL1MessagePopped)
@@ -271,7 +271,7 @@ func (b *daBatchV0) BlobDataProofForPointEvaluation() ([]byte, error) {
 
 // Version returns the version of the DABatch.
 func (b *daBatchV0) Version() CodecVersion {
-	return CodecVersion(b.version)
+	return b.version
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
