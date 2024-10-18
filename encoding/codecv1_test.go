@@ -2,11 +2,14 @@ package encoding
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
@@ -953,7 +956,17 @@ func TestCodecV1BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, err := codecv1.(*DACodecV1).constructBlobPayload(chunks, codecv1.MaxNumChunksPerBatch(), true /* use mock */)
+		patches := gomonkey.ApplyFunc(convertTxDataToRLPEncoding,
+			func(txData *types.TransactionData) ([]byte, error) {
+				data, err := hexutil.Decode(txData.Data)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
+				}
+				return data, nil
+			})
+		defer patches.Reset()
+
+		blob, blobVersionedHash, z, err := codecv1.(*DACodecV1).constructBlobPayload(chunks, codecv1.MaxNumChunksPerBatch())
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)

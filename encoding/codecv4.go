@@ -75,7 +75,7 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), enableCompression, false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), enableCompression)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (d *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
-func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int, enableCompression bool, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
+func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int, enableCompression bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + maxNumChunksPerBatch*4
 
@@ -165,7 +165,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				}
 
 				// encode L2 txs into blob payload
-				rlpTxData, err := convertTxDataToRLPEncoding(tx, useMockTxData)
+				rlpTxData, err := convertTxDataToRLPEncoding(tx)
 				if err != nil {
 					return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 				}
@@ -202,12 +202,10 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		if err != nil {
 			return nil, common.Hash{}, nil, nil, err
 		}
-		if !useMockTxData {
-			// Check compressed data compatibility.
-			if err = checkCompressedDataCompatibility(blobBytes); err != nil {
-				log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-				return nil, common.Hash{}, nil, nil, err
-			}
+		// Check compressed data compatibility.
+		if err = checkCompressedDataCompatibility(blobBytes); err != nil {
+			log.Error("ConstructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
+			return nil, common.Hash{}, nil, nil, err
 		}
 		blobBytes = append([]byte{1}, blobBytes...)
 	} else {

@@ -47,7 +47,7 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
+	blob, blobVersionedHash, z, blobBytes, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch())
 	if err != nil {
 		return nil, err
 	}

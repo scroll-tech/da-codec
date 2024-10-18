@@ -68,7 +68,7 @@ func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, _, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
+	blob, blobVersionedHash, z, _, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch())
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct blob payload, index: %d, err: %w", batch.Index, err)
 	}
@@ -95,7 +95,7 @@ func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
-func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
+func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + maxNumChunksPerBatch*4
 
@@ -124,7 +124,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				}
 
 				// encode L2 txs into blob payload
-				rlpTxData, err := convertTxDataToRLPEncoding(tx, useMockTxData)
+				rlpTxData, err := convertTxDataToRLPEncoding(tx)
 				if err != nil {
 					return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 				}
@@ -160,7 +160,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	}
 
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
-	if !useMockTxData && len(batchBytes) > minCompressedDataCheckSize {
+	if len(batchBytes) > minCompressedDataCheckSize {
 		// Check compressed data compatibility.
 		if err = checkCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("constructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))

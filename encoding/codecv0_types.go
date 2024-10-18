@@ -142,7 +142,7 @@ func (c *daChunkV0) Encode() ([]byte, error) {
 			}
 
 			var txLen [4]byte
-			rlpTxData, err := convertTxDataToRLPEncoding(txData, false /* no mock */)
+			rlpTxData, err := convertTxDataToRLPEncoding(txData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 			}

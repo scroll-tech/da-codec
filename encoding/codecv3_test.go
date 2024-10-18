@@ -10,6 +10,7 @@ import (
 
 	"github.com/agiledragon/gomonkey/v2"
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
@@ -1137,7 +1138,22 @@ func TestCodecV3BatchStandardTestCases(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, _, err := codecv3.(*DACodecV3).constructBlobPayload(chunks, codecv3.MaxNumChunksPerBatch(), true /* use mock */)
+		patches := gomonkey.NewPatches()
+		defer patches.Reset()
+
+		patches.ApplyFunc(convertTxDataToRLPEncoding, func(txData *types.TransactionData) ([]byte, error) {
+			data, err := hexutil.Decode(txData.Data)
+			if err != nil {
+				return nil, err
+			}
+			return data, nil
+		})
+
+		patches.ApplyFunc(checkCompressedDataCompatibility, func(_ []byte) error {
+			return nil
+		})
+
+		blob, blobVersionedHash, z, _, err := codecv3.(*DACodecV3).constructBlobPayload(chunks, codecv3.MaxNumChunksPerBatch())
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
@@ -1277,8 +1293,8 @@ func TestCodecV3CompressedDataFailedCompatibilityCheck(t *testing.T) {
 
 	patches := gomonkey.ApplyFunc(constructBatchPayloadInBlob, func(_ []*Chunk, _ Codec) ([]byte, error) {
 		randomBytes := make([]byte, minCompressedDataCheckSize+1)
-		_, err := rand.Read(randomBytes)
-		require.NoError(t, err)
+		_, readerr := rand.Read(randomBytes)
+		require.NoError(t, readerr)
 		return []byte(hex.EncodeToString(randomBytes)), nil
 	})
 	defer patches.Reset()

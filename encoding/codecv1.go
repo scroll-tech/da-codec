@@ -121,7 +121,7 @@ func (d *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch(), false /* no mock */)
+	blob, blobVersionedHash, z, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch())
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct blob payload, index: %d, err: %w", batch.Index, err)
 	}
@@ -148,7 +148,7 @@ func (d *DACodecV1) NewDABatch(batch *Batch) (DABatch, error) {
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
-func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int, useMockTxData bool) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
+func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int) (*kzg4844.Blob, common.Hash, *kzg4844.Point, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + maxNumChunksPerBatch*4
 
@@ -177,7 +177,7 @@ func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				}
 
 				// encode L2 txs into blob payload
-				rlpTxData, err := convertTxDataToRLPEncoding(tx, useMockTxData)
+				rlpTxData, err := convertTxDataToRLPEncoding(tx)
 				if err != nil {
 					return nil, common.Hash{}, nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 				}
@@ -271,7 +271,7 @@ func (d *DACodecV1) chunkL1CommitBlobDataSize(c *Chunk) (uint64, error) {
 				continue
 			}
 
-			rlpTxData, err := convertTxDataToRLPEncoding(tx, false /* no mock */)
+			rlpTxData, err := convertTxDataToRLPEncoding(tx)
 			if err != nil {
 				return 0, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 			}

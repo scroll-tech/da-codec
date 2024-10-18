@@ -155,16 +155,10 @@ func (c *Chunk) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 }
 
 // convertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
-func convertTxDataToRLPEncoding(txData *types.TransactionData, useMockTxData bool) ([]byte, error) {
+func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 	data, err := hexutil.Decode(txData.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
-	}
-
-	// This mock param is only used in testing comparing batch challenges with standard test cases.
-	// These tests use this param to set the tx data for convenience.
-	if useMockTxData {
-		return data, nil
 	}
 
 	var tx *types.Transaction
@@ -484,7 +478,7 @@ func constructBatchPayloadInBlob(chunks []*Chunk, codec Codec) ([]byte, error) {
 				}
 
 				// encode L2 txs into batch payload
-				rlpTxData, err := convertTxDataToRLPEncoding(tx, false /* no mock */)
+				rlpTxData, err := convertTxDataToRLPEncoding(tx)
 				if err != nil {
 					return nil, err
 				}
@@ -513,7 +507,7 @@ func getMemoryExpansionCost(memoryByteSize uint64) uint64 {
 
 // getTxPayloadLength calculates the length of the transaction payload.
 func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
-	rlpTxData, err := convertTxDataToRLPEncoding(txData, false /* no mock */)
+	rlpTxData, err := convertTxDataToRLPEncoding(txData)
 	if err != nil {
 		return 0, err
 	}

@@ -99,7 +99,7 @@ func TestConvertTxDataToRLPEncoding(t *testing.T) {
 				continue
 			}
 
-			rlpTxData, err := convertTxDataToRLPEncoding(txData, false /* no mock */)
+			rlpTxData, err := convertTxDataToRLPEncoding(txData)
 			assert.NoError(t, err)
 			var tx types.Transaction
 			err = tx.UnmarshalBinary(rlpTxData)

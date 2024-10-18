@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
@@ -1163,7 +1165,22 @@ func TestCodecV4BatchStandardTestCasesEnableCompression(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), true /* enable encode */, true /* use mock */)
+		patches := gomonkey.NewPatches()
+		defer patches.Reset()
+
+		patches.ApplyFunc(convertTxDataToRLPEncoding, func(txData *types.TransactionData) ([]byte, error) {
+			data, err := hexutil.Decode(txData.Data)
+			if err != nil {
+				return nil, err
+			}
+			return data, nil
+		})
+
+		patches.ApplyFunc(checkCompressedDataCompatibility, func(_ []byte) error {
+			return nil
+		})
+
+		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), true /* enable encode */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
@@ -1311,7 +1328,22 @@ func TestCodecV4BatchStandardTestCasesDisableCompression(t *testing.T) {
 			chunks = append(chunks, chunk)
 		}
 
-		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), false /* disable encode */, true /* use mock */)
+		patches := gomonkey.NewPatches()
+		defer patches.Reset()
+
+		patches.ApplyFunc(convertTxDataToRLPEncoding, func(txData *types.TransactionData) ([]byte, error) {
+			data, err := hexutil.Decode(txData.Data)
+			if err != nil {
+				return nil, err
+			}
+			return data, nil
+		})
+
+		patches.ApplyFunc(checkCompressedDataCompatibility, func(_ []byte) error {
+			return nil
+		})
+
+		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), false /* disable encode */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
