@@ -121,28 +121,6 @@ func (b *daBatchV1) Hash() common.Hash {
 	return crypto.Keccak256Hash(bytes)
 }
 
-// BlobDataProof computes the abi-encoded blob verification data.
-func (b *daBatchV1) BlobDataProof() ([]byte, error) {
-	if b.blob == nil {
-		return nil, errors.New("called BlobDataProof with empty blob")
-	}
-	if b.z == nil {
-		return nil, errors.New("called BlobDataProof with empty z")
-	}
-
-	commitment, err := kzg4844.BlobToCommitment(b.blob)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blob commitment: %w", err)
-	}
-
-	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(b.z[:]))
-	}
-
-	return blobDataProofFromValues(*b.z, y, commitment, proof), nil
-}
-
 // Blob returns the blob of the batch.
 func (b *daBatchV1) Blob() *kzg4844.Blob {
 	return b.blob
