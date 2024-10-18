@@ -996,4 +996,10 @@ func TestDACodecV1SimpleMethods(t *testing.T) {
 		version := codecv1.Version()
 		assert.Equal(t, CodecV1, version)
 	})
+
+	t.Run("EstimateBlockL1CommitCalldataSize", func(t *testing.T) {
+		size, err := codecv1.EstimateBlockL1CommitCalldataSize(nil)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(blockContextByteSize), size)
+	})
 }

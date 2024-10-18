@@ -384,7 +384,7 @@ func (d *DACodecV1) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 }
 
 // EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.
-func (d *DACodecV1) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) {
+func (d *DACodecV1) EstimateBlockL1CommitCalldataSize(_ *Block) (uint64, error) {
 	return blockContextByteSize, nil
 }
 

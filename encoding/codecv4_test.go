@@ -988,41 +988,69 @@ func TestCodecV4DecodeDAChunksRawTx(t *testing.T) {
 	batch, err := codecv4.NewDABatch(originalBatch)
 	assert.NoError(t, err)
 
-	daChunksRawTx, err := codecv4.DecodeDAChunksRawTx([][]byte{chunkBytes0, chunkBytes1})
+	daChunksRawTx1, err := codecv4.DecodeDAChunksRawTx([][]byte{chunkBytes0, chunkBytes1})
 	assert.NoError(t, err)
 	// assert number of chunks
-	assert.Equal(t, 2, len(daChunksRawTx))
+	assert.Equal(t, 2, len(daChunksRawTx1))
 
 	// assert block in first chunk
-	assert.Equal(t, 2, len(daChunksRawTx[0].Blocks))
-	assert.Equal(t, daChunk0.(*daChunkV1).blocks[0], daChunksRawTx[0].Blocks[0])
-	assert.Equal(t, daChunk0.(*daChunkV1).blocks[1], daChunksRawTx[0].Blocks[1])
+	assert.Equal(t, 2, len(daChunksRawTx1[0].Blocks))
+	assert.Equal(t, daChunk0.(*daChunkV1).blocks[0], daChunksRawTx1[0].Blocks[0])
+	assert.Equal(t, daChunk0.(*daChunkV1).blocks[1], daChunksRawTx1[0].Blocks[1])
 
 	// assert block in second chunk
-	assert.Equal(t, 2, len(daChunksRawTx[1].Blocks))
-	daChunksRawTx[1].Blocks[0].(*daBlockV0).baseFee = nil
-	assert.Equal(t, daChunk1.(*daChunkV1).blocks[0].(*daBlockV0), daChunksRawTx[1].Blocks[0])
-	daChunksRawTx[1].Blocks[1].(*daBlockV0).baseFee = nil
-	assert.Equal(t, daChunk1.(*daChunkV1).blocks[1].(*daBlockV0), daChunksRawTx[1].Blocks[1])
+	assert.Equal(t, 2, len(daChunksRawTx1[1].Blocks))
+	daChunksRawTx1[1].Blocks[0].(*daBlockV0).baseFee = nil
+	assert.Equal(t, daChunk1.(*daChunkV1).blocks[0].(*daBlockV0), daChunksRawTx1[1].Blocks[0])
+	daChunksRawTx1[1].Blocks[1].(*daBlockV0).baseFee = nil
+	assert.Equal(t, daChunk1.(*daChunkV1).blocks[1].(*daBlockV0), daChunksRawTx1[1].Blocks[1])
 
 	blob := batch.Blob()
-	err = codecv4.DecodeTxsFromBlob(blob, daChunksRawTx)
+	err = codecv4.DecodeTxsFromBlob(blob, daChunksRawTx1)
 	assert.NoError(t, err)
 
 	// assert transactions in first chunk
-	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions))
+	assert.Equal(t, 2, len(daChunksRawTx1[0].Transactions))
 	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
-	assert.Equal(t, 2, len(daChunksRawTx[0].Transactions[0]))
-	assert.Equal(t, 1, len(daChunksRawTx[0].Transactions[1]))
+	assert.Equal(t, 2, len(daChunksRawTx1[0].Transactions[0]))
+	assert.Equal(t, 1, len(daChunksRawTx1[0].Transactions[1]))
 
-	assert.EqualValues(t, daChunk0.(*daChunkV1).transactions[0][0].TxHash, daChunksRawTx[0].Transactions[0][0].Hash().String())
-	assert.EqualValues(t, daChunk0.(*daChunkV1).transactions[0][1].TxHash, daChunksRawTx[0].Transactions[0][1].Hash().String())
+	assert.EqualValues(t, daChunk0.(*daChunkV1).transactions[0][0].TxHash, daChunksRawTx1[0].Transactions[0][0].Hash().String())
+	assert.EqualValues(t, daChunk0.(*daChunkV1).transactions[0][1].TxHash, daChunksRawTx1[0].Transactions[0][1].Hash().String())
 
 	// assert transactions in second chunk
-	assert.Equal(t, 2, len(daChunksRawTx[1].Transactions))
+	assert.Equal(t, 2, len(daChunksRawTx1[1].Transactions))
 	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
-	assert.Equal(t, 1, len(daChunksRawTx[1].Transactions[0]))
-	assert.Equal(t, 0, len(daChunksRawTx[1].Transactions[1]))
+	assert.Equal(t, 1, len(daChunksRawTx1[1].Transactions[0]))
+	assert.Equal(t, 0, len(daChunksRawTx1[1].Transactions[1]))
+
+	// Uncompressed case
+	block4 := readBlockFromJSON(t, "testdata/blockTrace_06.json")
+	chunk2 := &Chunk{Blocks: []*Block{block4}}
+	daChunk2, err := codecv4.NewDAChunk(chunk2, 0)
+	assert.NoError(t, err)
+	chunkBytes2, err := daChunk2.Encode()
+	assert.NoError(t, err)
+
+	daChunksRawTx2, err := codecv4.DecodeDAChunksRawTx([][]byte{chunkBytes2})
+	assert.NoError(t, err)
+
+	// assert number of chunks
+	assert.Equal(t, 1, len(daChunksRawTx2))
+
+	// assert block in uncompressed chunk
+	assert.Equal(t, 1, len(daChunksRawTx2[0].Blocks))
+	assert.Equal(t, daChunk2.(*daChunkV1).blocks[0].Encode(), daChunksRawTx2[0].Blocks[0].Encode())
+
+	daBatchUncompressed, err := codecv4.NewDABatch(&Batch{Chunks: []*Chunk{chunk2}})
+	assert.NoError(t, err)
+	blobUncompressed := daBatchUncompressed.Blob()
+	err = codecv4.DecodeTxsFromBlob(blobUncompressed, daChunksRawTx2)
+	assert.NoError(t, err)
+
+	// assert transactions in first chunk
+	assert.Equal(t, 1, len(daChunksRawTx2[0].Transactions))
+	assert.Equal(t, 0, len(daChunksRawTx2[0].Transactions[0]))
 }
 
 func TestCodecV4BatchStandardTestCasesEnableCompression(t *testing.T) {
