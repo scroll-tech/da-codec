@@ -47,4 +47,4 @@ cd libzstd && make libzstd
 ## Contributing
 
 We welcome contributions to the `da-codec` library! If you have suggestions for improvements or find bugs, please feel free to open an issue or submit a pull request. Ensure you follow the coding standards and include relevant tests for your changes.
-```
+```markdown
