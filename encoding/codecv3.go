@@ -41,7 +41,7 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// skipped L1 messages bitmap
-	bitmapBytes, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
+	skippedL1MessageBitmap, totalL1MessagePoppedAfter, err := constructSkippedBitmap(batch.Index, batch.Chunks, batch.TotalL1MessagePoppedBefore)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (d *DACodecV3) NewDABatch(batch *Batch) (DABatch, error) {
 		dataHash,                  // dataHash
 		batch.ParentBatchHash,     // parentBatchHash
 		blobVersionedHash,         // blobVersionedHash
-		bitmapBytes,               // skippedL1MessageBitmap
+		skippedL1MessageBitmap,    // skippedL1MessageBitmap
 		blob,                      // blob
 		z,                         // z
 		blobBytes,                 // blobBytes

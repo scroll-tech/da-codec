@@ -54,14 +54,14 @@ func constructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePo
 		}
 	}
 
-	bitmapBytes := make([]byte, len(skippedBitmap)*skippedL1MessageBitmapByteSize)
+	skippedL1MessageBitmap := make([]byte, len(skippedBitmap)*skippedL1MessageBitmapByteSize)
 	for ii, num := range skippedBitmap {
 		bytes := num.Bytes()
 		padding := skippedL1MessageBitmapByteSize - len(bytes)
-		copy(bitmapBytes[skippedL1MessageBitmapByteSize*ii+padding:], bytes)
+		copy(skippedL1MessageBitmap[skippedL1MessageBitmapByteSize*ii+padding:], bytes)
 	}
 
-	return bitmapBytes, nextIndex, nil
+	return skippedL1MessageBitmap, nextIndex, nil
 }
 
 // decodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's.
