@@ -7,8 +7,8 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 )
 
-// ConstructSkippedBitmap constructs skipped L1 message bitmap of the batch.
-func ConstructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePoppedBefore uint64) ([]byte, uint64, error) {
+// constructSkippedBitmap constructs skipped L1 message bitmap of the batch.
+func constructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePoppedBefore uint64) ([]byte, uint64, error) {
 	// skipped L1 message bitmap, an array of 256-bit bitmaps
 	var skippedBitmap []*big.Int
 
@@ -54,39 +54,29 @@ func ConstructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePo
 		}
 	}
 
-	bitmapBytes := make([]byte, len(skippedBitmap)*32)
+	skippedL1MessageBitmap := make([]byte, len(skippedBitmap)*skippedL1MessageBitmapByteSize)
 	for ii, num := range skippedBitmap {
 		bytes := num.Bytes()
-		padding := 32 - len(bytes)
-		copy(bitmapBytes[32*ii+padding:], bytes)
+		padding := skippedL1MessageBitmapByteSize - len(bytes)
+		copy(skippedL1MessageBitmap[skippedL1MessageBitmapByteSize*ii+padding:], bytes)
 	}
 
-	return bitmapBytes, nextIndex, nil
+	return skippedL1MessageBitmap, nextIndex, nil
 }
 
-// DecodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's
-func DecodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*big.Int, error) {
+// decodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's.
+func decodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*big.Int, error) {
 	length := len(skippedL1MessageBitmap)
-	if length%32 != 0 {
-		return nil, fmt.Errorf("skippedL1MessageBitmap length doesn't match, skippedL1MessageBitmap length should be equal 0 modulo 32, length of skippedL1MessageBitmap: %v", length)
+	if length%skippedL1MessageBitmapByteSize != 0 {
+		return nil, fmt.Errorf("skippedL1MessageBitmap length doesn't match, skippedL1MessageBitmap length should be equal 0 modulo %v, length of skippedL1MessageBitmap: %v", skippedL1MessageBitmapByteSize, length)
 	}
 	if length*8 < totalL1MessagePopped {
 		return nil, fmt.Errorf("skippedL1MessageBitmap length is too small, skippedL1MessageBitmap length should be at least %v, length of skippedL1MessageBitmap: %v", (totalL1MessagePopped+7)/8, length)
 	}
 	var skippedBitmap []*big.Int
-	for index := 0; index < length/32; index++ {
-		bitmap := big.NewInt(0).SetBytes(skippedL1MessageBitmap[index*32 : index*32+32])
+	for index := 0; index < length/skippedL1MessageBitmapByteSize; index++ {
+		bitmap := big.NewInt(0).SetBytes(skippedL1MessageBitmap[index*skippedL1MessageBitmapByteSize : index*skippedL1MessageBitmapByteSize+skippedL1MessageBitmapByteSize])
 		skippedBitmap = append(skippedBitmap, bitmap)
 	}
 	return skippedBitmap, nil
-}
-
-// IsL1MessageSkipped checks if index is skipped in bitmap
-func IsL1MessageSkipped(skippedBitmap []*big.Int, index uint64) bool {
-	if index > uint64(len(skippedBitmap))*256 {
-		return false
-	}
-	quo := index / 256
-	rem := index % 256
-	return skippedBitmap[quo].Bit(int(rem)) != 0
 }

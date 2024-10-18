@@ -12,29 +12,84 @@ import (
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+	"github.com/scroll-tech/go-ethereum/params"
 )
 
-// BLSModulus is the BLS modulus defined in EIP-4844.
-var BLSModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
+// blsModulus is the BLS modulus defined in EIP-4844.
+var blsModulus = new(big.Int).SetBytes(common.FromHex("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001"))
 
-// CodecVersion defines the version of encoder and decoder.
-type CodecVersion uint8
+// blockContextByteSize is the size of the block context in bytes.
+const blockContextByteSize = 60
+
+// blockContextBytesForHashing is the size of the block context in bytes for hashing.
+const blockContextBytesForHashing = blockContextByteSize - 2
+
+// txLenByteSize is the size of the transaction length in bytes.
+const txLenByteSize = 4
+
+// maxBlobBytes is the maximum number of bytes that can be stored in a blob.
+const maxBlobBytes = 131072
+
+// maxEffectiveBlobBytes is the maximum number of bytes that can be stored in a blob.
+// We can only utilize 31/32 of a blob.
+const maxEffectiveBlobBytes = maxBlobBytes / 32 * 31
+
+// minCompressedDataCheckSize is the minimum size of compressed data to check compatibility.
+// only used in codecv2 and codecv3.
+const minCompressedDataCheckSize = 131072
+
+// kzgPointByteSize is the size of a KZG point (z and y) in bytes.
+const kzgPointByteSize = 32
+
+// zstdMagicNumber is the magic number for zstd compressed data header.
+var zstdMagicNumber = []byte{0x28, 0xb5, 0x2f, 0xfd}
 
 const (
-	// CodecV0 represents the version 0 of the encoder and decoder.
-	CodecV0 CodecVersion = iota
+	daBatchOffsetVersion    = 0
+	daBatchOffsetBatchIndex = 1
+	daBatchOffsetDataHash   = 25
+)
 
-	// CodecV1 represents the version 1 of the encoder and decoder.
-	CodecV1
+const (
+	daBatchV0OffsetL1MessagePopped        = 9
+	daBatchV0OffsetTotalL1MessagePopped   = 17
+	daBatchV0OffsetParentBatchHash        = 57
+	daBatchV0OffsetSkippedL1MessageBitmap = 89
+	daBatchV0EncodedMinLength             = 89 // min length of a v0 da batch, when there are no skipped L1 messages
+)
 
-	// CodecV2 represents the version 2 of the encoder and decoder.
-	CodecV2
+const (
+	daBatchV1OffsetL1MessagePopped        = 9
+	daBatchV1OffsetTotalL1MessagePopped   = 17
+	daBatchV1OffsetBlobVersionedHash      = 57
+	daBatchV1OffsetParentBatchHash        = 89
+	daBatchV1OffsetSkippedL1MessageBitmap = 121
+	daBatchV1EncodedMinLength             = 121 // min length of a v1 da batch, when there are no skipped L1 messages
+)
 
-	// CodecV3 represents the version 3 of the encoder and decoder.
-	CodecV3
+const (
+	daBatchV3OffsetL1MessagePopped      = 9
+	daBatchV3OffsetTotalL1MessagePopped = 17
+	daBatchV3OffsetBlobVersionedHash    = 57
+	daBatchV3OffsetParentBatchHash      = 89
+	daBatchV3OffsetLastBlockTimestamp   = 121
+	daBatchV3OffsetBlobDataProof        = 129
+	daBatchV3EncodedLength              = 193
+)
 
-	// CodecV4 represents the version 4 of the encoder and decoder.
-	CodecV4
+const (
+	payloadLengthBytes             = 4
+	calldataNonZeroByteGas         = 16
+	coldSloadGas                   = 2100
+	coldAddressAccessGas           = 2600
+	warmAddressAccessGas           = 100
+	warmSloadGas                   = 100
+	baseTxGas                      = 21000
+	sstoreGas                      = 20000
+	extraGasCost                   = 100000 // over-estimate the gas cost for ops like _getAdmin, _implementation, _requireNotPaused, etc
+	skippedL1MessageBitmapByteSize = 32
+	functionSignatureBytes         = 4
+	defaultParameterBytes          = 32
 )
 
 // Block represents an L2 block.
@@ -99,17 +154,11 @@ func (c *Chunk) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 	return numL1Messages
 }
 
-// ConvertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
-func ConvertTxDataToRLPEncoding(txData *types.TransactionData, useMockTxData bool) ([]byte, error) {
+// convertTxDataToRLPEncoding transforms []*TransactionData into []*types.Transaction.
+func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 	data, err := hexutil.Decode(txData.Data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
-	}
-
-	// This mock param is only used in testing comparing batch challenges with standard test cases.
-	// These tests use this param to set the tx data for convenience.
-	if useMockTxData {
-		return data, nil
 	}
 
 	var tx *types.Transaction
@@ -216,13 +265,13 @@ func (c *Chunk) NumL2Transactions() uint64 {
 	return totalTxNum
 }
 
-// L2GasUsed calculates the total gas of L2 transactions in a Chunk.
-func (c *Chunk) L2GasUsed() uint64 {
-	var totalTxNum uint64
+// TotalGasUsed calculates the total gas of transactions in a Chunk.
+func (c *Chunk) TotalGasUsed() uint64 {
+	var totalGasUsed uint64
 	for _, block := range c.Blocks {
-		totalTxNum += block.Header.GasUsed
+		totalGasUsed += block.Header.GasUsed
 	}
-	return totalTxNum
+	return totalGasUsed
 }
 
 // StateRoot gets the state root after committing/finalizing the batch.
@@ -284,7 +333,7 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 
 // Fast testing if the compressed data is compatible with our circuit
 // (require specified frame header and each block is compressed)
-func CheckCompressedDataCompatibility(data []byte) error {
+func checkCompressedDataCompatibility(data []byte) error {
 	if len(data) < 16 {
 		return fmt.Errorf("too small size (%x), what is it?", data)
 	}
@@ -332,11 +381,10 @@ func CheckCompressedDataCompatibility(data []byte) error {
 	return nil
 }
 
-// MakeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
-func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
-	// blob contains 131072 bytes but we can only utilize 31/32 of these
-	if len(blobBytes) > 126976 {
-		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), 126976)
+// makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
+func makeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
+	if len(blobBytes) > maxEffectiveBlobBytes {
+		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), maxEffectiveBlobBytes)
 	}
 
 	// the canonical (padded) blob payload
@@ -357,20 +405,20 @@ func MakeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	return &blob, nil
 }
 
-// BytesFromBlobCanonical converts the canonical blob representation into the raw blob data
-func BytesFromBlobCanonical(blob *kzg4844.Blob) [126976]byte {
-	var blobBytes [126976]byte
+// bytesFromBlobCanonical converts the canonical blob representation into the raw blob data
+func bytesFromBlobCanonical(blob *kzg4844.Blob) [maxEffectiveBlobBytes]byte {
+	var blobBytes [maxEffectiveBlobBytes]byte
 	for from := 0; from < len(blob); from += 32 {
 		copy(blobBytes[from/32*31:], blob[from+1:from+32])
 	}
 	return blobBytes
 }
 
-// DecompressScrollBlobToBatch decompresses the given blob bytes into scroll batch bytes
-func DecompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
+// decompressScrollBlobToBatch decompresses the given blob bytes into scroll batch bytes
+func decompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
 	// decompress data in stream and in batches of bytes, because we don't know actual length of compressed data
 	var res []byte
-	readBatchSize := 131072
+	readBatchSize := maxBlobBytes
 	batchOfBytes := make([]byte, readBatchSize)
 
 	r := bytes.NewReader(compressedBytes)
@@ -395,9 +443,9 @@ func DecompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
 	return res, nil
 }
 
-// CalculatePaddedBlobSize calculates the required size on blob storage
+// calculatePaddedBlobSize calculates the required size on blob storage
 // where every 32 bytes can store only 31 bytes of actual data, with the first byte being zero.
-func CalculatePaddedBlobSize(dataSize uint64) uint64 {
+func calculatePaddedBlobSize(dataSize uint64) uint64 {
 	paddedSize := (dataSize / 31) * 32
 
 	if dataSize%31 != 0 {
@@ -407,11 +455,11 @@ func CalculatePaddedBlobSize(dataSize uint64) uint64 {
 	return paddedSize
 }
 
-// ConstructBatchPayloadInBlob constructs the batch payload.
+// constructBatchPayloadInBlob constructs the batch payload.
 // This function is only used in compressed batch payload length estimation.
-func ConstructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, error) {
+func constructBatchPayloadInBlob(chunks []*Chunk, codec Codec) ([]byte, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
-	metadataLength := 2 + MaxNumChunks*4
+	metadataLength := 2 + codec.MaxNumChunksPerBatch()*4
 
 	// batchBytes represents the raw (un-compressed and un-padded) blob payload
 	batchBytes := make([]byte, metadataLength)
@@ -430,7 +478,7 @@ func ConstructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, 
 				}
 
 				// encode L2 txs into batch payload
-				rlpTxData, err := ConvertTxDataToRLPEncoding(tx, false /* no mock */)
+				rlpTxData, err := convertTxDataToRLPEncoding(tx)
 				if err != nil {
 					return nil, err
 				}
@@ -439,20 +487,40 @@ func ConstructBatchPayloadInBlob(chunks []*Chunk, MaxNumChunks uint64) ([]byte, 
 		}
 
 		// batch metadata: chunki_size
-		if chunkSize := len(batchBytes) - currentChunkStartIndex; chunkSize != 0 {
-			binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
-		}
+		chunkSize := len(batchBytes) - currentChunkStartIndex
+		binary.BigEndian.PutUint32(batchBytes[2+4*chunkID:], uint32(chunkSize))
 	}
 	return batchBytes, nil
 }
 
-// BlobDataProofFromValues creates the blob data proof from the given values.
+// getKeccak256Gas calculates the gas cost for computing the keccak256 hash of a given size.
+func getKeccak256Gas(size uint64) uint64 {
+	return getMemoryExpansionCost(size) + 30 + 6*((size+31)/32)
+}
+
+// getMemoryExpansionCost calculates the cost of memory expansion for a given memoryByteSize.
+func getMemoryExpansionCost(memoryByteSize uint64) uint64 {
+	memorySizeWord := (memoryByteSize + 31) / 32
+	memoryCost := (memorySizeWord*memorySizeWord)/512 + (3 * memorySizeWord)
+	return memoryCost
+}
+
+// getTxPayloadLength calculates the length of the transaction payload.
+func getTxPayloadLength(txData *types.TransactionData) (uint64, error) {
+	rlpTxData, err := convertTxDataToRLPEncoding(txData)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(len(rlpTxData)), nil
+}
+
+// blobDataProofFromValues creates the blob data proof from the given values.
 // Memory layout of ``_blobDataProof``:
 // | z       | y       | kzg_commitment | kzg_proof |
 // |---------|---------|----------------|-----------|
 // | bytes32 | bytes32 | bytes48        | bytes48   |
 
-func BlobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg4844.Commitment, proof kzg4844.Proof) []byte {
+func blobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg4844.Commitment, proof kzg4844.Proof) []byte {
 	result := make([]byte, 32+32+48+48)
 
 	copy(result[0:32], z[:])
@@ -461,4 +529,172 @@ func BlobDataProofFromValues(z kzg4844.Point, y kzg4844.Claim, commitment kzg484
 	copy(result[112:160], proof[:])
 
 	return result
+}
+
+var errSmallLength error = fmt.Errorf("length of blob bytes is too small")
+
+// getNextTx parses blob bytes to find length of payload of next Tx and decode it
+func getNextTx(bytes []byte, index int) (*types.Transaction, int, error) {
+	var nextIndex int
+	length := len(bytes)
+	if length < index+1 {
+		return nil, 0, errSmallLength
+	}
+	var txBytes []byte
+	if bytes[index] <= 0x7f {
+		// the first byte is transaction type, rlp encoding begins from next byte
+		txBytes = append(txBytes, bytes[index])
+		index++
+	}
+	if length < index+1 {
+		return nil, 0, errSmallLength
+	}
+	if bytes[index] >= 0xc0 && bytes[index] <= 0xf7 {
+		// length of payload is simply bytes[index] - 0xc0
+		payloadLen := int(bytes[index] - 0xc0)
+		if length < index+1+payloadLen {
+			return nil, 0, errSmallLength
+		}
+		txBytes = append(txBytes, bytes[index:index+1+payloadLen]...)
+		nextIndex = index + 1 + payloadLen
+	} else if bytes[index] > 0xf7 {
+		// the length of payload is encoded in next bytes[index] - 0xf7 bytes
+		// length of bytes representation of length of payload
+		lenPayloadLen := int(bytes[index] - 0xf7)
+		if length < index+1+lenPayloadLen {
+			return nil, 0, errSmallLength
+		}
+		lenBytes := bytes[index+1 : index+1+lenPayloadLen]
+		for len(lenBytes) < 8 {
+			lenBytes = append([]byte{0x0}, lenBytes...)
+		}
+		payloadLen := binary.BigEndian.Uint64(lenBytes)
+
+		if length < index+1+lenPayloadLen+int(payloadLen) {
+			return nil, 0, errSmallLength
+		}
+		txBytes = append(txBytes, bytes[index:index+1+lenPayloadLen+int(payloadLen)]...)
+		nextIndex = index + 1 + lenPayloadLen + int(payloadLen)
+	} else {
+		return nil, 0, fmt.Errorf("incorrect format of rlp encoding")
+	}
+	tx := &types.Transaction{}
+	err := tx.UnmarshalBinary(txBytes)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to unmarshal tx, err: %w", err)
+	}
+	return tx, nextIndex, nil
+}
+
+// decodeTxsFromBytes decodes txs from blob bytes and writes to chunks
+func decodeTxsFromBytes(blobBytes []byte, chunks []*DAChunkRawTx, maxNumChunks int) error {
+	numChunks := int(binary.BigEndian.Uint16(blobBytes[0:2]))
+	if numChunks != len(chunks) {
+		return fmt.Errorf("blob chunk number is not same as calldata, blob num chunks: %d, calldata num chunks: %d", numChunks, len(chunks))
+	}
+	index := 2 + maxNumChunks*4
+	for chunkID, chunk := range chunks {
+		var transactions []types.Transactions
+		chunkSize := int(binary.BigEndian.Uint32(blobBytes[2+4*chunkID : 2+4*chunkID+4]))
+
+		chunkBytes := blobBytes[index : index+chunkSize]
+		curIndex := 0
+		for _, block := range chunk.Blocks {
+			var blockTransactions types.Transactions
+			txNum := int(block.NumTransactions()) - int(block.NumL1Messages())
+			if txNum < 0 {
+				return fmt.Errorf("invalid transaction count: NumL1Messages (%d) exceeds NumTransactions (%d)", block.NumL1Messages(), block.NumTransactions())
+			}
+			for i := 0; i < txNum; i++ {
+				tx, nextIndex, err := getNextTx(chunkBytes, curIndex)
+				if err != nil {
+					return fmt.Errorf("couldn't decode next tx from blob bytes: %w, index: %d", err, index+curIndex+4)
+				}
+				curIndex = nextIndex
+				blockTransactions = append(blockTransactions, tx)
+			}
+			transactions = append(transactions, blockTransactions)
+		}
+		chunk.Transactions = transactions
+		index += chunkSize
+	}
+	return nil
+}
+
+// GetHardforkName returns the name of the hardfork active at the given block height and timestamp.
+func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uint64) string {
+	blockHeightBigInt := new(big.Int).SetUint64(blockHeight)
+	if !config.IsBernoulli(blockHeightBigInt) {
+		return "homestead"
+	} else if !config.IsCurie(blockHeightBigInt) {
+		return "bernoulli"
+	} else if !config.IsDarwin(blockHeightBigInt, blockTimestamp) {
+		return "curie"
+	} else if !config.IsDarwinV2(blockHeightBigInt, blockTimestamp) {
+		return "darwin"
+	} else {
+		return "darwinV2"
+	}
+}
+
+// GetCodecVersion returns the encoding codec version for the given block height and timestamp.
+func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uint64) CodecVersion {
+	blockHeightBigInt := new(big.Int).SetUint64(blockHeight)
+	if !config.IsBernoulli(blockHeightBigInt) {
+		return CodecV0
+	} else if !config.IsCurie(blockHeightBigInt) {
+		return CodecV1
+	} else if !config.IsDarwin(blockHeightBigInt, blockTimestamp) {
+		return CodecV2
+	} else if !config.IsDarwinV2(blockHeightBigInt, blockTimestamp) {
+		return CodecV3
+	} else {
+		return CodecV4
+	}
+}
+
+// CheckChunkCompressedDataCompatibility checks compressed data compatibility of a batch built by a single chunk.
+func CheckChunkCompressedDataCompatibility(chunk *Chunk, codecVersion CodecVersion) (bool, error) {
+	codec, err := CodecFromVersion(codecVersion)
+	if err != nil {
+		return false, fmt.Errorf("failed to get codec from version: %w", err)
+	}
+	return codec.CheckChunkCompressedDataCompatibility(chunk)
+}
+
+// CheckBatchCompressedDataCompatibility checks compressed data compatibility of a batch built by a single chunk.
+func CheckBatchCompressedDataCompatibility(batch *Batch, codecVersion CodecVersion) (bool, error) {
+	codec, err := CodecFromVersion(codecVersion)
+	if err != nil {
+		return false, fmt.Errorf("failed to get codec from version: %w", err)
+	}
+	return codec.CheckBatchCompressedDataCompatibility(batch)
+}
+
+// GetChunkEnableCompression returns whether to enable compression for the given block height and timestamp.
+func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, error) {
+	switch codecVersion {
+	case CodecV0, CodecV1:
+		return false, nil
+	case CodecV2, CodecV3:
+		return true, nil
+	case CodecV4:
+		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
+	default:
+		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
+	}
+}
+
+// GetBatchEnableCompression returns whether to enable compression for the given block height and timestamp.
+func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, error) {
+	switch codecVersion {
+	case CodecV0, CodecV1:
+		return false, nil
+	case CodecV2, CodecV3:
+		return true, nil
+	case CodecV4:
+		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
+	default:
+		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
+	}
 }
