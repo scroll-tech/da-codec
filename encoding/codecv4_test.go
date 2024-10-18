@@ -1440,3 +1440,91 @@ func TestDACodecV4SimpleMethods(t *testing.T) {
 		assert.Equal(t, CodecV4, version)
 	})
 }
+
+func TestCodecV4ChunkCompressedDataCompatibilityCheck(t *testing.T) {
+	codecv4, err := CodecFromVersion(CodecV4)
+	require.NoError(t, err)
+
+	// chunk with a single empty block
+	emptyBlock := &Block{}
+	emptyChunk := &Chunk{Blocks: []*Block{emptyBlock}}
+
+	compatible, err := codecv4.CheckChunkCompressedDataCompatibility(emptyChunk)
+	assert.NoError(t, err)
+	assert.Equal(t, false, compatible)
+
+	txChunk := &Chunk{
+		Blocks: []*Block{
+			{
+				Transactions: []*types.TransactionData{
+					{Type: types.L1MessageTxType},
+				},
+			},
+		},
+	}
+	compatible, err = codecv4.CheckChunkCompressedDataCompatibility(txChunk)
+	assert.NoError(t, err)
+	assert.Equal(t, false, compatible)
+
+	testCases := []struct {
+		name             string
+		jsonFile         string
+		expectCompatible bool
+	}{
+		{"Block 02", "testdata/blockTrace_02.json", true},
+		{"Block 03", "testdata/blockTrace_03.json", true},
+		{"Block 04", "testdata/blockTrace_04.json", true},
+		{"Block 05", "testdata/blockTrace_05.json", false},
+		{"Block 06", "testdata/blockTrace_06.json", false},
+		{"Block 07", "testdata/blockTrace_07.json", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			block := readBlockFromJSON(t, tc.jsonFile)
+			chunk := &Chunk{Blocks: []*Block{block}}
+			compatible, err := codecv4.CheckChunkCompressedDataCompatibility(chunk)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectCompatible, compatible)
+		})
+	}
+}
+
+func TestCodecV4BatchCompressedDataCompatibilityCheck(t *testing.T) {
+	codecv4, err := CodecFromVersion(CodecV4)
+	require.NoError(t, err)
+
+	// empty batch
+	emptyBatch := &Batch{}
+	compatible, err := codecv4.CheckBatchCompressedDataCompatibility(emptyBatch)
+	assert.NoError(t, err)
+	assert.Equal(t, false, compatible)
+
+	testCases := []struct {
+		name             string
+		jsonFiles        []string
+		expectCompatible bool
+	}{
+		{"Single Block 02", []string{"testdata/blockTrace_02.json"}, true},
+		{"Single Block 03", []string{"testdata/blockTrace_03.json"}, true},
+		{"Single Block 04", []string{"testdata/blockTrace_04.json"}, true},
+		{"Single Block 05", []string{"testdata/blockTrace_05.json"}, false},
+		{"Single Block 06", []string{"testdata/blockTrace_06.json"}, false},
+		{"Single Block 07", []string{"testdata/blockTrace_07.json"}, false},
+		{"Multiple Blocks", []string{"testdata/blockTrace_02.json", "testdata/blockTrace_03.json", "testdata/blockTrace_04.json", "testdata/blockTrace_05.json", "testdata/blockTrace_06.json", "testdata/blockTrace_07.json"}, true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var chunks []*Chunk
+			for _, jsonFile := range tc.jsonFiles {
+				block := readBlockFromJSON(t, jsonFile)
+				chunks = append(chunks, &Chunk{Blocks: []*Block{block}})
+			}
+			batch := &Batch{Chunks: chunks}
+			compatible, err := codecv4.CheckBatchCompressedDataCompatibility(batch)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expectCompatible, compatible)
+		})
+	}
+}

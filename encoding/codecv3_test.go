@@ -1251,7 +1251,7 @@ func TestDACodecV3SimpleMethods(t *testing.T) {
 	})
 }
 
-func TestCodecV3ChunkCompressedDataCompatibility(t *testing.T) {
+func TestCodecV3ChunkCompressedDataCompatibilityCheck(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
 	require.NoError(t, err)
 
@@ -1299,7 +1299,7 @@ func TestCodecV3ChunkCompressedDataCompatibility(t *testing.T) {
 	}
 }
 
-func TestCodecV3BatchCompressedDataCompatibility(t *testing.T) {
+func TestCodecV3BatchCompressedDataCompatibilityCheck(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
 	require.NoError(t, err)
 
@@ -1337,7 +1337,7 @@ func TestCodecV3BatchCompressedDataCompatibility(t *testing.T) {
 	}
 }
 
-func TestCodecV3CompressedDataFailedCompatibilityCheck(t *testing.T) {
+func TestCodecV3FailedCompressedDataCompatibilityCheck(t *testing.T) {
 	codecv3, err := CodecFromVersion(CodecV3)
 	require.NoError(t, err)
 
