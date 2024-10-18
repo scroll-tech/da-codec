@@ -987,3 +987,13 @@ func TestCodecV1BatchStandardTestCases(t *testing.T) {
 		assert.Equal(t, common.HexToHash(tc.expectedBatchHash), batch.Hash())
 	}
 }
+
+func TestDACodecV1SimpleMethods(t *testing.T) {
+	codecv1, err := CodecFromVersion(CodecV1)
+	require.NoError(t, err)
+
+	t.Run("Version", func(t *testing.T) {
+		version := codecv1.Version()
+		assert.Equal(t, CodecV1, version)
+	})
+}

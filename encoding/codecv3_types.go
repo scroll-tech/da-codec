@@ -138,7 +138,7 @@ func (b *daBatchV3) BlobDataProofForPointEvaluation() ([]byte, error) {
 
 	commitment, err := kzg4844.BlobToCommitment(b.blob)
 	if err != nil {
-		return nil, errors.New("failed to create blob commitment")
+		return nil, fmt.Errorf("failed to create blob commitment: %w", err)
 	}
 
 	proof, y, err := kzg4844.ComputeProof(b.blob, *b.z)

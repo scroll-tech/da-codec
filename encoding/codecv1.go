@@ -215,7 +215,7 @@ func (d *DACodecV1) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, errors.New("failed to create blob commitment")
+		return nil, common.Hash{}, nil, fmt.Errorf("failed to create blob commitment: %w", err)
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 

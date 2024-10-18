@@ -6,6 +6,7 @@ import (
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -617,4 +618,58 @@ func TestCodecV0DecodeDAChunksRawTx(t *testing.T) {
 	// here number of transactions in encoded and decoded chunks may be different, because decodec chunks doesn't contain l1msgs
 	assert.Equal(t, 1, len(daChunksRawTx[1].Transactions[0]))
 	assert.Equal(t, 0, len(daChunksRawTx[1].Transactions[1]))
+}
+
+func TestDACodecV0SimpleMethods(t *testing.T) {
+	codecv0, err := CodecFromVersion(CodecV0)
+	require.NoError(t, err)
+
+	t.Run("Version", func(t *testing.T) {
+		version := codecv0.Version()
+		assert.Equal(t, CodecV0, version)
+	})
+
+	t.Run("CheckChunkCompressedDataCompatibility", func(t *testing.T) {
+		chunk := &Chunk{}
+		compatible, err := codecv0.CheckChunkCompressedDataCompatibility(chunk)
+		assert.NoError(t, err)
+		assert.True(t, compatible)
+	})
+
+	t.Run("CheckBatchCompressedDataCompatibility", func(t *testing.T) {
+		batch := &Batch{}
+		compatible, err := codecv0.CheckBatchCompressedDataCompatibility(batch)
+		assert.NoError(t, err)
+		assert.True(t, compatible)
+	})
+
+	t.Run("EstimateChunkL1CommitBatchSizeAndBlobSize", func(t *testing.T) {
+		chunk := &Chunk{}
+		batchSize, blobSize, err := codecv0.EstimateChunkL1CommitBatchSizeAndBlobSize(chunk)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(0), batchSize)
+		assert.Equal(t, uint64(0), blobSize)
+	})
+
+	t.Run("EstimateBatchL1CommitBatchSizeAndBlobSize", func(t *testing.T) {
+		batch := &Batch{}
+		batchSize, blobSize, err := codecv0.EstimateBatchL1CommitBatchSizeAndBlobSize(batch)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(0), batchSize)
+		assert.Equal(t, uint64(0), blobSize)
+	})
+
+	t.Run("JSONFromBytes", func(t *testing.T) {
+		data := []byte("test data")
+		json, err := codecv0.JSONFromBytes(data)
+		assert.NoError(t, err)
+		assert.Nil(t, json)
+	})
+
+	t.Run("DecodeTxsFromBlob", func(t *testing.T) {
+		blob := &kzg4844.Blob{}
+		chunks := []*DAChunkRawTx{}
+		err := codecv0.DecodeTxsFromBlob(blob, chunks)
+		assert.NoError(t, err)
+	})
 }

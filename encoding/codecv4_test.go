@@ -1320,3 +1320,13 @@ func TestCodecV4BatchStandardTestCasesDisableCompression(t *testing.T) {
 		assert.Equal(t, common.HexToHash(tc.expectedBatchHash), batch.Hash())
 	}
 }
+
+func TestDACodecV4SimpleMethods(t *testing.T) {
+	codecv4, err := CodecFromVersion(CodecV4)
+	require.NoError(t, err)
+
+	t.Run("Version", func(t *testing.T) {
+		version := codecv4.Version()
+		assert.Equal(t, CodecV4, version)
+	})
+}
