@@ -1,11 +1,13 @@
 package encoding
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"math"
 	"strings"
 	"testing"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
@@ -1037,4 +1039,111 @@ func TestDACodecV2SimpleMethods(t *testing.T) {
 		version := codecv2.Version()
 		assert.Equal(t, CodecV2, version)
 	})
+}
+
+func TestCodecV2ChunkCompressedDataCompatibility(t *testing.T) {
+	codecv2, err := CodecFromVersion(CodecV2)
+	require.NoError(t, err)
+
+	// chunk with a single empty block
+	emptyBlock := &Block{}
+	emptyChunk := &Chunk{Blocks: []*Block{emptyBlock}}
+
+	compatible, err := codecv2.CheckChunkCompressedDataCompatibility(emptyChunk)
+	assert.NoError(t, err)
+	assert.True(t, compatible)
+
+	txChunk := &Chunk{
+		Blocks: []*Block{
+			{
+				Transactions: []*types.TransactionData{
+					{Type: types.L1MessageTxType},
+				},
+			},
+		},
+	}
+	compatible, err = codecv2.CheckChunkCompressedDataCompatibility(txChunk)
+	assert.NoError(t, err)
+	assert.True(t, compatible)
+
+	testCases := []struct {
+		name     string
+		jsonFile string
+	}{
+		{"Block 02", "testdata/blockTrace_02.json"},
+		{"Block 03", "testdata/blockTrace_03.json"},
+		{"Block 04", "testdata/blockTrace_04.json"},
+		{"Block 05", "testdata/blockTrace_05.json"},
+		{"Block 06", "testdata/blockTrace_06.json"},
+		{"Block 07", "testdata/blockTrace_07.json"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			block := readBlockFromJSON(t, tc.jsonFile)
+			chunk := &Chunk{Blocks: []*Block{block}}
+			compatible, err := codecv2.CheckChunkCompressedDataCompatibility(chunk)
+			assert.NoError(t, err)
+			assert.True(t, compatible)
+		})
+	}
+}
+
+func TestCodecV2BatchCompressedDataCompatibility(t *testing.T) {
+	codecv2, err := CodecFromVersion(CodecV2)
+	require.NoError(t, err)
+
+	// empty batch
+	emptyBatch := &Batch{}
+	compatible, err := codecv2.CheckBatchCompressedDataCompatibility(emptyBatch)
+	assert.NoError(t, err)
+	assert.True(t, compatible)
+
+	testCases := []struct {
+		name      string
+		jsonFiles []string
+	}{
+		{"Single Block 02", []string{"testdata/blockTrace_02.json"}},
+		{"Single Block 03", []string{"testdata/blockTrace_03.json"}},
+		{"Single Block 04", []string{"testdata/blockTrace_04.json"}},
+		{"Single Block 05", []string{"testdata/blockTrace_05.json"}},
+		{"Single Block 06", []string{"testdata/blockTrace_06.json"}},
+		{"Single Block 07", []string{"testdata/blockTrace_07.json"}},
+		{"Multiple Blocks", []string{"testdata/blockTrace_02.json", "testdata/blockTrace_03.json", "testdata/blockTrace_04.json", "testdata/blockTrace_05.json", "testdata/blockTrace_06.json", "testdata/blockTrace_07.json"}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var chunks []*Chunk
+			for _, jsonFile := range tc.jsonFiles {
+				block := readBlockFromJSON(t, jsonFile)
+				chunks = append(chunks, &Chunk{Blocks: []*Block{block}})
+			}
+			batch := &Batch{Chunks: chunks}
+			compatible, err := codecv2.CheckBatchCompressedDataCompatibility(batch)
+			assert.NoError(t, err)
+			assert.True(t, compatible)
+		})
+	}
+}
+
+func TestCodecV2CompressedDataFailedCompatibilityCheck(t *testing.T) {
+	codecv2, err := CodecFromVersion(CodecV2)
+	require.NoError(t, err)
+
+	patches := gomonkey.ApplyFunc(constructBatchPayloadInBlob, func(_ []*Chunk, _ Codec) ([]byte, error) {
+		randomBytes := make([]byte, minCompressedDataCheckSize+1)
+		_, err := rand.Read(randomBytes)
+		require.NoError(t, err)
+		return []byte(hex.EncodeToString(randomBytes)), nil
+	})
+	defer patches.Reset()
+
+	compatible, err := codecv2.CheckChunkCompressedDataCompatibility(nil)
+	assert.NoError(t, err)
+	assert.False(t, compatible)
+
+	compatible, err = codecv2.CheckBatchCompressedDataCompatibility(&Batch{})
+	assert.NoError(t, err)
+	assert.False(t, compatible)
 }
