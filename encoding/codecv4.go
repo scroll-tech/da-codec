@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -307,4 +308,19 @@ func (d *DACodecV4) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 func (d *DACodecV4) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
 	return d.checkCompressedDataCompatibility(b.Chunks)
+}
+
+// JSONFromBytes converts the bytes to a daBatchV3 and then marshals it to JSON.
+func (d *DACodecV4) JSONFromBytes(data []byte) ([]byte, error) {
+	batch, err := d.NewDABatchFromBytes(data) // this is different from the V3 implementation
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode DABatch from bytes: %w", err)
+	}
+
+	jsonBytes, err := json.Marshal(batch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal DABatch to JSON, version %d, hash %s: %w", batch.Version(), batch.Hash(), err)
+	}
+
+	return jsonBytes, nil
 }

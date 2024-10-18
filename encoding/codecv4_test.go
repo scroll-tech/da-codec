@@ -3,6 +3,7 @@ package encoding
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -579,6 +580,55 @@ func TestCodecV4DABatchJSONMarshalUnmarshal(t *testing.T) {
 
 		assert.Equal(t, expectedJson, actualJson, "Marshaled JSON does not match expected JSON")
 	})
+}
+
+func TestDACodecV4JSONFromBytes(t *testing.T) {
+	codecv4, err := CodecFromVersion(CodecV4)
+	require.NoError(t, err)
+
+	daBatch := daBatchV3{
+		daBatchV0: daBatchV0{
+			version:              4,
+			batchIndex:           293212,
+			l1MessagePopped:      7,
+			totalL1MessagePopped: 904750,
+			dataHash:             common.HexToHash("0xa261ff31f8f78c19f65d14d6394eb911d53a3a3add9a9691b211caa5809be450"),
+			parentBatchHash:      common.HexToHash("0xc37d3f6881f0ca6b02b1dc071483e02d0fe88cf2ff3663bb1ba9aa0dc034faee"),
+		},
+		blobVersionedHash:  common.HexToHash("0x0120096572a3007f75c2a3ff82fa652976eae1c9428ec87ec258a8dcc84f488e"),
+		lastBlockTimestamp: 1721130505,
+		blobDataProof: [2]common.Hash{
+			common.HexToHash("0x496b144866cffedfd71423639984bf0d9ad4309ff7e35693f1baef3cdaf1471e"),
+			common.HexToHash("0x5eba7d42db109bfa124d1bc4dbcb421944b8aae6eae13a9d55eb460ce402785b"),
+		},
+	}
+
+	outputJSON, err := codecv4.JSONFromBytes(daBatch.Encode())
+	require.NoError(t, err, "JSONFromBytes failed")
+
+	var outputMap map[string]interface{}
+	err = json.Unmarshal(outputJSON, &outputMap)
+	require.NoError(t, err, "Failed to unmarshal output JSON")
+
+	expectedFields := map[string]interface{}{
+		"version":                 float64(daBatch.version),
+		"batch_index":             float64(daBatch.batchIndex),
+		"l1_message_popped":       float64(daBatch.l1MessagePopped),
+		"total_l1_message_popped": float64(daBatch.totalL1MessagePopped),
+		"data_hash":               daBatch.dataHash.Hex(),
+		"blob_versioned_hash":     daBatch.blobVersionedHash.Hex(),
+		"parent_batch_hash":       daBatch.parentBatchHash.Hex(),
+		"last_block_timestamp":    float64(daBatch.lastBlockTimestamp),
+		"blob_data_proof": []interface{}{
+			daBatch.blobDataProof[0].Hex(),
+			daBatch.blobDataProof[1].Hex(),
+		},
+	}
+
+	assert.Len(t, outputMap, len(expectedFields), "Unexpected number of fields in output")
+	for key, expectedValue := range expectedFields {
+		assert.Equal(t, expectedValue, outputMap[key], fmt.Sprintf("Mismatch in field %s", key))
+	}
 }
 
 func TestCodecV4CalldataSizeEstimation(t *testing.T) {

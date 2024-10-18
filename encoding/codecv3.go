@@ -135,7 +135,7 @@ func (d *DACodecV3) EstimateBatchL1CommitGas(b *Batch) (uint64, error) {
 func (d *DACodecV3) JSONFromBytes(data []byte) ([]byte, error) {
 	batch, err := d.NewDABatchFromBytes(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode DABatch from bytes, version %d, hash %s: %w", batch.Version(), batch.Hash(), err)
+		return nil, fmt.Errorf("failed to decode DABatch from bytes: %w", err)
 	}
 
 	jsonBytes, err := json.Marshal(batch)
