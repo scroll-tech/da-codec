@@ -13,7 +13,7 @@ func TestDecodeBitmap(t *testing.T) {
 	skippedL1MessageBitmap, err := hex.DecodeString(bitmapHex)
 	assert.NoError(t, err)
 
-	decodedBitmap, err := decodeBitmap(skippedL1MessageBitmap, 42)
+	decodedBitmap, err := DecodeBitmap(skippedL1MessageBitmap, 42)
 	assert.NoError(t, err)
 
 	isL1MessageSkipped := func(skippedBitmap []*big.Int, index uint64) bool {
@@ -36,9 +36,9 @@ func TestDecodeBitmap(t *testing.T) {
 	assert.False(t, isL1MessageSkipped(decodedBitmap, 40))
 	assert.False(t, isL1MessageSkipped(decodedBitmap, 41))
 
-	_, err = decodeBitmap([]byte{0x00}, 8)
+	_, err = DecodeBitmap([]byte{0x00}, 8)
 	assert.Error(t, err)
 
-	_, err = decodeBitmap([]byte{0x00, 0x00, 0x00, 0x00}, 33)
+	_, err = DecodeBitmap([]byte{0x00, 0x00, 0x00, 0x00}, 33)
 	assert.Error(t, err)
 }

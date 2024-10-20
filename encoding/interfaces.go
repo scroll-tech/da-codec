@@ -16,6 +16,9 @@ type DABlock interface {
 	Number() uint64
 	NumTransactions() uint16
 	NumL1Messages() uint16
+	Timestamp() uint64
+	BaseFee() *big.Int
+	GasLimit() uint64
 }
 
 // DAChunk groups consecutive DABlocks with their transactions.
