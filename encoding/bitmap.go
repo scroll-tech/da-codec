@@ -64,7 +64,7 @@ func constructSkippedBitmap(batchIndex uint64, chunks []*Chunk, totalL1MessagePo
 	return skippedL1MessageBitmap, nextIndex, nil
 }
 
-// decodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's.
+// DecodeBitmap decodes skipped L1 message bitmap of the batch from bytes to big.Int's.
 func DecodeBitmap(skippedL1MessageBitmap []byte, totalL1MessagePopped int) ([]*big.Int, error) {
 	length := len(skippedL1MessageBitmap)
 	if length%skippedL1MessageBitmapByteSize != 0 {
