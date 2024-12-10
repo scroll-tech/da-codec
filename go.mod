@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.12.0
-	github.com/scroll-tech/go-ethereum v1.10.14-0.20241010064814-3d88e870ae22
+	github.com/scroll-tech/go-ethereum v1.10.14-0.20241206090635-a5ecce2dc333
 	github.com/stretchr/testify v1.9.0
 )
 

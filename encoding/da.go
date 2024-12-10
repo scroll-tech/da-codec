@@ -78,18 +78,19 @@ const (
 )
 
 const (
-	payloadLengthBytes             = 4
-	calldataNonZeroByteGas         = 16
-	coldSloadGas                   = 2100
-	coldAddressAccessGas           = 2600
-	warmAddressAccessGas           = 100
-	warmSloadGas                   = 100
-	baseTxGas                      = 21000
-	sstoreGas                      = 20000
-	extraGasCost                   = 100000 // over-estimate the gas cost for ops like _getAdmin, _implementation, _requireNotPaused, etc
-	skippedL1MessageBitmapByteSize = 32
-	functionSignatureBytes         = 4
-	defaultParameterBytes          = 32
+	payloadLengthBytes                 = 4
+	calldataNonZeroByteGas             = 16
+	coldSloadGas                       = 2100
+	coldAddressAccessGas               = 2600
+	warmAddressAccessGas               = 100
+	warmSloadGas                       = 100
+	baseTxGas                          = 21000
+	sstoreGas                          = 20000
+	extraGasCost                       = 100000 // over-estimate the gas cost for ops like _getAdmin, _implementation, _requireNotPaused, etc
+	blobTxPointEvaluationPrecompileGas = 50000
+	skippedL1MessageBitmapByteSize     = 32
+	functionSignatureBytes             = 4
+	defaultParameterBytes              = 32
 )
 
 // Block represents an L2 block.
@@ -628,9 +629,9 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "homestead"
 	} else if !config.IsCurie(blockHeightBigInt) {
 		return "bernoulli"
-	} else if !config.IsDarwin(blockHeightBigInt, blockTimestamp) {
+	} else if !config.IsDarwin(blockTimestamp) {
 		return "curie"
-	} else if !config.IsDarwinV2(blockHeightBigInt, blockTimestamp) {
+	} else if !config.IsDarwinV2(blockTimestamp) {
 		return "darwin"
 	} else {
 		return "darwinV2"
@@ -644,9 +645,9 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return CodecV0
 	} else if !config.IsCurie(blockHeightBigInt) {
 		return CodecV1
-	} else if !config.IsDarwin(blockHeightBigInt, blockTimestamp) {
+	} else if !config.IsDarwin(blockTimestamp) {
 		return CodecV2
-	} else if !config.IsDarwinV2(blockHeightBigInt, blockTimestamp) {
+	} else if !config.IsDarwinV2(blockTimestamp) {
 		return CodecV3
 	} else {
 		return CodecV4
