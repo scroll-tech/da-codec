@@ -115,6 +115,8 @@ github.com/rogpeppe/go-internal v1.10.0 h1:TMyTOH3F/DB16zRVcYyreMH6GnZZrwQVAoYjR
 github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncjaFoBhdsK/akog=
 github.com/scroll-tech/go-ethereum v1.10.14-0.20241010064814-3d88e870ae22 h1:s1/8G2HP1z9jd0FBbUVs7viv/lQZA/8QoQppXYTX1CU=
 github.com/scroll-tech/go-ethereum v1.10.14-0.20241010064814-3d88e870ae22/go.mod h1:r9FwtxCtybMkTbWYCyBuevT9TW3zHmOTHqD082Uh+Oo=
+github.com/scroll-tech/go-ethereum v1.10.14-0.20241206090635-a5ecce2dc333 h1:qJXViC4vPMcYNVImHnSWIL4IMXtiyolaN687+qVwc0Y=
+github.com/scroll-tech/go-ethereum v1.10.14-0.20241206090635-a5ecce2dc333/go.mod h1:xRDJvaNUe7lCU2fB+AqyS7gahar+dfJPrUJplfXF4dw=
 github.com/scroll-tech/zktrie v0.8.4 h1:UagmnZ4Z3ITCk+aUq9NQZJNAwnWl4gSxsLb2Nl7IgRE=
 github.com/scroll-tech/zktrie v0.8.4/go.mod h1:XvNo7vAk8yxNyTjBDj5WIiFzYW4bx/gJ78+NK6Zn6Uk=
 github.com/shirou/gopsutil v3.21.11+incompatible h1:+1+c1VGhc88SSonWP6foOcLhvnKlUeu/erjjvaPEYiI=
