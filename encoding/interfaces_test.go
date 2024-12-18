@@ -4,8 +4,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/scroll-tech/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/scroll-tech/go-ethereum/params"
 )
 
 func TestCodecFromVersion(t *testing.T) {
