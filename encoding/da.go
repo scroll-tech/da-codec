@@ -78,6 +78,12 @@ const (
 )
 
 const (
+	daBatchV6EncodedLength           = 73
+	daBatchV6OffsetBlobVersionedHash = 9
+	daBatchV6OffsetParentBatchHash   = 41
+)
+
+const (
 	payloadLengthBytes                 = 4
 	calldataNonZeroByteGas             = 16
 	coldSloadGas                       = 2100
