@@ -118,6 +118,12 @@ type Batch struct {
 	TotalL1MessagePoppedBefore uint64
 	ParentBatchHash            common.Hash
 	Chunks                     []*Chunk
+
+	// CodecV7
+	InitialL1MessageIndex     uint64
+	InitialL1MessageQueueHash common.Hash
+	LastL1MessageQueueHash    common.Hash
+	Blocks                    []*Block
 }
 
 // NumL1Messages returns the number of L1 messages in this block.
@@ -135,6 +141,19 @@ func (b *Block) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 	// note: last queue index included before this block is totalL1MessagePoppedBefore - 1
 	// TODO: cache results
 	return *lastQueueIndex - totalL1MessagePoppedBefore + 1
+}
+
+// NumL1MessagesNoSkipping returns the number of L1 messages in this block.
+// This method assumes that L1 messages can't be skipped.
+func (b *Block) NumL1MessagesNoSkipping() uint16 {
+	var count uint16
+	for _, txData := range b.Transactions {
+		if txData.Type == types.L1MessageTxType {
+			count++
+		}
+	}
+
+	return count
 }
 
 // NumL2Transactions returns the number of L2 transactions in this block.
