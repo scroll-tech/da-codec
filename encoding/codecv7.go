@@ -15,20 +15,20 @@ import (
 	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
-type DACodecV6 struct{}
+type DACodecV7 struct{}
 
 // Version returns the codec version.
-func (d *DACodecV6) Version() CodecVersion {
-	return CodecV6
+func (d *DACodecV7) Version() CodecVersion {
+	return CodecV7
 }
 
 // MaxNumChunksPerBatch returns the maximum number of chunks per batch.
-func (d *DACodecV6) MaxNumChunksPerBatch() int {
+func (d *DACodecV7) MaxNumChunksPerBatch() int {
 	return 1
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
-func (d *DACodecV6) NewDABlock(block *Block, _ uint64) (DABlock, error) {
+func (d *DACodecV7) NewDABlock(block *Block, _ uint64) (DABlock, error) {
 	if !block.Header.Number.IsUint64() {
 		return nil, errors.New("block number is not uint64")
 	}
@@ -46,7 +46,7 @@ func (d *DACodecV6) NewDABlock(block *Block, _ uint64) (DABlock, error) {
 		return nil, errors.New("number of transactions exceeds max uint16")
 	}
 
-	daBlock := newDABlockV6(
+	daBlock := newDABlockV7(
 		block.Header.Number.Uint64(), // number
 		block.Header.Time,            // timestamp
 		block.Header.BaseFee,         // baseFee
@@ -59,14 +59,14 @@ func (d *DACodecV6) NewDABlock(block *Block, _ uint64) (DABlock, error) {
 }
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
-// Note: For DACodecV6, this function is not implemented since there is no notion of DAChunk in this version. Blobs
+// Note: For DACodecV7, this function is not implemented since there is no notion of DAChunk in this version. Blobs
 // contain the entire batch data, and it is up to a prover to decide the chunk sizes.
-func (d *DACodecV6) NewDAChunk(_ *Chunk, _ uint64) (DAChunk, error) {
+func (d *DACodecV7) NewDAChunk(_ *Chunk, _ uint64) (DAChunk, error) {
 	return nil, nil
 }
 
 // NewDABatch creates a DABatch including blob from the provided Batch.
-func (d *DACodecV6) NewDABatch(batch *Batch) (DABatch, error) {
+func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 	if len(batch.Chunks) != 0 {
 		return nil, errors.New("batch must not contain any chunks")
 	}
@@ -80,7 +80,7 @@ func (d *DACodecV6) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, fmt.Errorf("failed to construct blob: %w", err)
 	}
 
-	daBatch, err := newDABatchV6(CodecV6, batch.Index, batch.ParentBatchHash, blobVersionedHash, blob, blobBytes)
+	daBatch, err := newDABatchV7(CodecV7, batch.Index, batch.ParentBatchHash, blobVersionedHash, blob, blobBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct DABatch: %w", err)
 	}
@@ -88,14 +88,14 @@ func (d *DACodecV6) NewDABatch(batch *Batch) (DABatch, error) {
 	return daBatch, nil
 }
 
-func (d *DACodecV6) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []byte, error) {
+func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []byte, error) {
 	enableCompression, err := d.CheckBatchCompressedDataCompatibility(batch)
 	if err != nil {
 		return nil, common.Hash{}, nil, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
 
 	blobBytes := make([]byte, blobEnvelopeV7PayloadOffset)
-	blobBytes[blobEnvelopeV7VersionOffset] = uint8(CodecV6)
+	blobBytes[blobEnvelopeV7VersionOffset] = uint8(CodecV7)
 
 	payloadBytes, err := d.constructBlobPayload(batch)
 	if err != nil {
@@ -144,8 +144,8 @@ func (d *DACodecV6) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 	return blob, blobVersionedHash, blobBytes, nil
 }
 
-func (d *DACodecV6) constructBlobPayload(batch *Batch) ([]byte, error) {
-	blobPayload := blobPayloadV6{
+func (d *DACodecV7) constructBlobPayload(batch *Batch) ([]byte, error) {
+	blobPayload := blobPayloadV7{
 		initialL1MessageIndex:     batch.InitialL1MessageIndex,
 		initialL1MessageQueueHash: batch.InitialL1MessageQueueHash,
 		lastL1MessageQueueHash:    batch.LastL1MessageQueueHash,
@@ -157,30 +157,30 @@ func (d *DACodecV6) constructBlobPayload(batch *Batch) ([]byte, error) {
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
 // Note: This function only populates the batch header, it leaves the blob-related fields and skipped L1 message bitmap empty.
-func (d *DACodecV6) NewDABatchFromBytes(data []byte) (DABatch, error) {
-	daBatch, err := decodeDABatchV6(data)
+func (d *DACodecV7) NewDABatchFromBytes(data []byte) (DABatch, error) {
+	daBatch, err := decodeDABatchV7(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode DA batch: %w", err)
 	}
 
-	if daBatch.version != CodecV6 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV6, daBatch.version)
+	if daBatch.version != CodecV7 {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV7, daBatch.version)
 	}
 
 	return daBatch, nil
 }
 
-func (d *DACodecV6) DecodeDAChunksRawTx(_ [][]byte) ([]*DAChunkRawTx, error) {
+func (d *DACodecV7) DecodeDAChunksRawTx(_ [][]byte) ([]*DAChunkRawTx, error) {
 	return nil, nil
 }
 
-func (d *DACodecV6) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
 	rawBytes := bytesFromBlobCanonical(blob)
 
 	// read the blob envelope header
 	version := rawBytes[blobEnvelopeV7VersionOffset]
-	if CodecVersion(version) != CodecV6 {
-		return fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV6, version)
+	if CodecVersion(version) != CodecV7 {
+		return fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV7, version)
 	}
 
 	// read the data size
@@ -195,13 +195,13 @@ func (d *DACodecV6) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 	compressed := rawBytes[blobEnvelopeV7CompressedFlagOffset]
 	if compressed == 0x1 {
 		var err error
-		if payloadBytes, err = decompressV6Bytes(payloadBytes); err != nil {
+		if payloadBytes, err = decompressV7Bytes(payloadBytes); err != nil {
 			return fmt.Errorf("failed to decompress blob payload: %w", err)
 		}
 	}
 
 	// read the payload
-	payload, err := decodeBlobPayloadV6(payloadBytes)
+	payload, err := decodeBlobPayloadV7(payloadBytes)
 	if err != nil {
 		return fmt.Errorf("failed to decode blob payload: %w", err)
 	}
@@ -216,7 +216,7 @@ func (d *DACodecV6) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 
 // checkCompressedDataCompatibility checks the compressed data compatibility for a batch.
 // It constructs a blob payload, compresses the data, and checks the compressed data compatibility.
-func (d *DACodecV6) checkCompressedDataCompatibility(batch *Batch) (bool, error) {
+func (d *DACodecV7) checkCompressedDataCompatibility(batch *Batch) (bool, error) {
 	payloadBytes, err := d.constructBlobPayload(batch)
 	if err != nil {
 		return false, fmt.Errorf("failed to construct blob payload: %w", err)
@@ -242,56 +242,56 @@ func (d *DACodecV6) checkCompressedDataCompatibility(batch *Batch) (bool, error)
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
-// Note: For DACodecV6, this function is not implemented since there is no notion of DAChunk in this version. Blobs
+// Note: For DACodecV7, this function is not implemented since there is no notion of DAChunk in this version. Blobs
 // contain the entire batch data, and it is up to a prover to decide the chunk sizes.
-func (d *DACodecV6) CheckChunkCompressedDataCompatibility(_ *Chunk) (bool, error) {
+func (d *DACodecV7) CheckChunkCompressedDataCompatibility(_ *Chunk) (bool, error) {
 	return true, nil
 }
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
-func (d *DACodecV6) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
+func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
 	return d.checkCompressedDataCompatibility(b)
 }
 
 // TODO: which of the Estimate* functions are needed?
 
-func (d *DACodecV6) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
+func (d *DACodecV7) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
 	//TODO implement me after contracts are implemented
 	panic("implement me")
 }
 
-func (d *DACodecV6) EstimateBatchL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
+func (d *DACodecV7) EstimateBatchL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
 	//TODO implement me after contracts are implemented
 	panic("implement me")
 }
 
-func (d *DACodecV6) EstimateBlockL1CommitCalldataSize(block *Block) (uint64, error) {
+func (d *DACodecV7) EstimateBlockL1CommitCalldataSize(block *Block) (uint64, error) {
 	//TODO implement me after contracts are implemented
 	panic("implement me")
 }
 
-func (d *DACodecV6) EstimateChunkL1CommitCalldataSize(chunk *Chunk) (uint64, error) {
+func (d *DACodecV7) EstimateChunkL1CommitCalldataSize(chunk *Chunk) (uint64, error) {
 	//TODO implement me after contracts are implemented
 	panic("implement me")
 }
 
-func (d *DACodecV6) EstimateChunkL1CommitGas(chunk *Chunk) (uint64, error) {
+func (d *DACodecV7) EstimateChunkL1CommitGas(chunk *Chunk) (uint64, error) {
 	//TODO implement me after contracts are implemented
 	panic("implement me")
 }
 
-func (d *DACodecV6) EstimateBatchL1CommitGas(batch *Batch) (uint64, error) {
+func (d *DACodecV7) EstimateBatchL1CommitGas(batch *Batch) (uint64, error) {
 	//TODO implement me after contracts are implemented
 	panic("implement me")
 }
 
-func (d *DACodecV6) EstimateBatchL1CommitCalldataSize(batch *Batch) (uint64, error) {
+func (d *DACodecV7) EstimateBatchL1CommitCalldataSize(batch *Batch) (uint64, error) {
 	//TODO implement me after contracts are implemented
 	panic("implement me")
 }
 
 // JSONFromBytes converts the bytes to a DABatch and then marshals it to JSON.
-func (d *DACodecV6) JSONFromBytes(data []byte) ([]byte, error) {
+func (d *DACodecV7) JSONFromBytes(data []byte) ([]byte, error) {
 	batch, err := d.NewDABatchFromBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode DABatch from bytes: %w", err)

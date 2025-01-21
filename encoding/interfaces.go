@@ -76,8 +76,9 @@ const (
 	CodecV2
 	CodecV3
 	CodecV4
-	_ // CodecV5 is skipped
-	CodecV6
+	_
+	_
+	CodecV7
 )
 
 // CodecFromVersion returns the appropriate codec for the given version.
@@ -93,8 +94,8 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 		return &DACodecV3{}, nil
 	case CodecV4:
 		return &DACodecV4{}, nil
-	case CodecV6:
-		return &DACodecV6{}, nil
+	case CodecV7:
+		return &DACodecV7{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported codec version: %v", version)
 	}
@@ -103,7 +104,7 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
 func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
 	if chainCfg.IsDarwinV2(startBlockTimestamp) { // TODO: replace with correct fork
-		return &DACodecV6{}
+		return &DACodecV7{}
 	} else if chainCfg.IsDarwinV2(startBlockTimestamp) {
 		return &DACodecV4{}
 	} else if chainCfg.IsDarwin(startBlockTimestamp) {
