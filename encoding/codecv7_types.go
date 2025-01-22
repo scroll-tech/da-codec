@@ -50,20 +50,20 @@ const (
 type daBatchV7 struct {
 	version           CodecVersion
 	batchIndex        uint64
-	parentBatchHash   common.Hash
 	blobVersionedHash common.Hash
+	parentBatchHash   common.Hash
 
 	blob      *kzg4844.Blob
 	blobBytes []byte
 }
 
 // newDABatchV7 is a constructor for daBatchV7 that calls blobDataProofForPICircuit internally.
-func newDABatchV7(version CodecVersion, batchIndex uint64, parentBatchHash, blobVersionedHash common.Hash, blob *kzg4844.Blob, blobBytes []byte) (*daBatchV7, error) {
+func newDABatchV7(version CodecVersion, batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash, blob *kzg4844.Blob, blobBytes []byte) (*daBatchV7, error) {
 	daBatch := &daBatchV7{
 		version:           version,
 		batchIndex:        batchIndex,
-		parentBatchHash:   parentBatchHash,
 		blobVersionedHash: blobVersionedHash,
+		parentBatchHash:   parentBatchHash,
 		blob:              blob,
 		blobBytes:         blobBytes,
 	}
@@ -81,7 +81,7 @@ func decodeDABatchV7(data []byte) (*daBatchV7, error) {
 	blobVersionedHash := common.BytesToHash(data[daBatchV7OffsetBlobVersionedHash:daBatchV7OffsetParentBatchHash])
 	parentBatchHash := common.BytesToHash(data[daBatchV7OffsetParentBatchHash:daBatchV7EncodedLength])
 
-	return newDABatchV7(version, batchIndex, parentBatchHash, blobVersionedHash, nil, nil)
+	return newDABatchV7(version, batchIndex, blobVersionedHash, parentBatchHash, nil, nil)
 }
 
 // Encode serializes the DABatchV3 into bytes.

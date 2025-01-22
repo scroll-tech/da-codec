@@ -49,6 +49,7 @@ type Codec interface {
 	NewDAChunk(*Chunk, uint64) (DAChunk, error)
 	NewDABatch(*Batch) (DABatch, error)
 	NewDABatchFromBytes([]byte) (DABatch, error)
+	NewDABatchFromParams(batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash) (DABatch, error)
 
 	DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error)
 	DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error

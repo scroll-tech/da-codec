@@ -80,7 +80,7 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, fmt.Errorf("failed to construct blob: %w", err)
 	}
 
-	daBatch, err := newDABatchV7(CodecV7, batch.Index, batch.ParentBatchHash, blobVersionedHash, blob, blobBytes)
+	daBatch, err := newDABatchV7(CodecV7, batch.Index, blobVersionedHash, batch.ParentBatchHash, blob, blobBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct DABatch: %w", err)
 	}
@@ -168,6 +168,10 @@ func (d *DACodecV7) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	}
 
 	return daBatch, nil
+}
+
+func (d *DACodecV7) NewDABatchFromParams(batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash) (DABatch, error) {
+	return newDABatchV7(CodecV7, batchIndex, blobVersionedHash, parentBatchHash, nil, nil)
 }
 
 func (d *DACodecV7) DecodeDAChunksRawTx(_ [][]byte) ([]*DAChunkRawTx, error) {

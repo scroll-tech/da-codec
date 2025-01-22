@@ -223,6 +223,10 @@ func (d *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	), nil
 }
 
+func (d *DACodecV0) NewDABatchFromParams(_ uint64, _, _ common.Hash) (DABatch, error) {
+	return nil, nil
+}
+
 // EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.
 func (d *DACodecV0) EstimateBlockL1CommitCalldataSize(b *Block) (uint64, error) {
 	var size uint64
