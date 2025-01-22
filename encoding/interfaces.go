@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/scroll-tech/go-ethereum/params"
 )
@@ -40,6 +41,12 @@ type DABatch interface {
 	SkippedL1MessageBitmap() []byte
 }
 
+type DABlobPayload interface {
+	Blocks() []DABlock
+	Transactions() []types.Transactions
+	InitialL1MessageIndex() uint64
+}
+
 // Codec represents the interface for encoding and decoding DA-related structures.
 type Codec interface {
 	Version() CodecVersion
@@ -53,6 +60,7 @@ type Codec interface {
 
 	DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error)
 	DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error
+	DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error)
 
 	CheckChunkCompressedDataCompatibility(*Chunk) (bool, error)
 	CheckBatchCompressedDataCompatibility(*Batch) (bool, error)

@@ -178,19 +178,19 @@ func (d *DACodecV7) DecodeDAChunksRawTx(_ [][]byte) ([]*DAChunkRawTx, error) {
 	return nil, nil
 }
 
-func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+func (d *DACodecV7) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 	rawBytes := bytesFromBlobCanonical(blob)
 
 	// read the blob envelope header
 	version := rawBytes[blobEnvelopeV7VersionOffset]
 	if CodecVersion(version) != CodecV7 {
-		return fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV7, version)
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV7, version)
 	}
 
 	// read the data size
 	blobEnvelopeSize := decodeSize3Bytes(rawBytes[blobEnvelopeV7ByteSizeOffset:blobEnvelopeV7CompressedFlagOffset])
 	if blobEnvelopeSize+blobEnvelopeV7PayloadOffset > uint32(len(rawBytes)) {
-		return fmt.Errorf("blob envelope size exceeds the raw data size: %d > %d", blobEnvelopeSize, len(rawBytes))
+		return nil, fmt.Errorf("blob envelope size exceeds the raw data size: %d > %d", blobEnvelopeSize, len(rawBytes))
 	}
 
 	payloadBytes := rawBytes[blobEnvelopeV7PayloadOffset : blobEnvelopeV7PayloadOffset+blobEnvelopeSize]
@@ -200,19 +200,28 @@ func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 	if compressed == 0x1 {
 		var err error
 		if payloadBytes, err = decompressV7Bytes(payloadBytes); err != nil {
-			return fmt.Errorf("failed to decompress blob payload: %w", err)
+			return nil, fmt.Errorf("failed to decompress blob payload: %w", err)
 		}
 	}
 
 	// read the payload
 	payload, err := decodeBlobPayloadV7(payloadBytes)
 	if err != nil {
-		return fmt.Errorf("failed to decode blob payload: %w", err)
+		return nil, fmt.Errorf("failed to decode blob payload: %w", err)
+	}
+
+	return payload, nil
+}
+
+func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
+	payload, err := d.DecodeBlob(blob)
+	if err != nil {
+		return fmt.Errorf("failed to decode blob: %w", err)
 	}
 
 	chunks = append(chunks, &DAChunkRawTx{
-		Blocks:       payload.daBlocks,
-		Transactions: payload.transactions,
+		Blocks:       payload.Blocks(),
+		Transactions: payload.Transactions(),
 	})
 
 	return nil

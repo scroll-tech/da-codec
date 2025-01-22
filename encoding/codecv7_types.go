@@ -163,6 +163,18 @@ type blobPayloadV7 struct {
 	transactions []types.Transactions
 }
 
+func (b *blobPayloadV7) Blocks() []DABlock {
+	return b.daBlocks
+}
+
+func (b *blobPayloadV7) Transactions() []types.Transactions {
+	return b.transactions
+}
+
+func (b *blobPayloadV7) InitialL1MessageIndex() uint64 {
+	return b.initialL1MessageIndex
+}
+
 func (b *blobPayloadV7) Encode() ([]byte, error) {
 	payloadBytes := make([]byte, blobPayloadV7EncodedLength)
 
