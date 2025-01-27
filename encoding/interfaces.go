@@ -105,6 +105,7 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
 func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
 	if chainCfg.IsEuclid(startBlockTimestamp) {
+		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly 
 		return NewDACodecV6()
 	} else if chainCfg.IsDarwinV2(startBlockTimestamp) {
 		return &DACodecV4{}
