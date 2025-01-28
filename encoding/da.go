@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"slices"
 
 	"github.com/klauspost/compress/zstd"
 
@@ -244,6 +245,15 @@ func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 func (c *Chunk) CrcMax() (uint64, error) {
 	// Map sub-circuit name to row count
 	crc := make(map[string]uint64)
+
+	// if no blocks have row consumption, this is an euclid chunk
+	isEuclidChunk := slices.IndexFunc(c.Blocks, func(block *Block) bool {
+		return block.RowConsumption != nil
+	}) == -1
+
+	if isEuclidChunk {
+		return 0, nil
+	}
 
 	// Iterate over blocks, accumulate row consumption
 	for _, block := range c.Blocks {
@@ -652,8 +662,10 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "curie"
 	} else if !config.IsDarwinV2(blockTimestamp) {
 		return "darwin"
-	} else {
+	} else if !config.IsEuclid(blockTimestamp) {
 		return "darwinV2"
+	} else {
+		return "euclid"
 	}
 }
 
@@ -668,8 +680,11 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return CodecV2
 	} else if !config.IsDarwinV2(blockTimestamp) {
 		return CodecV3
-	} else {
+	} else if !config.IsEuclid(blockTimestamp) {
 		return CodecV4
+	} else {
+		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly 
+		return CodecV6
 	}
 }
 
@@ -698,7 +713,7 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4:
+	case CodecV4, CodecV5, CodecV6:
 		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
@@ -712,7 +727,7 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4:
+	case CodecV4, CodecV5, CodecV6:
 		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)

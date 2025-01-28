@@ -85,8 +85,8 @@ const (
 	CodecV2
 	CodecV3
 	CodecV4
-	_
-	_
+	CodecV5
+	CodecV6
 	CodecV7
 )
 
@@ -103,6 +103,10 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 		return &DACodecV3{}, nil
 	case CodecV4:
 		return &DACodecV4{}, nil
+	case CodecV5:
+		return NewDACodecV5(), nil
+	case CodecV6:
+		return NewDACodecV6(), nil
 	case CodecV7:
 		return &DACodecV7{}, nil
 	default:
@@ -112,8 +116,10 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
 func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
-	if chainCfg.IsDarwinV2(startBlockTimestamp) { // TODO: replace with correct fork
-		return &DACodecV7{}
+	// TODO: replace with correct fork
+	if chainCfg.IsEuclid(startBlockTimestamp) {
+		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly
+		return NewDACodecV6()
 	} else if chainCfg.IsDarwinV2(startBlockTimestamp) {
 		return &DACodecV4{}
 	} else if chainCfg.IsDarwin(startBlockTimestamp) {

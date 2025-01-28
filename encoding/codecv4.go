@@ -20,10 +20,14 @@ import (
 
 type DACodecV4 struct {
 	DACodecV3
+	forcedVersion *CodecVersion
 }
 
 // Version returns the codec version.
 func (d *DACodecV4) Version() CodecVersion {
+	if d.forcedVersion != nil {
+		return *d.forcedVersion
+	}
 	return CodecV4
 }
 
@@ -90,7 +94,7 @@ func (d *DACodecV4) NewDABatch(batch *Batch) (DABatch, error) {
 	l1MessagePopped := totalL1MessagePoppedAfter - batch.TotalL1MessagePoppedBefore
 
 	return newDABatchV3(
-		CodecV4,                   // version
+		d.Version(),               // version
 		batch.Index,               // batchIndex
 		l1MessagePopped,           // l1MessagePopped
 		totalL1MessagePoppedAfter, // totalL1MessagePopped
@@ -112,8 +116,8 @@ func (d *DACodecV4) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("invalid data length for DABatch, expected %d bytes but got %d", daBatchV3EncodedLength, len(data))
 	}
 
-	if CodecVersion(data[daBatchOffsetVersion]) != CodecV4 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV4, data[daBatchOffsetVersion])
+	if CodecVersion(data[daBatchOffsetVersion]) != d.Version() {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", d.Version(), data[daBatchOffsetVersion])
 	}
 
 	return newDABatchV3WithProof(
