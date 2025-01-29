@@ -140,15 +140,35 @@ func (b *Block) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 
 // NumL1MessagesNoSkipping returns the number of L1 messages in this block.
 // This method assumes that L1 messages can't be skipped.
-func (b *Block) NumL1MessagesNoSkipping() uint16 {
+func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, error) {
 	var count uint16
+	var prevQueueIndex *uint64
+
 	for _, txData := range b.Transactions {
-		if txData.Type == types.L1MessageTxType {
-			count++
+		if txData.Type != types.L1MessageTxType {
+			continue
 		}
+
+		// If prevQueueIndex is nil, it means this is the first L1 message in the block.
+		if prevQueueIndex == nil {
+			prevQueueIndex = &txData.Nonce
+			count++
+			continue
+		}
+
+		// Check if the queue index is consecutive.
+		if txData.Nonce != *prevQueueIndex+1 {
+			return 0, 0, fmt.Errorf("unexpected queue index: expected %d, got %d", *prevQueueIndex+1, txData.Nonce)
+		}
+
+		count++
+		prevQueueIndex = &txData.Nonce
 	}
 
-	return count
+	if prevQueueIndex == nil {
+		return 0, 0, nil
+	}
+	return count, *prevQueueIndex, nil
 }
 
 // NumL2Transactions returns the number of L2 transactions in this block.
@@ -683,7 +703,7 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 	} else if !config.IsEuclid(blockTimestamp) {
 		return CodecV4
 	} else {
-		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly 
+		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly
 		return CodecV6
 	}
 }

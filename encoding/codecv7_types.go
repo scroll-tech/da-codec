@@ -14,39 +14,77 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 )
 
+// Below is the encoding for `BatchHeader` V7, total 73 bytes.
+//   * Field                   Bytes       Type        Index   Comments
+//   * version                 1           uint8       0       The batch version
+//   * batchIndex              8           uint64      1       The index of the batch
+//   * blobVersionedHash       32          bytes32     9       The versioned hash of the blob with this batch’s data
+//   * parentBatchHash         32          bytes32     41      The parent batch hash
+
 const (
 	daBatchV7EncodedLength           = 73
 	daBatchV7OffsetBlobVersionedHash = 9
 	daBatchV7OffsetParentBatchHash   = 41
 )
 
-const (
-	blobEnvelopeV7VersionOffset        = 0
-	blobEnvelopeV7ByteSizeOffset       = 1
-	blobEnvelopeV7CompressedFlagOffset = 4
-	blobEnvelopeV7PayloadOffset        = 5
-)
+// Below is the encoding format for BlobEnvelopeV7.
+//   * Field                   Bytes       Type        Index   Comments
+//   * version                 1           uint8       0       The version of the DA codec (batch/blob)
+//   * n_bytes[1]              1           uint8       1       Value denoting the number of bytes, n_bytes[1]
+//   * n_bytes[2]              1           uint8       2       Value denoting the number of bytes, n_bytes[2]*256
+//   * n_bytes[3]              1           uint8       3       Value denoting the number of bytes, n_bytes[3]*256^2
+//   * flag                    1           bool        4       1-byte flag to denote zstd-encoded/raw bytes
+//   * payload                 N           bytes       5       Possibly zstd-encoded payload bytes
+//   * padding                 (4096*31 - (N+5)) bytes  N+5    Padding to align to 4096*31 bytes
 
 const (
-	blobPayloadV7EncodedLength               = 8 + 2*common.HashLength + 8 + 2
+	blobEnvelopeV7OffsetVersion        = 0
+	blobEnvelopeV7OffsetByteSize       = 1
+	blobEnvelopeV7OffsetCompressedFlag = 4
+	blobEnvelopeV7OffsetPayload        = 5
+)
+
+// Below is the encoding format for the batch metadata and blocks.
+//   * Field                      Bytes      Type             Index       Comments
+//   * initialL1MessageIndex       8         uint64           0           Queue index of the first L1 message contained in this batch
+//   * initialL1MessageQueueHash   32        bytes32          8           Hash of the L1 message queue at the last message in the previous batch
+//   * lastL1MessageQueueHash      32        bytes32          40          Hash of the L1 message queue at the last message in this batch
+//   * initialL2BlockNumber        8         uint64           72          The initial L2 block number in this batch
+//   * numBlocks                   2         uint16           80          The number of blocks in this batch
+//   * block[0]                    52        BlockContextV2   82          The first block in this batch
+//   * block[i]                    52        BlockContextV2   82+52*i     The (i+1)th block in this batch
+//   * block[n-1]                  52        BlockContextV2   82+52*(n-1) The last block in this batch
+//   * l2Transactions              dynamic   bytes            82+52*n     L2 transactions for this batch
+
+const (
+	blobPayloadV7MinEncodedLength            = 8 + 2*common.HashLength + 8 + 2
 	blobPayloadV7OffsetInitialL1MessageIndex = 0
-	blobPayloadV7OffsetInitialL1MessageQueue = blobPayloadV7OffsetInitialL1MessageIndex + 8
-	blobPayloadV7OffsetLastL1MessageQueue    = blobPayloadV7OffsetInitialL1MessageQueue + common.HashLength
-	blobPayloadV7OffsetInitialL2BlockNumber  = blobPayloadV7OffsetLastL1MessageQueue + common.HashLength
-	blobPayloadV7OffsetNumBlocks             = blobPayloadV7OffsetInitialL2BlockNumber + 8
-	blobPayloadV7OffsetBlocks                = blobPayloadV7OffsetNumBlocks + 2
+	blobPayloadV7OffsetInitialL1MessageQueue = 8
+	blobPayloadV7OffsetLastL1MessageQueue    = 40
+	blobPayloadV7OffsetInitialL2BlockNumber  = 72
+	blobPayloadV7OffsetNumBlocks             = 80
+	blobPayloadV7OffsetBlocks                = 82
 )
+
+// Below is the encoding for DABlockV7, total 52 bytes.
+//   * Field                   Bytes      Type         Index  Comments
+//   * blockNumber             8          uint64       0      The height of this block.
+//   * timestamp               8          uint64       0      The timestamp of this block.
+//   * baseFee                 32         uint256      8      The base fee of this block.
+//   * gasLimit                8          uint64       40     The gas limit of this block.
+//   * numTransactions         2          uint16       48     The number of transactions in this block, both L1 & L2 txs.
+//   * numL1Messages           2          uint16       50     The number of l1 messages in this block.
 
 const (
-	daBlockV7BlockContextByteSize  = 52
-	daBlockV7OffsetTimestamp       = 0
-	daBlockV7OffsetBaseFee         = daBlockV7OffsetTimestamp + 8
-	daBlockV7OffsetGasLimit        = daBlockV7OffsetBaseFee + 32
-	daBlockV7numTransactionsOffset = daBlockV7OffsetGasLimit + 8
-	daBlockV7numL1MessagesOffset   = daBlockV7numTransactionsOffset + 2
+	daBlockV7BlockContextEncodedLength = 52
+	daBlockV7OffsetTimestamp           = 0
+	daBlockV7OffsetBaseFee             = 8
+	daBlockV7OffsetGasLimit            = 40
+	daBlockV7OffsetNumTransactions     = 48
+	daBlockV7OffsetNumL1Messages       = 50
 )
 
-// daBatchV3 contains metadata about a batch of DAChunks.
+// daBatchV7 contains V7 batch metadata and payload.
 type daBatchV7 struct {
 	version           CodecVersion
 	batchIndex        uint64
@@ -57,7 +95,6 @@ type daBatchV7 struct {
 	blobBytes []byte
 }
 
-// newDABatchV7 is a constructor for daBatchV7 that calls blobDataProofForPICircuit internally.
 func newDABatchV7(version CodecVersion, batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash, blob *kzg4844.Blob, blobBytes []byte) (*daBatchV7, error) {
 	daBatch := &daBatchV7{
 		version:           version,
@@ -84,7 +121,7 @@ func decodeDABatchV7(data []byte) (*daBatchV7, error) {
 	return newDABatchV7(version, batchIndex, blobVersionedHash, parentBatchHash, nil, nil)
 }
 
-// Encode serializes the DABatchV3 into bytes.
+// Encode serializes the dABatchV7 into bytes.
 func (b *daBatchV7) Encode() []byte {
 	batchBytes := make([]byte, daBatchV7EncodedLength)
 	batchBytes[daBatchOffsetVersion] = byte(b.version)
@@ -115,7 +152,7 @@ func (b *daBatchV7) BlobBytes() []byte {
 	return b.blobBytes
 }
 
-// MarshalJSON implements the custom JSON serialization for daBatchV3.
+// MarshalJSON implements the custom JSON serialization for daBatchV7.
 // This method is designed to provide prover with batch info in snake_case format.
 func (b *daBatchV7) MarshalJSON() ([]byte, error) {
 	type daBatchV7JSON struct {
@@ -159,8 +196,8 @@ type blobPayloadV7 struct {
 	blocks []*Block
 
 	// used for decoding
-	daBlocks     []DABlock
-	transactions []types.Transactions
+	daBlocks       []DABlock
+	l2Transactions []types.Transactions
 }
 
 func (b *blobPayloadV7) Blocks() []DABlock {
@@ -168,7 +205,7 @@ func (b *blobPayloadV7) Blocks() []DABlock {
 }
 
 func (b *blobPayloadV7) Transactions() []types.Transactions {
-	return b.transactions
+	return b.l2Transactions
 }
 
 func (b *blobPayloadV7) InitialL1MessageIndex() uint64 {
@@ -176,7 +213,7 @@ func (b *blobPayloadV7) InitialL1MessageIndex() uint64 {
 }
 
 func (b *blobPayloadV7) Encode() ([]byte, error) {
-	payloadBytes := make([]byte, blobPayloadV7EncodedLength)
+	payloadBytes := make([]byte, blobPayloadV7MinEncodedLength)
 
 	binary.BigEndian.PutUint64(payloadBytes[blobPayloadV7OffsetInitialL1MessageIndex:blobPayloadV7OffsetInitialL1MessageQueue], b.initialL1MessageIndex)
 	copy(payloadBytes[blobPayloadV7OffsetInitialL1MessageQueue:blobPayloadV7OffsetLastL1MessageQueue], b.initialL1MessageQueueHash[:])
@@ -188,7 +225,11 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 
 	var transactionBytes []byte
 	for _, block := range b.blocks {
-		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), block.NumL1MessagesNoSkipping())
+		numL1Messages, _, err := block.NumL1MessagesNoSkipping()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get numL1Messages: %w", err)
+		}
+		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)
 		payloadBytes = append(payloadBytes, daBlock.Encode()...)
 
 		// encode L2 txs as RLP and append to transactionBytes
@@ -210,8 +251,8 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 }
 
 func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
-	if len(data) < blobPayloadV7EncodedLength {
-		return nil, fmt.Errorf("invalid data length for blobPayloadV7, expected at least %d bytes but got %d", blobPayloadV7EncodedLength, len(data))
+	if len(data) < blobPayloadV7MinEncodedLength {
+		return nil, fmt.Errorf("invalid data length for blobPayloadV7, expected at least %d bytes but got %d", blobPayloadV7MinEncodedLength, len(data))
 	}
 
 	initialL1MessageIndex := binary.BigEndian.Uint64(data[blobPayloadV7OffsetInitialL1MessageIndex:blobPayloadV7OffsetInitialL1MessageQueue])
@@ -221,13 +262,17 @@ func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
 	initialL2BlockNumber := binary.BigEndian.Uint64(data[blobPayloadV7OffsetInitialL2BlockNumber:blobPayloadV7OffsetNumBlocks])
 	numBlocks := int(binary.BigEndian.Uint16(data[blobPayloadV7OffsetNumBlocks:blobPayloadV7OffsetBlocks]))
 
+	if len(data) < blobPayloadV7OffsetBlocks+daBlockV7BlockContextEncodedLength*numBlocks {
+		return nil, fmt.Errorf("invalid data length for blobPayloadV7, expected at least %d bytes but got %d", blobPayloadV7OffsetBlocks+daBlockV7BlockContextEncodedLength*numBlocks, len(data))
+	}
+
 	// decode DA Blocks from the blob
 	daBlocks := make([]DABlock, numBlocks)
 	for i := uint64(0); i < uint64(numBlocks); i++ {
 		daBlock := newDABlockV7WithNumber(initialL2BlockNumber + i)
 
-		startBytes := blobPayloadV7OffsetBlocks + i*daBlockV7BlockContextByteSize
-		endBytes := startBytes + daBlockV7BlockContextByteSize
+		startBytes := blobPayloadV7OffsetBlocks + i*daBlockV7BlockContextEncodedLength
+		endBytes := startBytes + daBlockV7BlockContextEncodedLength
 		if err := daBlock.Decode(data[startBytes:endBytes]); err != nil {
 			return nil, fmt.Errorf("failed to decode DA block: %w", err)
 		}
@@ -235,8 +280,8 @@ func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
 		daBlocks = append(daBlocks, daBlock)
 	}
 
-	// decode transactions for each block from the blob
-	txBytes := data[blobPayloadV7OffsetBlocks+daBlockV7BlockContextByteSize*numBlocks:]
+	// decode l2Transactions for each block from the blob
+	txBytes := data[blobPayloadV7OffsetBlocks+daBlockV7BlockContextEncodedLength*numBlocks:]
 	curIndex := 0
 	var transactions []types.Transactions
 
@@ -264,7 +309,7 @@ func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
 		initialL1MessageQueueHash: initialL1MessageQueueHash,
 		lastL1MessageQueueHash:    lastL1MessageQueueHash,
 		daBlocks:                  daBlocks,
-		transactions:              transactions,
+		l2Transactions:            transactions,
 	}, nil
 }
 
@@ -296,28 +341,28 @@ func newDABlockV7WithNumber(number uint64) *daBlockV7 {
 
 // Encode serializes the DABlock into a slice of bytes.
 func (b *daBlockV7) Encode() []byte {
-	daBlockBytes := make([]byte, daBlockV7BlockContextByteSize)
+	daBlockBytes := make([]byte, daBlockV7BlockContextEncodedLength)
 	binary.BigEndian.PutUint64(daBlockBytes[daBlockV7OffsetTimestamp:daBlockV7OffsetBaseFee], b.timestamp)
 	if b.baseFee != nil {
 		b.baseFee.FillBytes(daBlockBytes[daBlockV7OffsetBaseFee:daBlockV7OffsetGasLimit])
 	}
-	binary.BigEndian.PutUint64(daBlockBytes[daBlockV7OffsetGasLimit:daBlockV7numTransactionsOffset], b.gasLimit)
-	binary.BigEndian.PutUint16(daBlockBytes[daBlockV7numTransactionsOffset:daBlockV7numL1MessagesOffset], b.numTransactions)
-	binary.BigEndian.PutUint16(daBlockBytes[daBlockV7numL1MessagesOffset:], b.numL1Messages)
+	binary.BigEndian.PutUint64(daBlockBytes[daBlockV7OffsetGasLimit:daBlockV7OffsetNumTransactions], b.gasLimit)
+	binary.BigEndian.PutUint16(daBlockBytes[daBlockV7OffsetNumTransactions:daBlockV7OffsetNumL1Messages], b.numTransactions)
+	binary.BigEndian.PutUint16(daBlockBytes[daBlockV7OffsetNumL1Messages:], b.numL1Messages)
 	return daBlockBytes
 }
 
 // Decode populates the fields of a DABlock from a byte slice.
 func (b *daBlockV7) Decode(data []byte) error {
-	if len(data) != daBlockV7BlockContextByteSize {
-		return fmt.Errorf("block encoding is not blockContextByteSize bytes long expected %d, got %d", daBlockV7BlockContextByteSize, len(data))
+	if len(data) != daBlockV7BlockContextEncodedLength {
+		return fmt.Errorf("block encoding is not blockContextByteSize bytes long expected %d, got %d", daBlockV7BlockContextEncodedLength, len(data))
 	}
 
 	b.timestamp = binary.BigEndian.Uint64(data[daBlockV7OffsetTimestamp:daBlockV7OffsetBaseFee])
 	b.baseFee = new(big.Int).SetBytes(data[daBlockV7OffsetBaseFee:daBlockV7OffsetGasLimit])
-	b.gasLimit = binary.BigEndian.Uint64(data[daBlockV7OffsetGasLimit:daBlockV7numTransactionsOffset])
-	b.numTransactions = binary.BigEndian.Uint16(data[daBlockV7numTransactionsOffset:daBlockV7numL1MessagesOffset])
-	b.numL1Messages = binary.BigEndian.Uint16(data[daBlockV7numL1MessagesOffset:])
+	b.gasLimit = binary.BigEndian.Uint64(data[daBlockV7OffsetGasLimit:daBlockV7OffsetNumTransactions])
+	b.numTransactions = binary.BigEndian.Uint16(data[daBlockV7OffsetNumTransactions:daBlockV7OffsetNumL1Messages])
+	b.numL1Messages = binary.BigEndian.Uint16(data[daBlockV7OffsetNumL1Messages:])
 
 	return nil
 }

@@ -24,22 +24,26 @@ func (d *DACodecV7) Version() CodecVersion {
 
 // MaxNumChunksPerBatch returns the maximum number of chunks per batch.
 func (d *DACodecV7) MaxNumChunksPerBatch() int {
-	return 1
+	return math.MaxInt
 }
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
-func (d *DACodecV7) NewDABlock(block *Block, _ uint64) (DABlock, error) {
+func (d *DACodecV7) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
 	if !block.Header.Number.IsUint64() {
 		return nil, errors.New("block number is not uint64")
 	}
 
-	// note: numL1Messages includes skipped messages
-	numL1Messages := block.NumL1MessagesNoSkipping()
+	numL1Messages, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate number of L1 messages: %w", err)
+	}
 	if numL1Messages > math.MaxUint16 {
 		return nil, errors.New("number of L1 messages exceeds max uint16")
 	}
+	if totalL1MessagePoppedBefore+uint64(numL1Messages) != highestQueueIndex {
+		return nil, fmt.Errorf("failed to sanity check L1 messages count: totalL1MessagePoppedBefore + numL1Messages != highestQueueIndex: %d + %d != %d", totalL1MessagePoppedBefore, numL1Messages, highestQueueIndex)
+	}
 
-	// note: numTransactions includes skipped messages
 	numL2Transactions := block.NumL2Transactions()
 	numTransactions := uint64(numL1Messages) + numL2Transactions
 	if numTransactions > math.MaxUint16 {
@@ -60,7 +64,7 @@ func (d *DACodecV7) NewDABlock(block *Block, _ uint64) (DABlock, error) {
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
 // Note: For DACodecV7, this function is not implemented since there is no notion of DAChunk in this version. Blobs
-// contain the entire batch data, and it is up to a prover to decide the chunk sizes.
+// contain the entire batch data without any information of Chunks within.
 func (d *DACodecV7) NewDAChunk(_ *Chunk, _ uint64) (DAChunk, error) {
 	return nil, nil
 }
@@ -94,8 +98,8 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 		return nil, common.Hash{}, nil, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
 
-	blobBytes := make([]byte, blobEnvelopeV7PayloadOffset)
-	blobBytes[blobEnvelopeV7VersionOffset] = uint8(CodecV7)
+	blobBytes := make([]byte, blobEnvelopeV7OffsetPayload)
+	blobBytes[blobEnvelopeV7OffsetVersion] = uint8(CodecV7)
 
 	payloadBytes, err := d.constructBlobPayload(batch)
 	if err != nil {
@@ -113,14 +117,14 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 			log.Error("ConstructBlob: compressed data compatibility check failed", "err", err, "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
 			return nil, common.Hash{}, nil, err
 		}
-		blobBytes[blobEnvelopeV7CompressedFlagOffset] = 0x1
+		blobBytes[blobEnvelopeV7OffsetCompressedFlag] = 0x1
 		payloadBytes = compressedPayloadBytes
 	} else {
-		blobBytes[blobEnvelopeV7CompressedFlagOffset] = 0x0
+		blobBytes[blobEnvelopeV7OffsetCompressedFlag] = 0x0
 	}
 
 	sizeSlice := encodeSize3Bytes(uint32(len(payloadBytes)))
-	copy(blobBytes[blobEnvelopeV7ByteSizeOffset:blobEnvelopeV7CompressedFlagOffset], sizeSlice)
+	copy(blobBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag], sizeSlice)
 	blobBytes = append(blobBytes, payloadBytes...)
 
 	if len(blobBytes) > maxEffectiveBlobBytes {
@@ -182,21 +186,21 @@ func (d *DACodecV7) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 	rawBytes := bytesFromBlobCanonical(blob)
 
 	// read the blob envelope header
-	version := rawBytes[blobEnvelopeV7VersionOffset]
+	version := rawBytes[blobEnvelopeV7OffsetVersion]
 	if CodecVersion(version) != CodecV7 {
 		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV7, version)
 	}
 
 	// read the data size
-	blobEnvelopeSize := decodeSize3Bytes(rawBytes[blobEnvelopeV7ByteSizeOffset:blobEnvelopeV7CompressedFlagOffset])
-	if blobEnvelopeSize+blobEnvelopeV7PayloadOffset > uint32(len(rawBytes)) {
+	blobEnvelopeSize := decodeSize3Bytes(rawBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag])
+	if blobEnvelopeSize+blobEnvelopeV7OffsetPayload > uint32(len(rawBytes)) {
 		return nil, fmt.Errorf("blob envelope size exceeds the raw data size: %d > %d", blobEnvelopeSize, len(rawBytes))
 	}
 
-	payloadBytes := rawBytes[blobEnvelopeV7PayloadOffset : blobEnvelopeV7PayloadOffset+blobEnvelopeSize]
+	payloadBytes := rawBytes[blobEnvelopeV7OffsetPayload : blobEnvelopeV7OffsetPayload+blobEnvelopeSize]
 
 	// read the compressed flag and decompress if needed
-	compressed := rawBytes[blobEnvelopeV7CompressedFlagOffset]
+	compressed := rawBytes[blobEnvelopeV7OffsetCompressedFlag]
 	if compressed == 0x1 {
 		var err error
 		if payloadBytes, err = decompressV7Bytes(payloadBytes); err != nil {
