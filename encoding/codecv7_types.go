@@ -9,6 +9,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
@@ -44,7 +45,7 @@ const (
 	blobEnvelopeV7OffsetPayload        = 5
 )
 
-// Below is the encoding format for the batch metadata and blocks.
+// Below is the encoding for blobPayloadV7.
 //   * Field                      Bytes      Type             Index       Comments
 //   * initialL1MessageIndex       8         uint64           0           Queue index of the first L1 message contained in this batch
 //   * initialL1MessageQueueHash   32        bytes32          8           Hash of the L1 message queue at the last message in the previous batch
@@ -219,26 +220,57 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 	copy(payloadBytes[blobPayloadV7OffsetInitialL1MessageQueue:blobPayloadV7OffsetLastL1MessageQueue], b.initialL1MessageQueueHash[:])
 	copy(payloadBytes[blobPayloadV7OffsetLastL1MessageQueue:blobPayloadV7OffsetInitialL2BlockNumber], b.lastL1MessageQueueHash[:])
 
-	blockNumber := b.blocks[0].Header.Number.Uint64()
-	binary.BigEndian.PutUint64(payloadBytes[blobPayloadV7OffsetInitialL2BlockNumber:blobPayloadV7OffsetNumBlocks], blockNumber)
+	var initialL2BlockNumber uint64
+	if len(b.blocks) > 0 {
+		initialL2BlockNumber = b.blocks[0].Header.Number.Uint64()
+		binary.BigEndian.PutUint64(payloadBytes[blobPayloadV7OffsetInitialL2BlockNumber:blobPayloadV7OffsetNumBlocks], initialL2BlockNumber)
+	}
 	binary.BigEndian.PutUint16(payloadBytes[blobPayloadV7OffsetNumBlocks:blobPayloadV7OffsetBlocks], uint16(len(b.blocks)))
 
+	l1MessageIndex := b.initialL1MessageIndex
+	var l1Messages []*types.L1MessageTx
+
 	var transactionBytes []byte
-	for _, block := range b.blocks {
-		numL1Messages, _, err := block.NumL1MessagesNoSkipping()
+	for i, block := range b.blocks {
+		// sanity check: block numbers are contiguous
+		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
+			return nil, fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())
+		}
+
+		// sanity check (within NumL1MessagesNoSkipping): L1 message indices are contiguous within a block
+		numL1Messages, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get numL1Messages: %w", err)
 		}
+		// sanity check: L1 message indices are contiguous across blocks boundaries
+		if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex {
+			return nil, fmt.Errorf("failed to sanity check L1 messages count: l1MessageIndex + numL1Messages != highestQueueIndex: %d + %d != %d", l1MessageIndex, numL1Messages, highestQueueIndex)
+		}
+		l1MessageIndex = highestQueueIndex
+
 		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)
 		payloadBytes = append(payloadBytes, daBlock.Encode()...)
 
 		// encode L2 txs as RLP and append to transactionBytes
-		for _, tx := range block.Transactions {
-			if tx.Type == types.L1MessageTxType {
+		for _, txData := range block.Transactions {
+			if txData.Type == types.L1MessageTxType {
+				data, err := hexutil.Decode(txData.Data)
+				if err != nil {
+					return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
+				}
+
+				l1Messages = append(l1Messages, &types.L1MessageTx{
+					QueueIndex: txData.Nonce,
+					Gas:        txData.Gas,
+					To:         txData.To,
+					Value:      txData.Value.ToInt(),
+					Data:       data,
+					// Sender:     , TODO: is this needed?
+				})
 				continue
 			}
 
-			rlpTxData, err := convertTxDataToRLPEncoding(tx)
+			rlpTxData, err := convertTxDataToRLPEncoding(txData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 			}
@@ -247,7 +279,39 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 	}
 	payloadBytes = append(payloadBytes, transactionBytes...)
 
+	// sanity check: initialL1MessageQueueHash+apply(L1Messages) = lastL1MessageQueueHash
+	if applyL1Messages(b.initialL1MessageQueueHash, l1Messages) != b.lastL1MessageQueueHash {
+		return nil, fmt.Errorf("failed to sanity check L1 messages after applying all L1 messages: expected %s, got %s", applyL1Messages(b.initialL1MessageQueueHash, l1Messages), b.lastL1MessageQueueHash)
+	}
+
 	return payloadBytes, nil
+}
+
+func applyL1Messages(initialQueueHash common.Hash, messages []*types.L1MessageTx) common.Hash {
+	rollingHash := initialQueueHash
+	for _, message := range messages {
+		rollingHash = applyL1Message(rollingHash, message)
+	}
+
+	return rollingHash
+}
+
+func applyL1Message(initialQueueHash common.Hash, message *types.L1MessageTx) common.Hash {
+	rollingHash := crypto.Keccak256Hash(initialQueueHash.Bytes(), types.NewTx(message).Hash().Bytes())
+
+	return encodeRollingHash(rollingHash)
+}
+
+func encodeRollingHash(rollingHash common.Hash) common.Hash {
+	// clear last 36 bits
+	rollingHash[26] &= 0xF0
+	rollingHash[27] = 0
+	rollingHash[28] = 0
+	rollingHash[29] = 0
+	rollingHash[30] = 0
+	rollingHash[31] = 0
+
+	return rollingHash
 }
 
 func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
