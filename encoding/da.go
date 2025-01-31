@@ -3,7 +3,9 @@ package encoding
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"slices"
 
@@ -161,6 +163,9 @@ func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, error) {
 			return 0, 0, fmt.Errorf("unexpected queue index: expected %d, got %d", *prevQueueIndex+1, txData.Nonce)
 		}
 
+		if count == math.MaxUint16 {
+			return 0, 0, errors.New("number of L1 messages exceeds max uint16")
+		}
 		count++
 		prevQueueIndex = &txData.Nonce
 	}

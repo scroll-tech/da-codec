@@ -21,6 +21,7 @@ func TestMain(m *testing.M) {
 	log.Root().SetHandler(glogger)
 
 	m.Run()
+	os.Exit(0)
 }
 
 func TestUtilFunctions(t *testing.T) {

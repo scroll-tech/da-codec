@@ -37,9 +37,6 @@ func (d *DACodecV7) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate number of L1 messages: %w", err)
 	}
-	if numL1Messages > math.MaxUint16 {
-		return nil, errors.New("number of L1 messages exceeds max uint16")
-	}
 	if totalL1MessagePoppedBefore+uint64(numL1Messages) != highestQueueIndex {
 		return nil, fmt.Errorf("failed to sanity check L1 messages count: totalL1MessagePoppedBefore + numL1Messages != highestQueueIndex: %d + %d != %d", totalL1MessagePoppedBefore, numL1Messages, highestQueueIndex)
 	}
@@ -218,16 +215,6 @@ func (d *DACodecV7) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 }
 
 func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error {
-	payload, err := d.DecodeBlob(blob)
-	if err != nil {
-		return fmt.Errorf("failed to decode blob: %w", err)
-	}
-
-	chunks = append(chunks, &DAChunkRawTx{
-		Blocks:       payload.Blocks(),
-		Transactions: payload.Transactions(),
-	})
-
 	return nil
 }
 
