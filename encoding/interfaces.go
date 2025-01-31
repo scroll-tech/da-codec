@@ -45,6 +45,8 @@ type DABlobPayload interface {
 	Blocks() []DABlock
 	Transactions() []types.Transactions
 	InitialL1MessageIndex() uint64
+	InitialL1MessageQueueHash() common.Hash
+	LastL1MessageQueueHash() common.Hash
 }
 
 // Codec represents the interface for encoding and decoding DA-related structures.

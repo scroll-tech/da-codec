@@ -201,16 +201,23 @@ type blobPayloadV7 struct {
 	l2Transactions []types.Transactions
 }
 
+func (b *blobPayloadV7) InitialL1MessageIndex() uint64 {
+	return b.initialL1MessageIndex
+}
+func (b *blobPayloadV7) InitialL1MessageQueueHash() common.Hash {
+	return b.initialL1MessageQueueHash
+}
+
+func (b *blobPayloadV7) LastL1MessageQueueHash() common.Hash {
+	return b.lastL1MessageQueueHash
+}
+
 func (b *blobPayloadV7) Blocks() []DABlock {
 	return b.daBlocks
 }
 
 func (b *blobPayloadV7) Transactions() []types.Transactions {
 	return b.l2Transactions
-}
-
-func (b *blobPayloadV7) InitialL1MessageIndex() uint64 {
-	return b.initialL1MessageIndex
 }
 
 func (b *blobPayloadV7) Encode() ([]byte, error) {
@@ -243,10 +250,12 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 			return nil, fmt.Errorf("failed to get numL1Messages: %w", err)
 		}
 		// sanity check: L1 message indices are contiguous across blocks boundaries
-		if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex {
-			return nil, fmt.Errorf("failed to sanity check L1 messages count: l1MessageIndex + numL1Messages != highestQueueIndex: %d + %d != %d", l1MessageIndex, numL1Messages, highestQueueIndex)
+		if numL1Messages > 0 {
+			if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex {
+				return nil, fmt.Errorf("failed to sanity check L1 messages count: l1MessageIndex + numL1Messages != highestQueueIndex: %d + %d != %d", l1MessageIndex, numL1Messages, highestQueueIndex)
+			}
+			l1MessageIndex = highestQueueIndex
 		}
-		l1MessageIndex = highestQueueIndex
 
 		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)
 		payloadBytes = append(payloadBytes, daBlock.Encode()...)
@@ -281,7 +290,7 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 
 	// sanity check: initialL1MessageQueueHash+apply(L1Messages) = lastL1MessageQueueHash
 	if applyL1Messages(b.initialL1MessageQueueHash, l1Messages) != b.lastL1MessageQueueHash {
-		return nil, fmt.Errorf("failed to sanity check L1 messages after applying all L1 messages: expected %s, got %s", applyL1Messages(b.initialL1MessageQueueHash, l1Messages), b.lastL1MessageQueueHash)
+		return nil, fmt.Errorf("failed to sanity check lastL1MessageQueueHash after applying all L1 messages: expected %s, got %s", applyL1Messages(b.initialL1MessageQueueHash, l1Messages), b.lastL1MessageQueueHash)
 	}
 
 	return payloadBytes, nil
@@ -331,7 +340,7 @@ func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
 	}
 
 	// decode DA Blocks from the blob
-	daBlocks := make([]DABlock, numBlocks)
+	daBlocks := make([]DABlock, 0, numBlocks)
 	for i := uint64(0); i < uint64(numBlocks); i++ {
 		daBlock := newDABlockV7WithNumber(initialL2BlockNumber + i)
 
@@ -435,6 +444,7 @@ func (b *daBlockV7) Decode(data []byte) error {
 func decompressV7Bytes(compressedBytes []byte) ([]byte, error) {
 	var res []byte
 
+	compressedBytes = append(zstdMagicNumber, compressedBytes...)
 	r := bytes.NewReader(compressedBytes)
 	zr, err := zstd.NewReader(r)
 	if err != nil {

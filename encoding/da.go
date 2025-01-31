@@ -385,7 +385,7 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 // (require specified frame header and each block is compressed)
 func checkCompressedDataCompatibility(data []byte) error {
 	if len(data) < 16 {
-		return fmt.Errorf("too small size (%x), what is it?", data)
+		return fmt.Errorf("too small size (0x%x), what is it?", data)
 	}
 
 	fheader := data[0]

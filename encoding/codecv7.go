@@ -129,7 +129,7 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 
 	if len(blobBytes) > maxEffectiveBlobBytes {
 		log.Error("ConstructBlob: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
-		return nil, common.Hash{}, nil, errors.New("blob exceeds maximum size")
+		return nil, common.Hash{}, nil, fmt.Errorf("blob exceeds maximum size: got %d, allowed %d", len(blobBytes), maxEffectiveBlobBytes)
 	}
 
 	// convert raw data to BLSFieldElements
@@ -267,6 +267,14 @@ func (d *DACodecV7) CheckChunkCompressedDataCompatibility(_ *Chunk) (bool, error
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
+	if len(b.Chunks) != 0 {
+		return false, errors.New("batch must not contain any chunks")
+	}
+
+	if len(b.Blocks) == 0 {
+		return false, errors.New("batch must contain at least one block")
+	}
+
 	return d.checkCompressedDataCompatibility(b)
 }
 
