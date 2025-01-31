@@ -118,8 +118,7 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
 func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
-	// TODO: replace with correct fork
-	if chainCfg.IsEuclid(startBlockTimestamp) {
+	if chainCfg.IsEuclidV2(startBlockTimestamp) {
 		return &DACodecV7{}
 	} else if chainCfg.IsEuclid(startBlockTimestamp) {
 		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly

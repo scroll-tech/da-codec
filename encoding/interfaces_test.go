@@ -21,6 +21,9 @@ func TestCodecFromVersion(t *testing.T) {
 		{"CodecV2", CodecV2, &DACodecV2{}, false},
 		{"CodecV3", CodecV3, &DACodecV3{}, false},
 		{"CodecV4", CodecV4, &DACodecV4{}, false},
+		{"CodecV5", CodecV5, &DACodecV5{}, false},
+		{"CodecV6", CodecV6, &DACodecV6{}, false},
+		{"CodecV7", CodecV7, &DACodecV7{}, false},
 		{"InvalidCodec", CodecVersion(99), nil, true},
 	}
 
@@ -45,6 +48,35 @@ func TestCodecFromConfig(t *testing.T) {
 		timestamp uint64
 		want      Codec
 	}{
+		{
+			name: "EuclidV2 active",
+			config: &params.ChainConfig{
+				LondonBlock:    big.NewInt(0),
+				BernoulliBlock: big.NewInt(0),
+				CurieBlock:     big.NewInt(0),
+				DarwinTime:     new(uint64),
+				DarwinV2Time:   new(uint64),
+				EuclidTime:     new(uint64),
+				EuclidV2Time:   new(uint64),
+			},
+			blockNum:  big.NewInt(0),
+			timestamp: 0,
+			want:      &DACodecV7{},
+		},
+		{
+			name: "Euclid active",
+			config: &params.ChainConfig{
+				LondonBlock:    big.NewInt(0),
+				BernoulliBlock: big.NewInt(0),
+				CurieBlock:     big.NewInt(0),
+				DarwinTime:     new(uint64),
+				DarwinV2Time:   new(uint64),
+				EuclidTime:     new(uint64),
+			},
+			blockNum:  big.NewInt(0),
+			timestamp: 0,
+			want:      &DACodecV6{},
+		},
 		{
 			name: "DarwinV2 active",
 			config: &params.ChainConfig{
