@@ -105,7 +105,8 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 
 	if enableCompression {
 		// compressedPayloadBytes represents the compressed blob payload
-		compressedPayloadBytes, err := zstd.CompressScrollBatchBytes(payloadBytes)
+		var compressedPayloadBytes []byte
+		compressedPayloadBytes, err = zstd.CompressScrollBatchBytes(payloadBytes)
 		if err != nil {
 			return nil, common.Hash{}, nil, fmt.Errorf("failed to compress blob payload: %w", err)
 		}
