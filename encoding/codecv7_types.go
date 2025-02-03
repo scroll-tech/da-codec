@@ -9,7 +9,6 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/scroll-tech/go-ethereum/common"
-	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
@@ -235,8 +234,6 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 	binary.BigEndian.PutUint16(payloadBytes[blobPayloadV7OffsetNumBlocks:blobPayloadV7OffsetBlocks], uint16(len(b.blocks)))
 
 	l1MessageIndex := b.initialL1MessageIndex
-	var l1Messages []*types.L1MessageTx
-
 	var transactionBytes []byte
 	for i, block := range b.blocks {
 		// sanity check: block numbers are contiguous
@@ -262,23 +259,6 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 
 		// encode L2 txs as RLP and append to transactionBytes
 		for _, txData := range block.Transactions {
-			if txData.Type == types.L1MessageTxType {
-				data, err := hexutil.Decode(txData.Data)
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
-				}
-
-				l1Messages = append(l1Messages, &types.L1MessageTx{
-					QueueIndex: txData.Nonce,
-					Gas:        txData.Gas,
-					To:         txData.To,
-					Value:      txData.Value.ToInt(),
-					Data:       data,
-					// Sender:     , TODO: is this needed?
-				})
-				continue
-			}
-
 			rlpTxData, err := convertTxDataToRLPEncoding(txData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
@@ -289,38 +269,15 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 	payloadBytes = append(payloadBytes, transactionBytes...)
 
 	// sanity check: initialL1MessageQueueHash+apply(L1Messages) = lastL1MessageQueueHash
-	if applyL1Messages(b.initialL1MessageQueueHash, l1Messages) != b.lastL1MessageQueueHash {
-		return nil, fmt.Errorf("failed to sanity check lastL1MessageQueueHash after applying all L1 messages: expected %s, got %s", applyL1Messages(b.initialL1MessageQueueHash, l1Messages), b.lastL1MessageQueueHash)
+	computedLastL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(b.initialL1MessageQueueHash, b.blocks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply L1 messages to initialL1MessageQueueHash: %w", err)
+	}
+	if computedLastL1MessageQueueHash != b.lastL1MessageQueueHash {
+		return nil, fmt.Errorf("failed to sanity check lastL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedLastL1MessageQueueHash, b.lastL1MessageQueueHash)
 	}
 
 	return payloadBytes, nil
-}
-
-func applyL1Messages(initialQueueHash common.Hash, messages []*types.L1MessageTx) common.Hash {
-	rollingHash := initialQueueHash
-	for _, message := range messages {
-		rollingHash = applyL1Message(rollingHash, message)
-	}
-
-	return rollingHash
-}
-
-func applyL1Message(initialQueueHash common.Hash, message *types.L1MessageTx) common.Hash {
-	rollingHash := crypto.Keccak256Hash(initialQueueHash.Bytes(), types.NewTx(message).Hash().Bytes())
-
-	return encodeRollingHash(rollingHash)
-}
-
-func encodeRollingHash(rollingHash common.Hash) common.Hash {
-	// clear last 36 bits
-	rollingHash[26] &= 0xF0
-	rollingHash[27] = 0
-	rollingHash[28] = 0
-	rollingHash[29] = 0
-	rollingHash[30] = 0
-	rollingHash[31] = 0
-
-	return rollingHash
 }
 
 func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {

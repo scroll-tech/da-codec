@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/scroll-tech/go-ethereum/crypto"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
@@ -757,4 +758,60 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, e
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
 	}
+}
+
+func MessageQueueV2ApplyL1MessagesFromBlocks(initialQueueHash common.Hash, blocks []*Block) (common.Hash, error) {
+	rollingHash := initialQueueHash
+	for _, block := range blocks {
+		for _, txData := range block.Transactions {
+			if txData.Type != types.L1MessageTxType {
+				continue
+			}
+
+			data, err := hexutil.Decode(txData.Data)
+			if err != nil {
+				return common.Hash{}, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
+			}
+
+			l1Message := &types.L1MessageTx{
+				QueueIndex: txData.Nonce,
+				Gas:        txData.Gas,
+				To:         txData.To,
+				Value:      txData.Value.ToInt(),
+				Data:       data,
+				// Sender:     , TODO: is this needed?
+			}
+
+			rollingHash = messageQueueV2ApplyL1Message(rollingHash, l1Message)
+		}
+	}
+
+	return rollingHash, nil
+}
+
+func messageQueueV2ApplyL1Messages(initialQueueHash common.Hash, messages []*types.L1MessageTx) common.Hash {
+	rollingHash := initialQueueHash
+	for _, message := range messages {
+		rollingHash = messageQueueV2ApplyL1Message(rollingHash, message)
+	}
+
+	return rollingHash
+}
+
+func messageQueueV2ApplyL1Message(initialQueueHash common.Hash, message *types.L1MessageTx) common.Hash {
+	rollingHash := crypto.Keccak256Hash(initialQueueHash.Bytes(), types.NewTx(message).Hash().Bytes())
+
+	return messageQueueV2EncodeRollingHash(rollingHash)
+}
+
+func messageQueueV2EncodeRollingHash(rollingHash common.Hash) common.Hash {
+	// clear last 36 bits
+	rollingHash[26] &= 0xF0
+	rollingHash[27] = 0
+	rollingHash[28] = 0
+	rollingHash[29] = 0
+	rollingHash[30] = 0
+	rollingHash[31] = 0
+
+	return rollingHash
 }
