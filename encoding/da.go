@@ -255,6 +255,7 @@ func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 		})
 
 	case types.L1MessageTxType: // L1MessageTxType is not supported
+		fallthrough
 	default:
 		return nil, fmt.Errorf("unsupported tx type: %d", txData.Type)
 	}
@@ -789,7 +790,7 @@ func MessageQueueV2ApplyL1MessagesFromBlocks(initialQueueHash common.Hash, block
 	return rollingHash, nil
 }
 
-func messageQueueV2ApplyL1Messages(initialQueueHash common.Hash, messages []*types.L1MessageTx) common.Hash {
+func MessageQueueV2ApplyL1Messages(initialQueueHash common.Hash, messages []*types.L1MessageTx) common.Hash {
 	rollingHash := initialQueueHash
 	for _, message := range messages {
 		rollingHash = messageQueueV2ApplyL1Message(rollingHash, message)

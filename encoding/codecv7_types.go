@@ -259,6 +259,9 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 
 		// encode L2 txs as RLP and append to transactionBytes
 		for _, txData := range block.Transactions {
+			if txData.Type == types.L1MessageTxType {
+				continue
+			}
 			rlpTxData, err := convertTxDataToRLPEncoding(txData)
 			if err != nil {
 				return nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
