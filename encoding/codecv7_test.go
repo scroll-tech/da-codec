@@ -13,7 +13,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,7 +137,7 @@ func TestCodecV7DABatchHashEncodeDecode(t *testing.T) {
 			creationErr: "unexpected queue index",
 		},
 		{
-			name: "Batch with 4 blocks, blocktrace 02, 03, 04",
+			name: "Batch with 3 blocks, blocktrace 02, 03, 04",
 			batch: &Batch{
 				InitialL1MessageIndex:  9,
 				LastL1MessageQueueHash: common.HexToHash("0x97f93d31db48682539b6a399f76a8ef13b04d40cdd2b12d61177400000000000"),
@@ -405,15 +404,6 @@ func TestCodecV7BatchStandardTestCasesEnableCompression(t *testing.T) {
 		patches.ApplyFunc(checkCompressedDataCompatibility, func(_ []byte) error {
 			return nil
 		})
-
-		// Always enable compression.
-		patches.ApplyPrivateMethod(codecV7, "checkCompressedDataCompatibility", func(b *Batch) (bool, error) {
-			return true, nil
-		})
-
-		patches.ApplyMethodFunc(codecV7, "CheckBatchCompressedDataCompatibility", func(b *Batch) (bool, error) {
-			return codecV7.(*DACodecV7).checkCompressedDataCompatibility(b)
-		})
 	}
 
 	repeat := func(element byte, count int) string {
@@ -476,10 +466,10 @@ func TestCodecV7BatchStandardTestCasesEnableCompression(t *testing.T) {
 			expectedBlobVersionedHash: "0x01be8942fe0a3dc77590c9346866824f94f3e6a3b1774119c1e9720f763ede09",
 		},
 		{
-			name:        "single block, single tx, full blob random data -> data bigger compressed than uncompressed -> error blob exceeds maximum size",
-			numBlocks:   1,
-			txData:      []string{generateRandomData(maxAvailableBytesIncompressable - bytesPerBlock)},
-			creationErr: "blob exceeds maximum size",
+			name:                      "single block, single tx, full blob random data -> data bigger compressed than uncompressed",
+			numBlocks:                 1,
+			txData:                    []string{generateRandomData(maxAvailableBytesIncompressable - bytesPerBlock)},
+			expectedBlobVersionedHash: "0x01f1aea1fe3f8a37ff505bf3aa5895d959c004087c4573bd99dcbfa035d5eb57",
 		},
 		{
 			name:                      "2 blocks, single tx, full blob random data",
@@ -557,12 +547,8 @@ func TestCodecV7BatchStandardTestCasesDisableCompression(t *testing.T) {
 		})
 
 		// Always disable compression.
-		patches.ApplyPrivateMethod(codecV7, "checkCompressedDataCompatibility", func(b *Batch) (bool, error) {
-			return false, nil
-		})
-
-		patches.ApplyMethodFunc(codecV7, "CheckBatchCompressedDataCompatibility", func(b *Batch) (bool, error) {
-			return codecV7.(*DACodecV7).checkCompressedDataCompatibility(b)
+		patches.ApplyPrivateMethod(codecV7, "checkCompressedDataCompatibility", func(payloadBytes []byte) ([]byte, bool, error) {
+			return nil, false, nil
 		})
 	}
 
@@ -687,12 +673,10 @@ func TestCodecV7BatchCompressedDataCompatibilityCheck(t *testing.T) {
 	codecV7, err := CodecFromVersion(CodecV7)
 	require.NoError(t, err)
 
-	// empty batch
-	emptyBatch := &Batch{}
 	// bypass batch validation checks by calling checkCompressedDataCompatibility directly
-	compatible, err := codecV7.(*DACodecV7).checkCompressedDataCompatibility(emptyBatch)
-	assert.NoError(t, err)
-	assert.Equal(t, false, compatible)
+	_, compatible, err := codecV7.(*DACodecV7).checkCompressedDataCompatibility([]byte{0})
+	require.NoError(t, err)
+	require.Equal(t, false, compatible)
 
 	testCases := []struct {
 		name             string

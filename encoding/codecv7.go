@@ -90,11 +90,6 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 }
 
 func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []byte, error) {
-	enableCompression, err := d.CheckBatchCompressedDataCompatibility(batch)
-	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
-	}
-
 	blobBytes := make([]byte, blobEnvelopeV7OffsetPayload)
 	blobBytes[blobEnvelopeV7OffsetVersion] = uint8(CodecV7)
 
@@ -103,18 +98,12 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 		return nil, common.Hash{}, nil, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
+	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes)
+	if err != nil {
+		return nil, common.Hash{}, nil, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
+	}
+
 	if enableCompression {
-		// compressedPayloadBytes represents the compressed blob payload
-		var compressedPayloadBytes []byte
-		compressedPayloadBytes, err = zstd.CompressScrollBatchBytes(payloadBytes)
-		if err != nil {
-			return nil, common.Hash{}, nil, fmt.Errorf("failed to compress blob payload: %w", err)
-		}
-		// Check compressed data compatibility.
-		if err = checkCompressedDataCompatibility(compressedPayloadBytes); err != nil {
-			log.Error("ConstructBlob: compressed data compatibility check failed", "err", err, "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
-			return nil, common.Hash{}, nil, err
-		}
 		blobBytes[blobEnvelopeV7OffsetCompressedFlag] = 0x1
 		payloadBytes = compressedPayloadBytes
 	} else {
@@ -221,29 +210,24 @@ func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 
 // checkCompressedDataCompatibility checks the compressed data compatibility for a batch.
 // It constructs a blob payload, compresses the data, and checks the compressed data compatibility.
-func (d *DACodecV7) checkCompressedDataCompatibility(batch *Batch) (bool, error) {
-	payloadBytes, err := d.constructBlobPayload(batch)
-	if err != nil {
-		return false, fmt.Errorf("failed to construct blob payload: %w", err)
-	}
-
+func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte) ([]byte, bool, error) {
 	compressedPayloadBytes, err := zstd.CompressScrollBatchBytes(payloadBytes)
 	if err != nil {
-		return false, fmt.Errorf("failed to compress blob payload: %w", err)
+		return nil, false, fmt.Errorf("failed to compress blob payload: %w", err)
 	}
 
 	if err = checkCompressedDataCompatibility(compressedPayloadBytes); err != nil {
 		log.Warn("Compressed data compatibility check failed", "err", err, "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
-		return false, nil
+		return nil, false, nil
 	}
 
 	// check if compressed data is bigger or equal to the original data -> no need to compress
 	if len(compressedPayloadBytes) >= len(payloadBytes) {
 		log.Warn("Compressed data is bigger or equal to the original data", "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
-		return false, nil
+		return nil, false, nil
 	}
 
-	return true, nil
+	return compressedPayloadBytes, true, nil
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
@@ -263,7 +247,17 @@ func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 		return false, errors.New("batch must contain at least one block")
 	}
 
-	return d.checkCompressedDataCompatibility(b)
+	payloadBytes, err := d.constructBlobPayload(b)
+	if err != nil {
+		return false, fmt.Errorf("failed to construct blob payload: %w", err)
+	}
+
+	_, compatible, err := d.checkCompressedDataCompatibility(payloadBytes)
+	if err != nil {
+		return false, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
+	}
+
+	return compatible, nil
 }
 
 // TODO: which of the Estimate* functions are needed?
