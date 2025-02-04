@@ -30,9 +30,9 @@ const (
 // Below is the encoding format for BlobEnvelopeV7.
 //   * Field                   Bytes       Type        Index   Comments
 //   * version                 1           uint8       0       The version of the DA codec (batch/blob)
-//   * n_bytes[1]              1           uint8       1       Value denoting the number of bytes, n_bytes[1]
+//   * n_bytes[1]              1           uint8       1       Value denoting the number of bytes, n_bytes[1]*256^2
 //   * n_bytes[2]              1           uint8       2       Value denoting the number of bytes, n_bytes[2]*256
-//   * n_bytes[3]              1           uint8       3       Value denoting the number of bytes, n_bytes[3]*256^2
+//   * n_bytes[3]              1           uint8       3       Value denoting the number of bytes, n_bytes[3]
 //   * flag                    1           bool        4       1-byte flag to denote zstd-encoded/raw bytes
 //   * payload                 N           bytes       5       Possibly zstd-encoded payload bytes
 //   * padding                 (4096*31 - (N+5)) bytes  N+5    Padding to align to 4096*31 bytes
