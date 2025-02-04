@@ -91,7 +91,6 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 
 func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []byte, error) {
 	blobBytes := make([]byte, blobEnvelopeV7OffsetPayload)
-	blobBytes[blobEnvelopeV7OffsetVersion] = uint8(CodecV7)
 
 	payloadBytes, err := d.constructBlobPayload(batch)
 	if err != nil {
@@ -103,15 +102,17 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 		return nil, common.Hash{}, nil, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
 
+	isCompressedFlag := uint8(0x0)
 	if enableCompression {
-		blobBytes[blobEnvelopeV7OffsetCompressedFlag] = 0x1
+		isCompressedFlag = 0x1
 		payloadBytes = compressedPayloadBytes
-	} else {
-		blobBytes[blobEnvelopeV7OffsetCompressedFlag] = 0x0
 	}
 
 	sizeSlice := encodeSize3Bytes(uint32(len(payloadBytes)))
+
+	blobBytes[blobEnvelopeV7OffsetVersion] = uint8(CodecV7)
 	copy(blobBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag], sizeSlice)
+	blobBytes[blobEnvelopeV7OffsetCompressedFlag] = isCompressedFlag
 	blobBytes = append(blobBytes, payloadBytes...)
 
 	if len(blobBytes) > maxEffectiveBlobBytes {
@@ -179,12 +180,12 @@ func (d *DACodecV7) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 	}
 
 	// read the data size
-	blobEnvelopeSize := decodeSize3Bytes(rawBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag])
-	if blobEnvelopeSize+blobEnvelopeV7OffsetPayload > uint32(len(rawBytes)) {
-		return nil, fmt.Errorf("blob envelope size exceeds the raw data size: %d > %d", blobEnvelopeSize, len(rawBytes))
+	blobPayloadSize := decodeSize3Bytes(rawBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag])
+	if blobPayloadSize+blobEnvelopeV7OffsetPayload > uint32(len(rawBytes)) {
+		return nil, fmt.Errorf("blob envelope size exceeds the raw data size: %d > %d", blobPayloadSize, len(rawBytes))
 	}
 
-	payloadBytes := rawBytes[blobEnvelopeV7OffsetPayload : blobEnvelopeV7OffsetPayload+blobEnvelopeSize]
+	payloadBytes := rawBytes[blobEnvelopeV7OffsetPayload : blobEnvelopeV7OffsetPayload+blobPayloadSize]
 
 	// read the compressed flag and decompress if needed
 	compressed := rawBytes[blobEnvelopeV7OffsetCompressedFlag]

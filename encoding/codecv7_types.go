@@ -68,7 +68,6 @@ const (
 
 // Below is the encoding for DABlockV7, total 52 bytes.
 //   * Field                   Bytes      Type         Index  Comments
-//   * blockNumber             8          uint64       0      The height of this block.
 //   * timestamp               8          uint64       0      The timestamp of this block.
 //   * baseFee                 32         uint256      8      The base fee of this block.
 //   * gasLimit                8          uint64       40     The gas limit of this block.
@@ -424,9 +423,9 @@ func decompressV7Bytes(compressedBytes []byte) ([]byte, error) {
 }
 
 func decodeSize3Bytes(data []byte) uint32 {
-	return uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16
+	return uint32(data[0])<<16 | uint32(data[1])<<8 | uint32(data[2])
 }
 
 func encodeSize3Bytes(data uint32) []byte {
-	return []byte{byte(data), byte(data >> 8), byte(data >> 16)}
+	return []byte{byte(data >> 16), byte(data >> 8), byte(data)}
 }

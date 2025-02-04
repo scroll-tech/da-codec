@@ -141,7 +141,7 @@ func (b *Block) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 	return *lastQueueIndex - totalL1MessagePoppedBefore + 1
 }
 
-// NumL1MessagesNoSkipping returns the number of L1 messages in this block.
+// NumL1MessagesNoSkipping returns the number of L1 messages and the highest queue index in this block.
 // This method assumes that L1 messages can't be skipped.
 func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, error) {
 	var count uint16
@@ -780,7 +780,7 @@ func MessageQueueV2ApplyL1MessagesFromBlocks(initialQueueHash common.Hash, block
 				To:         txData.To,
 				Value:      txData.Value.ToInt(),
 				Data:       data,
-				// Sender:     , TODO: is this needed?
+				Sender:     txData.From,
 			}
 
 			rollingHash = messageQueueV2ApplyL1Message(rollingHash, l1Message)
@@ -807,8 +807,11 @@ func messageQueueV2ApplyL1Message(initialQueueHash common.Hash, message *types.L
 
 func messageQueueV2EncodeRollingHash(rollingHash common.Hash) common.Hash {
 	// clear last 36 bits
-	rollingHash[26] &= 0xF0
-	rollingHash[27] = 0
+
+	// Clear the lower 4 bits of byte 26 (preserving the upper 4 bits)
+	rollingHash[27] &= 0xF0
+
+	// Clear the next 4 bytes (32 bits total)
 	rollingHash[28] = 0
 	rollingHash[29] = 0
 	rollingHash[30] = 0
