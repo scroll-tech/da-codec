@@ -108,6 +108,10 @@ type Block struct {
 // Chunk represents a group of blocks.
 type Chunk struct {
 	Blocks []*Block `json:"blocks"`
+
+	// CodecV7. Used for chunk creation in relayer.
+	InitialL1MessageQueueHash common.Hash
+	LastL1MessageQueueHash    common.Hash
 }
 
 // Batch represents a batch of chunks.
