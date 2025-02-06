@@ -78,6 +78,13 @@ func TestUtilFunctions(t *testing.T) {
 	assert.Equal(t, uint64(5), chunk3.NumTransactions())
 	assert.Equal(t, uint64(240000), chunk3.TotalGasUsed())
 
+	// euclid chunk
+	chunk3.Blocks[0].RowConsumption = nil
+	chunk3.Blocks[1].RowConsumption = nil
+	crc3Max, err = chunk3.CrcMax()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), crc3Max)
+
 	// Test Batch methods
 	assert.Equal(t, block6.Header.Root, batch.StateRoot())
 	assert.Equal(t, block6.WithdrawRoot, batch.WithdrawRoot())
