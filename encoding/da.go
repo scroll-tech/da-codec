@@ -664,7 +664,7 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 	} else if !config.IsEuclid(blockTimestamp) {
 		return CodecV4
 	} else {
-		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly 
+		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly
 		return CodecV6
 	}
 }
