@@ -19,8 +19,8 @@ func TestMain(m *testing.M) {
 	glogger.Verbosity(log.LvlInfo)
 	log.Root().SetHandler(glogger)
 
-	m.Run()
-	os.Exit(0)
+	code := m.Run()
+	os.Exit(code)
 }
 
 func TestUtilFunctions(t *testing.T) {
