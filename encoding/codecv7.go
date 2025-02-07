@@ -261,41 +261,78 @@ func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 	return compatible, nil
 }
 
-// TODO: which of the Estimate* functions are needed?
+func (d *DACodecV7) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
+	blobBytes := make([]byte, blobEnvelopeV7OffsetPayload)
 
+	payloadBytes, err := d.constructBlobPayload(batch)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to construct blob payload: %w", err)
+	}
+
+	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
+	}
+
+	if enableCompression {
+		blobBytes = append(blobBytes, compressedPayloadBytes...)
+	} else {
+		blobBytes = append(blobBytes, payloadBytes...)
+	}
+
+	return blobEnvelopeV7OffsetPayload + uint64(len(payloadBytes)), calculatePaddedBlobSize(uint64(len(blobBytes))), nil
+}
+
+// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
 func (d *DACodecV7) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
-	//TODO implement me after contracts are implemented
-	panic("implement me")
+	return d.estimateL1CommitBatchSizeAndBlobSize(&Batch{Blocks: chunk.Blocks})
 }
 
+// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
 func (d *DACodecV7) EstimateBatchL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
-	//TODO implement me after contracts are implemented
-	panic("implement me")
+	return d.estimateL1CommitBatchSizeAndBlobSize(batch)
 }
 
+// EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.
+// Note: For CodecV7 calldata is constant independently of how many blocks or batches are submitted.
 func (d *DACodecV7) EstimateBlockL1CommitCalldataSize(block *Block) (uint64, error) {
-	//TODO implement me after contracts are implemented
-	panic("implement me")
+	return 0, nil
 }
 
+// EstimateChunkL1CommitCalldataSize calculates the calldata size needed for committing a chunk to L1 approximately.
+// Note: For CodecV7 calldata is constant independently of how many blocks or batches are submitted. There is no notion
+// of chunks in this version.
 func (d *DACodecV7) EstimateChunkL1CommitCalldataSize(chunk *Chunk) (uint64, error) {
-	//TODO implement me after contracts are implemented
-	panic("implement me")
+	return 0, nil
 }
 
-func (d *DACodecV7) EstimateChunkL1CommitGas(chunk *Chunk) (uint64, error) {
-	//TODO implement me after contracts are implemented
-	panic("implement me")
-}
-
-func (d *DACodecV7) EstimateBatchL1CommitGas(batch *Batch) (uint64, error) {
-	//TODO implement me after contracts are implemented
-	panic("implement me")
-}
-
+// EstimateBatchL1CommitCalldataSize calculates the calldata size in l1 commit for this batch approximately.
+// Note: For CodecV7 calldata is constant independently of how many blocks or batches are submitted.
+// Version + BatchHeader
 func (d *DACodecV7) EstimateBatchL1CommitCalldataSize(batch *Batch) (uint64, error) {
-	//TODO implement me after contracts are implemented
-	panic("implement me")
+	return 1 + daBatchV7EncodedLength, nil
+}
+
+// EstimateChunkL1CommitGas calculates the total L1 commit gas for this chunk approximately.
+// Note: For CodecV7 calldata is constant independently of how many blocks or batches are submitted. There is no notion
+// of chunks in this version.
+func (d *DACodecV7) EstimateChunkL1CommitGas(chunk *Chunk) (uint64, error) {
+	return 0, nil
+}
+
+// EstimateBatchL1CommitGas calculates the total L1 commit gas for this batch approximately.
+func (d *DACodecV7) EstimateBatchL1CommitGas(batch *Batch) (uint64, error) {
+	// TODO: adjust this after contracts are implemented
+	var totalL1CommitGas uint64
+
+	// Add extra gas costs
+	totalL1CommitGas += extraGasCost           // constant to account for ops like _getAdmin, _implementation, _requireNotPaused, etc
+	totalL1CommitGas += 4 * coldSloadGas       // 4 one-time cold sload for commitBatch
+	totalL1CommitGas += sstoreGas              // 1 time sstore
+	totalL1CommitGas += baseTxGas              // base gas for tx
+	totalL1CommitGas += calldataNonZeroByteGas // version in calldata
+
+	return totalL1CommitGas, nil
 }
 
 // JSONFromBytes converts the bytes to a DABatch and then marshals it to JSON.
