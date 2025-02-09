@@ -107,7 +107,7 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		txs = append(txs, block.Transactions)
 	}
 
-	daChunk := newDAChunkV1(
+	daChunk := newDAChunkV7(
 		blocks, // blocks
 		txs,    // transactions
 	)

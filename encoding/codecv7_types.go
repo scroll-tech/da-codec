@@ -399,6 +399,53 @@ func (b *daBlockV7) Decode(data []byte) error {
 	return nil
 }
 
+// daChunkV7 groups consecutive DABlocks with their transactions.
+// Note: In DACodecV7 there is no notion of chunks. Blobs contain the entire batch data without any information of Chunks within.
+// However, for compatibility reasons DAChunks are still used in the codebase.
+// This way we can still uniquely identify a set of blocks and their L1 messages via their hash.
+type daChunkV7 struct {
+	daChunkV1
+}
+
+// newDAChunkV1 is a constructor for daChunkV1, initializing with blocks and transactions.
+func newDAChunkV7(blocks []DABlock, transactions [][]*types.TransactionData) *daChunkV7 {
+	return &daChunkV7{
+		daChunkV1{
+			blocks:       blocks,
+			transactions: transactions,
+		},
+	}
+}
+
+// Hash computes the hash of the DAChunk data.
+func (c *daChunkV7) Hash() (common.Hash, error) {
+	var dataBytes []byte
+
+	// concatenate block contexts
+	for _, block := range c.blocks {
+		encodedBlock := block.Encode()
+		dataBytes = append(dataBytes, encodedBlock...)
+	}
+
+	// concatenate l1 tx hashes
+	for _, blockTxs := range c.transactions {
+		for _, txData := range blockTxs {
+			if txData.Type != types.L1MessageTxType {
+				continue
+			}
+
+			hashBytes := common.FromHex(txData.TxHash)
+			if len(hashBytes) != common.HashLength {
+				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
+			}
+			dataBytes = append(dataBytes, hashBytes...)
+		}
+	}
+
+	hash := crypto.Keccak256Hash(dataBytes)
+	return hash, nil
+}
+
 // decompressV7Bytes decompresses the given blob bytes into the original payload bytes.
 func decompressV7Bytes(compressedBytes []byte) ([]byte, error) {
 	var res []byte
