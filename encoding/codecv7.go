@@ -9,6 +9,7 @@ import (
 	"math"
 
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/scroll-tech/go-ethereum/log"
 
@@ -60,10 +61,67 @@ func (d *DACodecV7) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 }
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
-// Note: For DACodecV7, this function is not implemented since there is no notion of DAChunk in this version. Blobs
-// contain the entire batch data without any information of Chunks within.
-func (d *DACodecV7) NewDAChunk(_ *Chunk, _ uint64) (DAChunk, error) {
-	return nil, nil
+// Note: In DACodecV7 there is no notion of chunks. Blobs contain the entire batch data without any information of Chunks within.
+// However, for compatibility reasons this function is implemented to create a DAChunk from a Chunk.
+// This way we can still uniquely identify a set of blocks and their L1 messages.
+func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
+	if chunk == nil {
+		return nil, errors.New("chunk is nil")
+	}
+
+	if len(chunk.Blocks) == 0 {
+		return nil, errors.New("number of blocks is 0")
+	}
+
+	if len(chunk.Blocks) > math.MaxUint8 {
+		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint8)
+	}
+
+	initialL2BlockNumber := chunk.Blocks[0].Header.Number.Uint64()
+	l1MessageIndex := totalL1MessagePoppedBefore
+
+	blocks := make([]DABlock, 0, len(chunk.Blocks))
+	txs := make([][]*types.TransactionData, 0, len(chunk.Blocks))
+
+	for i, block := range chunk.Blocks {
+		// sanity check: block numbers are contiguous
+		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
+			return nil, fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())
+		}
+
+		// sanity check (within NumL1MessagesNoSkipping): L1 message indices are contiguous within a block
+		numL1Messages, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get numL1Messages: %w", err)
+		}
+		// sanity check: L1 message indices are contiguous across blocks boundaries
+		if numL1Messages > 0 {
+			if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex {
+				return nil, fmt.Errorf("failed to sanity check L1 messages count: l1MessageIndex + numL1Messages != highestQueueIndex: %d + %d != %d", l1MessageIndex, numL1Messages, highestQueueIndex)
+			}
+			l1MessageIndex = highestQueueIndex
+		}
+
+		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)
+		blocks = append(blocks, daBlock)
+		txs = append(txs, block.Transactions)
+	}
+
+	daChunk := newDAChunkV1(
+		blocks, // blocks
+		txs,    // transactions
+	)
+
+	// sanity check: initialL1MessageQueueHash+apply(L1Messages) = lastL1MessageQueueHash
+	computedLastL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(chunk.InitialL1MessageQueueHash, chunk.Blocks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply L1 messages to initialL1MessageQueueHash: %w", err)
+	}
+	if computedLastL1MessageQueueHash != chunk.LastL1MessageQueueHash {
+		return nil, fmt.Errorf("failed to sanity check lastL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedLastL1MessageQueueHash, chunk.LastL1MessageQueueHash)
+	}
+
+	return daChunk, nil
 }
 
 // NewDABatch creates a DABatch including blob from the provided Batch.
