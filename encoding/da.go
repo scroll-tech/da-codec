@@ -110,6 +110,7 @@ type Chunk struct {
 	Blocks []*Block `json:"blocks"`
 
 	// CodecV7. Used for chunk creation in relayer.
+	InitialL1MessageIndex     uint64
 	InitialL1MessageQueueHash common.Hash
 	LastL1MessageQueueHash    common.Hash
 }

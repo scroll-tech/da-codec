@@ -247,10 +247,10 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 		}
 		// sanity check: L1 message indices are contiguous across blocks boundaries
 		if numL1Messages > 0 {
-			if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex {
-				return nil, fmt.Errorf("failed to sanity check L1 messages count: l1MessageIndex + numL1Messages != highestQueueIndex: %d + %d != %d", l1MessageIndex, numL1Messages, highestQueueIndex)
+			if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex+1 {
+				return nil, fmt.Errorf("failed to sanity check L1 messages count after block %d: l1MessageIndex + numL1Messages != highestQueueIndex+1: %d + %d != %d", block.Header.Number.Uint64(), l1MessageIndex, numL1Messages, highestQueueIndex+1)
 			}
-			l1MessageIndex = highestQueueIndex
+			l1MessageIndex += uint64(numL1Messages)
 		}
 
 		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)

@@ -96,10 +96,10 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		}
 		// sanity check: L1 message indices are contiguous across blocks boundaries
 		if numL1Messages > 0 {
-			if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex {
-				return nil, fmt.Errorf("failed to sanity check L1 messages count: l1MessageIndex + numL1Messages != highestQueueIndex: %d + %d != %d", l1MessageIndex, numL1Messages, highestQueueIndex)
+			if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex+1 {
+				return nil, fmt.Errorf("failed to sanity check L1 messages count after block %d: l1MessageIndex + numL1Messages != highestQueueIndex+1: %d + %d != %d", block.Header.Number.Uint64(), l1MessageIndex, numL1Messages, highestQueueIndex+1)
 			}
-			l1MessageIndex = highestQueueIndex
+			l1MessageIndex += uint64(numL1Messages)
 		}
 
 		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)
@@ -375,7 +375,12 @@ func (d *DACodecV7) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, 
 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
 func (d *DACodecV7) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
-	return d.estimateL1CommitBatchSizeAndBlobSize(&Batch{Blocks: chunk.Blocks})
+	return d.estimateL1CommitBatchSizeAndBlobSize(&Batch{
+		Blocks:                    chunk.Blocks,
+		InitialL1MessageIndex:     chunk.InitialL1MessageIndex,
+		InitialL1MessageQueueHash: chunk.InitialL1MessageQueueHash,
+		LastL1MessageQueueHash:    chunk.LastL1MessageQueueHash,
+	})
 }
 
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
