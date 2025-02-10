@@ -126,12 +126,28 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 
 // NewDABatch creates a DABatch including blob from the provided Batch.
 func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
-	if len(batch.Chunks) != 0 {
-		return nil, errors.New("batch must not contain any chunks")
-	}
-
 	if len(batch.Blocks) == 0 {
 		return nil, errors.New("batch must contain at least one block")
+	}
+
+	// If the batch contains chunks, we need to ensure that the blocks in the chunks match the blocks in the batch.
+	// Chunks are not directly used in DACodecV7, but we still need to check the consistency of the blocks.
+	// This is done to ensure compatibility with older versions and the relayer implementation.
+	if len(batch.Chunks) != 0 {
+		totalBlocks := len(batch.Blocks)
+		chunkBlocksCount := 0
+		for _, chunk := range batch.Chunks {
+			for _, block := range chunk.Blocks {
+				if chunkBlocksCount > totalBlocks {
+					return nil, errors.New("chunks contain more blocks than the batch")
+				}
+
+				if batch.Blocks[chunkBlocksCount].Header.Hash() != block.Header.Hash() {
+					return nil, errors.New("blocks in chunks do not match the blocks in the batch")
+				}
+				chunkBlocksCount++
+			}
+		}
 	}
 
 	blob, blobVersionedHash, blobBytes, err := d.constructBlob(batch)
@@ -298,8 +314,24 @@ func (d *DACodecV7) CheckChunkCompressedDataCompatibility(_ *Chunk) (bool, error
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
+	// If the batch contains chunks, we need to ensure that the blocks in the chunks match the blocks in the batch.
+	// Chunks are not directly used in DACodecV7, but we still need to check the consistency of the blocks.
+	// This is done to ensure compatibility with older versions and the relayer implementation.
 	if len(b.Chunks) != 0 {
-		return false, errors.New("batch must not contain any chunks")
+		totalBlocks := len(b.Blocks)
+		chunkBlocksCount := 0
+		for _, chunk := range b.Chunks {
+			for _, block := range chunk.Blocks {
+				if chunkBlocksCount > totalBlocks {
+					return false, errors.New("chunks contain more blocks than the batch")
+				}
+
+				if b.Blocks[chunkBlocksCount].Header.Hash() != block.Header.Hash() {
+					return false, errors.New("blocks in chunks do not match the blocks in the batch")
+				}
+				chunkBlocksCount++
+			}
+		}
 	}
 
 	if len(b.Blocks) == 0 {
