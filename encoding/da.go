@@ -815,12 +815,7 @@ func messageQueueV2ApplyL1Message(initialQueueHash common.Hash, message *types.L
 }
 
 func messageQueueV2EncodeRollingHash(rollingHash common.Hash) common.Hash {
-	// clear last 36 bits
-
-	// Clear the lower 4 bits of byte 26 (preserving the upper 4 bits)
-	rollingHash[27] &= 0xF0
-
-	// Clear the next 4 bytes (32 bits total)
+	// clear last 32 bits, i.e. 4 bytes.
 	rollingHash[28] = 0
 	rollingHash[29] = 0
 	rollingHash[30] = 0
