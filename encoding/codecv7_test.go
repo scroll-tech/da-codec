@@ -702,7 +702,7 @@ func TestCodecV7BatchCompressedDataCompatibilityCheck(t *testing.T) {
 			name: "Single Block 04",
 			batch: &Batch{
 				InitialL1MessageIndex:  10,
-				LastL1MessageQueueHash: common.HexToHash("0xc7436aaec2cfaf39d5be02a02c6ac2089ab264c3e0fd142db682f1c000000000"),
+				LastL1MessageQueueHash: common.HexToHash("0xc7436aaec2cfaf39d5be02a02c6ac2089ab264c3e0fd142db682f1cc00000000"),
 				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_04.json")},
 			},
 			expectCompatible: true,
@@ -736,7 +736,7 @@ func TestCodecV7BatchCompressedDataCompatibilityCheck(t *testing.T) {
 			name: "Multiple Blocks 02, 03, 04",
 			batch: &Batch{
 				InitialL1MessageIndex:  10,
-				LastL1MessageQueueHash: common.HexToHash("0xc7436aaec2cfaf39d5be02a02c6ac2089ab264c3e0fd142db682f1c000000000"),
+				LastL1MessageQueueHash: common.HexToHash("0xc7436aaec2cfaf39d5be02a02c6ac2089ab264c3e0fd142db682f1cc00000000"),
 				Blocks: []*Block{
 					readBlockFromJSON(t, "testdata/blockTrace_02.json"),
 					readBlockFromJSON(t, "testdata/blockTrace_03.json"),
