@@ -175,13 +175,13 @@ func (b *daBatchV7) Version() CodecVersion {
 }
 
 // SkippedL1MessageBitmap returns the skipped L1 message bitmap of the DABatch.
-// For daBatchV7, there is no skipped L1 message bitmap.
+// Note: For daBatchV7, there is no skipped L1 message bitmap, therefore the function returns nil.
 func (b *daBatchV7) SkippedL1MessageBitmap() []byte {
 	return nil
 }
 
 // DataHash returns the data hash of the DABatch.
-// For daBatchV7, there is no data hash.
+// Note: For daBatchV7, there is no data hash, therefore the function returns an empty hash.
 func (b *daBatchV7) DataHash() common.Hash {
 	return common.Hash{}
 }
