@@ -241,7 +241,7 @@ func (d *DACodecV7) NewDABatchFromParams(batchIndex uint64, blobVersionedHash, p
 }
 
 func (d *DACodecV7) DecodeDAChunksRawTx(_ [][]byte) ([]*DAChunkRawTx, error) {
-	return nil, nil
+	return nil, errors.New("DecodeDAChunksRawTx is not implemented for DACodecV7, use DecodeBlob instead")
 }
 
 func (d *DACodecV7) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
