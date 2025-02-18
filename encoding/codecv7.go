@@ -222,7 +222,7 @@ func (d *DACodecV7) constructBlobPayload(batch *Batch) ([]byte, error) {
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.
-// Note: This function only populates the batch header, it leaves the blob-related fields and skipped L1 message bitmap empty.
+// Note: This function only populates the batch header, it leaves the blob-related fields empty.
 func (d *DACodecV7) NewDABatchFromBytes(data []byte) (DABatch, error) {
 	daBatch, err := decodeDABatchV7(data)
 	if err != nil {
