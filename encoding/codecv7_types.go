@@ -3,6 +3,7 @@ package encoding
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -136,9 +137,31 @@ func (b *daBatchV7) Hash() common.Hash {
 }
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
-// Note: This method is not implemented for daBatchV7.
 func (b *daBatchV7) BlobDataProofForPointEvaluation() ([]byte, error) {
-	return nil, nil
+	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(b.blobBytes), b.blobVersionedHash.Bytes())
+
+	// z = challengeDigest % BLS_MODULUS
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), blsModulus)
+	pointBytes := pointBigInt.Bytes()
+
+	var z kzg4844.Point
+	if len(pointBytes) > kzgPointByteSize {
+		return nil, fmt.Errorf("pointBytes length exceeds %d bytes, got %d bytes", kzgPointByteSize, len(pointBytes))
+	}
+	start := kzgPointByteSize - len(pointBytes)
+	copy(z[start:], pointBytes)
+
+	commitment, err := kzg4844.BlobToCommitment(b.blob)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blob commitment: %w", err)
+	}
+
+	proof, y, err := kzg4844.ComputeProof(b.blob, z)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(z[:]))
+	}
+
+	return blobDataProofFromValues(z, y, commitment, proof), nil
 }
 
 // Blob returns the blob of the batch.

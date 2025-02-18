@@ -13,6 +13,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -828,6 +829,101 @@ func TestDACodecV7JSONFromBytes(t *testing.T) {
 	require.Len(t, outputMap, len(expectedFields), "Unexpected number of fields in output")
 	for key, expectedValue := range expectedFields {
 		require.Equal(t, expectedValue, outputMap[key], fmt.Sprintf("Mismatch in field %s", key))
+	}
+}
+
+func TestCodecV7BatchBlobDataProofForPointEvaluation(t *testing.T) {
+	testCases := []struct {
+		name                  string
+		batch                 *Batch
+		creationErr           string
+		expectedBlobDataProof string
+	}{
+		{
+			name: "Batch with 1 block, blocktrace 02",
+			batch: &Batch{
+				Index:                  1,
+				ParentBatchHash:        common.Hash{},
+				InitialL1MessageIndex:  0,
+				PrevL1MessageQueueHash: common.Hash{},
+				PostL1MessageQueueHash: common.Hash{},
+				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_02.json")},
+			},
+			expectedBlobDataProof: "2781a7620cf0cecb23596d7fee625cc26c61b7d605eb2ff43c7ff98fa4a8f3152bbf1b44bb80d37bdd2a352d25e88ea27377cfc3dd7a818f17fe397942dc6400901bb682fa2d91cca8005e181302e0f6e87553579a2d4b16b94e911f7c8b9703492d84fc5765212bc1c1796583e2b86aac6f758bf87fc1a1055c92e03d7217522e31f337255a63fa2b9573714b1e2af4b5e9ce3ab7c2b93a1acc637663435ef5",
+		},
+		{
+			name: "Batch with 1 block, blocktrace 03",
+			batch: &Batch{
+				Index:                  1,
+				ParentBatchHash:        common.Hash{},
+				InitialL1MessageIndex:  0,
+				PrevL1MessageQueueHash: common.Hash{},
+				PostL1MessageQueueHash: common.Hash{},
+				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_03.json")},
+			},
+			expectedBlobDataProof: "42e370c6467ad79b5f7d79050685752fc043d8ff03505aae427bb35c6950d9e4475d546b7166b79e5faee7dd779585846e43de90c67201762ea7f3b6ca9b965b885613949b4e3624a6f8d9f4ec8e03f97d6ad2b3d4ca3462928907ae63189302c75e39974ec2c85e29911b8c3191af2b928bfea24d5c235a4ab0bfd66b6892b0b5a88e4b2cbd7e8dea48fae0a90ed84297dc6149954a2a7245fc5b9f5a258663",
+		},
+		{
+			name: "Batch with 1 block, blocktrace 04",
+			batch: &Batch{
+				Index:                  1,
+				ParentBatchHash:        common.Hash{1, 2, 3, 4},
+				InitialL1MessageIndex:  10,
+				PrevL1MessageQueueHash: common.Hash{1, 2, 3, 4},
+				PostL1MessageQueueHash: common.HexToHash("0x6250cf03e7f922eefe450e9d4234ec56a1502066cd55eff22939df6100000000"),
+				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_04.json")},
+			},
+			expectedBlobDataProof: "43c83acecf2100a74f1cce1a7a62101af22a744f1d61aca5bae8a6bd81a0d2040116ade6d71ec98b6208cfe96c1241c092018506893f4d652a43febcc11a1f2dad8549493363f782fd8893ba193e05498e85d7e0cec10b53ff4e7b53e06659d0209a12b663e3807541c3a4ec6ac0561ea44941243065b683efedfe91c2f84cc90ab5251646d6f929899bb6ce74b0320eb22c31bfe460659b1191c99bfc7afdd6",
+		},
+		{
+			name: "Batch with 1 block, blocktrace 05",
+			batch: &Batch{
+				Index:                  1,
+				ParentBatchHash:        common.Hash{},
+				InitialL1MessageIndex:  37,
+				PrevL1MessageQueueHash: common.Hash{5, 6, 7, 8},
+				PostL1MessageQueueHash: common.HexToHash("0xc31c3ca9a880b80c4e7fcb88844a5e21433bd2801bdd504e1ca4aed900000000"),
+				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_05.json")},
+			},
+			expectedBlobDataProof: "533782971f05c7a9eb627dc74614984f0c25bea4d2bf5a211360b51b9301dcd327587f1945a25f9063cab01372d4609430c193b66e60a34afe41a5ff341b4673a526889dd5d4c35affcfb513c910d8868deecc52fc40db17ce1eb67b0c1152d56c02dbe5b0f9eb7401649e59d8af6bb7ac69a24a5e2d06ca4ec8b927d0c9b7ceb9e6ef8f71edfa1d5135c183884c88a9d04ae993f006315e5318bb67c15c3b89",
+		},
+		{
+			name: "Batch with 3 blocks, blocktrace 02 + 03 + 04",
+			batch: &Batch{
+				Index:                  1,
+				ParentBatchHash:        common.Hash{},
+				InitialL1MessageIndex:  10,
+				PrevL1MessageQueueHash: common.Hash{9, 10, 11},
+				PostL1MessageQueueHash: common.HexToHash("0x20f1c72064552d63fb7e1352b7815a9f8231a028220bf63d27b24bec00000000"),
+				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_02.json"), readBlockFromJSON(t, "testdata/blockTrace_03.json"), replaceBlockNumber(readBlockFromJSON(t, "testdata/blockTrace_04.json"), 4)},
+			},
+			expectedBlobDataProof: "009064652841cb148bc7516a4e5835e8ecc0e1e6e11c9b57378ed90e74e845056dde6e9763ffeab8fc5c8cfcbb33a23a80558429f38cb0e8ef9e2a8c62718b1aa9068ee04e998fdec84a3d6681b70696ccd99dd0ab20cfea19e52d91de68b4f73a0da2ceeb1c64131c4a20b9de632d188fe355ae8a9ab57e3bf8792a99a605b088abbfb656cca16758cf301c7863140b3578867cb03bb42956462808e7c72171",
+		},
+		{
+			name: "Batch with 3 blocks, blocktrace 02 + 05 (L1 messages only) + 03",
+			batch: &Batch{
+				Index:                  3,
+				ParentBatchHash:        common.Hash{2},
+				InitialL1MessageIndex:  37,
+				PrevL1MessageQueueHash: common.Hash{},
+				PostL1MessageQueueHash: common.HexToHash("0x3d35d6b71c2769de1a4eb8f603e20f539c53a10c6764a6f5836cf13100000000"),
+				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_02.json"), replaceBlockNumber(readBlockFromJSON(t, "testdata/blockTrace_05.json"), 3), replaceBlockNumber(readBlockFromJSON(t, "testdata/blockTrace_03.json"), 4)},
+			},
+			expectedBlobDataProof: "5e52251386a249e9f8e6c458125fe3347d2358190ee03aa81b0d37128521a75e10c7f2f975cb37f42098a1d173feeaa867da04ecffbdcb6459c5d492a5b0ff048014b94261a8c345d86762e5a96d7f461083d34533175e30ec4ac5ab6cb7360c092822225fd9e5522be341b5f7ad88229394ef2568cd55a8dc60ec62ba818843d8acd83d0642203a19931fea4242cca9ec277b9ae16709b23d65376b85971e2f",
+		},
+	}
+
+	codecV7, err := CodecFromVersion(CodecV7)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			daBatch, err := codecV7.NewDABatch(tc.batch)
+			require.NoError(t, err)
+			verifyData, err := daBatch.BlobDataProofForPointEvaluation()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedBlobDataProof, hex.EncodeToString(verifyData))
+		})
 	}
 }
 
