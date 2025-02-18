@@ -112,13 +112,13 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		txs,    // transactions
 	)
 
-	// sanity check: initialL1MessageQueueHash+apply(L1Messages) = lastL1MessageQueueHash
-	computedLastL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(chunk.InitialL1MessageQueueHash, chunk.Blocks)
+	// sanity check: prevL1MessageQueueHash+apply(L1Messages) = postL1MessageQueueHash
+	computedPostL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(chunk.PrevL1MessageQueueHash, chunk.Blocks)
 	if err != nil {
-		return nil, fmt.Errorf("failed to apply L1 messages to initialL1MessageQueueHash: %w", err)
+		return nil, fmt.Errorf("failed to apply L1 messages to prevL1MessageQueueHash: %w", err)
 	}
-	if computedLastL1MessageQueueHash != chunk.LastL1MessageQueueHash {
-		return nil, fmt.Errorf("failed to sanity check lastL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedLastL1MessageQueueHash, chunk.LastL1MessageQueueHash)
+	if computedPostL1MessageQueueHash != chunk.PostL1MessageQueueHash {
+		return nil, fmt.Errorf("failed to sanity check postL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedPostL1MessageQueueHash, chunk.PostL1MessageQueueHash)
 	}
 
 	return daChunk, nil
@@ -212,10 +212,10 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 
 func (d *DACodecV7) constructBlobPayload(batch *Batch) ([]byte, error) {
 	blobPayload := blobPayloadV7{
-		initialL1MessageIndex:     batch.InitialL1MessageIndex,
-		initialL1MessageQueueHash: batch.InitialL1MessageQueueHash,
-		lastL1MessageQueueHash:    batch.LastL1MessageQueueHash,
-		blocks:                    batch.Blocks,
+		initialL1MessageIndex:  batch.InitialL1MessageIndex,
+		prevL1MessageQueueHash: batch.PrevL1MessageQueueHash,
+		postL1MessageQueueHash: batch.PostL1MessageQueueHash,
+		blocks:                 batch.Blocks,
 	}
 
 	return blobPayload.Encode()
@@ -376,10 +376,10 @@ func (d *DACodecV7) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, 
 // EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
 func (d *DACodecV7) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
 	return d.estimateL1CommitBatchSizeAndBlobSize(&Batch{
-		Blocks:                    chunk.Blocks,
-		InitialL1MessageIndex:     chunk.InitialL1MessageIndex,
-		InitialL1MessageQueueHash: chunk.InitialL1MessageQueueHash,
-		LastL1MessageQueueHash:    chunk.LastL1MessageQueueHash,
+		Blocks:                 chunk.Blocks,
+		InitialL1MessageIndex:  chunk.InitialL1MessageIndex,
+		PrevL1MessageQueueHash: chunk.PrevL1MessageQueueHash,
+		PostL1MessageQueueHash: chunk.PostL1MessageQueueHash,
 	})
 }
 

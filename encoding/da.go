@@ -110,9 +110,9 @@ type Chunk struct {
 	Blocks []*Block `json:"blocks"`
 
 	// CodecV7. Used for chunk creation in relayer.
-	InitialL1MessageIndex     uint64
-	InitialL1MessageQueueHash common.Hash
-	LastL1MessageQueueHash    common.Hash
+	InitialL1MessageIndex  uint64
+	PrevL1MessageQueueHash common.Hash
+	PostL1MessageQueueHash common.Hash
 }
 
 // Batch represents a batch of chunks.
@@ -123,10 +123,10 @@ type Batch struct {
 	Chunks                     []*Chunk
 
 	// CodecV7
-	InitialL1MessageIndex     uint64
-	InitialL1MessageQueueHash common.Hash
-	LastL1MessageQueueHash    common.Hash
-	Blocks                    []*Block
+	InitialL1MessageIndex  uint64
+	PrevL1MessageQueueHash common.Hash
+	PostL1MessageQueueHash common.Hash
+	Blocks                 []*Block
 }
 
 // NumL1Messages returns the number of L1 messages in this block.

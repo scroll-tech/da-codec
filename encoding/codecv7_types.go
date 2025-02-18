@@ -47,8 +47,8 @@ const (
 // Below is the encoding for blobPayloadV7.
 //   * Field                       Bytes     Type             Index       Comments
 //   * initialL1MessageIndex       8         uint64           0           Queue index of the first L1 message contained in this batch
-//   * initialL1MessageQueueHash   32        bytes32          8           Hash of the L1 message queue at the last message in the previous batch
-//   * lastL1MessageQueueHash      32        bytes32          40          Hash of the L1 message queue at the last message in this batch
+//   * prevL1MessageQueueHash	   32        bytes32          8           hash of the L1 message queue at the end of previous batch
+//   * postL1MessageQueueHash      32        bytes32          40          hash of the L1 message queue at the end of this batch
 //   * initialL2BlockNumber        8         uint64           72          The initial L2 block number in this batch
 //   * numBlocks                   2         uint16           80          The number of blocks in this batch
 //   * block[0]                    52        BlockContextV2   82          The first block in this batch
@@ -59,8 +59,8 @@ const (
 const (
 	blobPayloadV7MinEncodedLength            = 8 + 2*common.HashLength + 8 + 2
 	blobPayloadV7OffsetInitialL1MessageIndex = 0
-	blobPayloadV7OffsetInitialL1MessageQueue = 8
-	blobPayloadV7OffsetLastL1MessageQueue    = 40
+	blobPayloadV7OffsetPrevL1MessageQueue    = 8
+	blobPayloadV7OffsetPostL1MessageQueue    = 40
 	blobPayloadV7OffsetInitialL2BlockNumber  = 72
 	blobPayloadV7OffsetNumBlocks             = 80
 	blobPayloadV7OffsetBlocks                = 82
@@ -187,9 +187,9 @@ func (b *daBatchV7) DataHash() common.Hash {
 }
 
 type blobPayloadV7 struct {
-	initialL1MessageIndex     uint64
-	initialL1MessageQueueHash common.Hash
-	lastL1MessageQueueHash    common.Hash
+	initialL1MessageIndex  uint64
+	prevL1MessageQueueHash common.Hash
+	postL1MessageQueueHash common.Hash
 
 	// used for encoding
 	blocks []*Block
@@ -202,12 +202,12 @@ type blobPayloadV7 struct {
 func (b *blobPayloadV7) InitialL1MessageIndex() uint64 {
 	return b.initialL1MessageIndex
 }
-func (b *blobPayloadV7) InitialL1MessageQueueHash() common.Hash {
-	return b.initialL1MessageQueueHash
+func (b *blobPayloadV7) PrevL1MessageQueueHash() common.Hash {
+	return b.prevL1MessageQueueHash
 }
 
-func (b *blobPayloadV7) LastL1MessageQueueHash() common.Hash {
-	return b.lastL1MessageQueueHash
+func (b *blobPayloadV7) PostL1MessageQueueHash() common.Hash {
+	return b.postL1MessageQueueHash
 }
 
 func (b *blobPayloadV7) Blocks() []DABlock {
@@ -221,9 +221,9 @@ func (b *blobPayloadV7) Transactions() []types.Transactions {
 func (b *blobPayloadV7) Encode() ([]byte, error) {
 	payloadBytes := make([]byte, blobPayloadV7MinEncodedLength)
 
-	binary.BigEndian.PutUint64(payloadBytes[blobPayloadV7OffsetInitialL1MessageIndex:blobPayloadV7OffsetInitialL1MessageQueue], b.initialL1MessageIndex)
-	copy(payloadBytes[blobPayloadV7OffsetInitialL1MessageQueue:blobPayloadV7OffsetLastL1MessageQueue], b.initialL1MessageQueueHash[:])
-	copy(payloadBytes[blobPayloadV7OffsetLastL1MessageQueue:blobPayloadV7OffsetInitialL2BlockNumber], b.lastL1MessageQueueHash[:])
+	binary.BigEndian.PutUint64(payloadBytes[blobPayloadV7OffsetInitialL1MessageIndex:blobPayloadV7OffsetPrevL1MessageQueue], b.initialL1MessageIndex)
+	copy(payloadBytes[blobPayloadV7OffsetPrevL1MessageQueue:blobPayloadV7OffsetPostL1MessageQueue], b.prevL1MessageQueueHash[:])
+	copy(payloadBytes[blobPayloadV7OffsetPostL1MessageQueue:blobPayloadV7OffsetInitialL2BlockNumber], b.postL1MessageQueueHash[:])
 
 	var initialL2BlockNumber uint64
 	if len(b.blocks) > 0 {
@@ -270,13 +270,13 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 	}
 	payloadBytes = append(payloadBytes, transactionBytes...)
 
-	// sanity check: initialL1MessageQueueHash+apply(L1Messages) = lastL1MessageQueueHash
-	computedLastL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(b.initialL1MessageQueueHash, b.blocks)
+	// sanity check: prevL1MessageQueueHash+apply(L1Messages) = postL1MessageQueueHash
+	computedPostL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(b.prevL1MessageQueueHash, b.blocks)
 	if err != nil {
-		return nil, fmt.Errorf("failed to apply L1 messages to initialL1MessageQueueHash: %w", err)
+		return nil, fmt.Errorf("failed to apply L1 messages to prevL1MessageQueueHash: %w", err)
 	}
-	if computedLastL1MessageQueueHash != b.lastL1MessageQueueHash {
-		return nil, fmt.Errorf("failed to sanity check lastL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedLastL1MessageQueueHash, b.lastL1MessageQueueHash)
+	if computedPostL1MessageQueueHash != b.postL1MessageQueueHash {
+		return nil, fmt.Errorf("failed to sanity check postL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedPostL1MessageQueueHash, b.postL1MessageQueueHash)
 	}
 
 	return payloadBytes, nil
@@ -287,9 +287,9 @@ func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
 		return nil, fmt.Errorf("invalid data length for blobPayloadV7, expected at least %d bytes but got %d", blobPayloadV7MinEncodedLength, len(data))
 	}
 
-	initialL1MessageIndex := binary.BigEndian.Uint64(data[blobPayloadV7OffsetInitialL1MessageIndex:blobPayloadV7OffsetInitialL1MessageQueue])
-	initialL1MessageQueueHash := common.BytesToHash(data[blobPayloadV7OffsetInitialL1MessageQueue:blobPayloadV7OffsetLastL1MessageQueue])
-	lastL1MessageQueueHash := common.BytesToHash(data[blobPayloadV7OffsetLastL1MessageQueue:blobPayloadV7OffsetInitialL2BlockNumber])
+	initialL1MessageIndex := binary.BigEndian.Uint64(data[blobPayloadV7OffsetInitialL1MessageIndex:blobPayloadV7OffsetPrevL1MessageQueue])
+	prevL1MessageQueueHash := common.BytesToHash(data[blobPayloadV7OffsetPrevL1MessageQueue:blobPayloadV7OffsetPostL1MessageQueue])
+	postL1MessageQueueHash := common.BytesToHash(data[blobPayloadV7OffsetPostL1MessageQueue:blobPayloadV7OffsetInitialL2BlockNumber])
 
 	initialL2BlockNumber := binary.BigEndian.Uint64(data[blobPayloadV7OffsetInitialL2BlockNumber:blobPayloadV7OffsetNumBlocks])
 	numBlocks := int(binary.BigEndian.Uint16(data[blobPayloadV7OffsetNumBlocks:blobPayloadV7OffsetBlocks]))
@@ -337,11 +337,11 @@ func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
 	}
 
 	return &blobPayloadV7{
-		initialL1MessageIndex:     initialL1MessageIndex,
-		initialL1MessageQueueHash: initialL1MessageQueueHash,
-		lastL1MessageQueueHash:    lastL1MessageQueueHash,
-		daBlocks:                  daBlocks,
-		l2Transactions:            transactions,
+		initialL1MessageIndex:  initialL1MessageIndex,
+		prevL1MessageQueueHash: prevL1MessageQueueHash,
+		postL1MessageQueueHash: postL1MessageQueueHash,
+		daBlocks:               daBlocks,
+		l2Transactions:         transactions,
 	}, nil
 }
 
