@@ -251,6 +251,9 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 	var l1MessageIndex *uint64
 	var transactionBytes []byte
 	for i, block := range b.blocks {
+		if !block.Header.Number.IsUint64() {
+			return nil, fmt.Errorf("block number is not a uint64: %s", block.Header.Number.String())
+		}
 		// sanity check: block numbers are contiguous
 		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
 			return nil, fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())

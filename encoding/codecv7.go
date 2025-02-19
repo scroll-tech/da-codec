@@ -38,8 +38,8 @@ func (d *DACodecV7) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate number of L1 messages: %w", err)
 	}
-	if totalL1MessagePoppedBefore+uint64(numL1Messages) != highestQueueIndex {
-		return nil, fmt.Errorf("failed to sanity check L1 messages count: totalL1MessagePoppedBefore + numL1Messages != highestQueueIndex: %d + %d != %d", totalL1MessagePoppedBefore, numL1Messages, highestQueueIndex)
+	if numL1Messages > 0 && totalL1MessagePoppedBefore+uint64(numL1Messages) != highestQueueIndex+1 {
+		return nil, fmt.Errorf("failed to sanity check L1 messages count: totalL1MessagePoppedBefore + numL1Messages != highestQueueIndex+1: %d + %d != %d", totalL1MessagePoppedBefore, numL1Messages, highestQueueIndex+1)
 	}
 
 	numL2Transactions := block.NumL2Transactions()
@@ -73,44 +73,9 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("number of blocks is 0")
 	}
 
-	if len(chunk.Blocks) > math.MaxUint8 {
-		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint8)
+	if len(chunk.Blocks) > math.MaxUint16 {
+		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint16)
 	}
-
-	initialL2BlockNumber := chunk.Blocks[0].Header.Number.Uint64()
-	l1MessageIndex := totalL1MessagePoppedBefore
-
-	blocks := make([]DABlock, 0, len(chunk.Blocks))
-	txs := make([][]*types.TransactionData, 0, len(chunk.Blocks))
-
-	for i, block := range chunk.Blocks {
-		// sanity check: block numbers are contiguous
-		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
-			return nil, fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())
-		}
-
-		// sanity check (within NumL1MessagesNoSkipping): L1 message indices are contiguous within a block
-		numL1Messages, _, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get numL1Messages: %w", err)
-		}
-		// sanity check: L1 message indices are contiguous across blocks boundaries
-		if numL1Messages > 0 {
-			if l1MessageIndex+uint64(numL1Messages) != highestQueueIndex+1 {
-				return nil, fmt.Errorf("failed to sanity check L1 messages count after block %d: l1MessageIndex + numL1Messages != highestQueueIndex+1: %d + %d != %d", block.Header.Number.Uint64(), l1MessageIndex, numL1Messages, highestQueueIndex+1)
-			}
-			l1MessageIndex += uint64(numL1Messages)
-		}
-
-		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)
-		blocks = append(blocks, daBlock)
-		txs = append(txs, block.Transactions)
-	}
-
-	daChunk := newDAChunkV7(
-		blocks, // blocks
-		txs,    // transactions
-	)
 
 	// sanity check: prevL1MessageQueueHash+apply(L1Messages) = postL1MessageQueueHash
 	computedPostL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(chunk.PrevL1MessageQueueHash, chunk.Blocks)
@@ -120,6 +85,36 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 	if computedPostL1MessageQueueHash != chunk.PostL1MessageQueueHash {
 		return nil, fmt.Errorf("failed to sanity check postL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedPostL1MessageQueueHash, chunk.PostL1MessageQueueHash)
 	}
+
+	if !chunk.Blocks[0].Header.Number.IsUint64() {
+		return nil, errors.New("block number of initial block is not uint64")
+	}
+	initialL2BlockNumber := chunk.Blocks[0].Header.Number.Uint64()
+	l1MessageIndex := totalL1MessagePoppedBefore
+
+	blocks := make([]DABlock, 0, len(chunk.Blocks))
+	txs := make([][]*types.TransactionData, 0, len(chunk.Blocks))
+
+	for i, block := range chunk.Blocks {
+		daBlock, err := d.NewDABlock(block, l1MessageIndex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create DABlock from block %d: %w", block.Header.Number.Uint64(), err)
+		}
+		l1MessageIndex += uint64(daBlock.NumL1Messages())
+
+		// sanity check: block numbers are contiguous
+		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
+			return nil, fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())
+		}
+
+		blocks = append(blocks, daBlock)
+		txs = append(txs, block.Transactions)
+	}
+
+	daChunk := newDAChunkV7(
+		blocks, // blocks
+		txs,    // transactions
+	)
 
 	return daChunk, nil
 }
@@ -147,6 +142,9 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 				}
 				chunkBlocksCount++
 			}
+		}
+		if chunkBlocksCount != totalBlocks {
+			return nil, fmt.Errorf("chunks contain less blocks than the batch: %d < %d", chunkBlocksCount, totalBlocks)
 		}
 	}
 

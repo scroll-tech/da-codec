@@ -261,9 +261,7 @@ func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 			S:          txData.S.ToInt(),
 		})
 
-	case types.L1MessageTxType: // L1MessageTxType is not supported
-		fallthrough
-	default:
+	default: // BlobTxType, SetCodeTxType, L1MessageTxType
 		return nil, fmt.Errorf("unsupported tx type: %d", txData.Type)
 	}
 
