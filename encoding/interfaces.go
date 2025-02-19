@@ -44,7 +44,6 @@ type DABatch interface {
 type DABlobPayload interface {
 	Blocks() []DABlock
 	Transactions() []types.Transactions
-	InitialL1MessageIndex() uint64
 	PrevL1MessageQueueHash() common.Hash
 	PostL1MessageQueueHash() common.Hash
 }

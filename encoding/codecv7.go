@@ -34,7 +34,7 @@ func (d *DACodecV7) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) 
 		return nil, errors.New("block number is not uint64")
 	}
 
-	numL1Messages, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
+	numL1Messages, _, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate number of L1 messages: %w", err)
 	}
@@ -90,7 +90,7 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		}
 
 		// sanity check (within NumL1MessagesNoSkipping): L1 message indices are contiguous within a block
-		numL1Messages, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
+		numL1Messages, _, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get numL1Messages: %w", err)
 		}
@@ -212,7 +212,6 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 
 func (d *DACodecV7) constructBlobPayload(batch *Batch) ([]byte, error) {
 	blobPayload := blobPayloadV7{
-		initialL1MessageIndex:  batch.InitialL1MessageIndex,
 		prevL1MessageQueueHash: batch.PrevL1MessageQueueHash,
 		postL1MessageQueueHash: batch.PostL1MessageQueueHash,
 		blocks:                 batch.Blocks,
@@ -377,7 +376,6 @@ func (d *DACodecV7) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, 
 func (d *DACodecV7) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
 	return d.estimateL1CommitBatchSizeAndBlobSize(&Batch{
 		Blocks:                 chunk.Blocks,
-		InitialL1MessageIndex:  chunk.InitialL1MessageIndex,
 		PrevL1MessageQueueHash: chunk.PrevL1MessageQueueHash,
 		PostL1MessageQueueHash: chunk.PostL1MessageQueueHash,
 	})

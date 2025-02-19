@@ -110,7 +110,6 @@ type Chunk struct {
 	Blocks []*Block `json:"blocks"`
 
 	// CodecV7. Used for chunk creation in relayer.
-	InitialL1MessageIndex  uint64
 	PrevL1MessageQueueHash common.Hash
 	PostL1MessageQueueHash common.Hash
 }
@@ -123,7 +122,6 @@ type Batch struct {
 	Chunks                     []*Chunk
 
 	// CodecV7
-	InitialL1MessageIndex  uint64
 	PrevL1MessageQueueHash common.Hash
 	PostL1MessageQueueHash common.Hash
 	Blocks                 []*Block
@@ -146,11 +144,12 @@ func (b *Block) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 	return *lastQueueIndex - totalL1MessagePoppedBefore + 1
 }
 
-// NumL1MessagesNoSkipping returns the number of L1 messages and the highest queue index in this block.
+// NumL1MessagesNoSkipping returns the number of L1 messages, the lowest and highest queue index in this block.
 // This method assumes that L1 messages can't be skipped.
-func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, error) {
+func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, uint64, error) {
 	var count uint16
 	var prevQueueIndex *uint64
+	var lowestQueueIndex uint64
 
 	for _, txData := range b.Transactions {
 		if txData.Type != types.L1MessageTxType {
@@ -159,6 +158,7 @@ func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, error) {
 
 		// If prevQueueIndex is nil, it means this is the first L1 message in the block.
 		if prevQueueIndex == nil {
+			lowestQueueIndex = txData.Nonce
 			prevQueueIndex = &txData.Nonce
 			count++
 			continue
@@ -166,20 +166,22 @@ func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, error) {
 
 		// Check if the queue index is consecutive.
 		if txData.Nonce != *prevQueueIndex+1 {
-			return 0, 0, fmt.Errorf("unexpected queue index: expected %d, got %d", *prevQueueIndex+1, txData.Nonce)
+			return 0, 0, 0, fmt.Errorf("unexpected queue index: expected %d, got %d", *prevQueueIndex+1, txData.Nonce)
 		}
 
 		if count == math.MaxUint16 {
-			return 0, 0, errors.New("number of L1 messages exceeds max uint16")
+			return 0, 0, 0, errors.New("number of L1 messages exceeds max uint16")
 		}
 		count++
 		prevQueueIndex = &txData.Nonce
 	}
 
-	if prevQueueIndex == nil {
-		return 0, 0, nil
+	var prevQueueIndexResult uint64
+	if prevQueueIndex != nil {
+		prevQueueIndexResult = *prevQueueIndex
 	}
-	return count, *prevQueueIndex, nil
+
+	return count, lowestQueueIndex, prevQueueIndexResult, nil
 }
 
 // NumL2Transactions returns the number of L2 transactions in this block.
