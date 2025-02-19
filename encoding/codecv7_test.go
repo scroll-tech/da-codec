@@ -53,14 +53,14 @@ func TestCodecV7DABlockEncodeDecode(t *testing.T) {
 			blockJSONFile:              "testdata/blockTrace_04.json",
 			expectedEncode:             "00000000646b6e13000000000000000000000000000000000000000000000000000000000000000000000000007a120000020001",
 			blockNumber:                13,
-			totalL1MessagePoppedBefore: 9,
+			totalL1MessagePoppedBefore: 10,
 		},
 		{
 			name:                       "Blocktrace 05 - 5 consecutive L1 messages",
 			blockJSONFile:              "testdata/blockTrace_05.json",
 			expectedEncode:             "00000000646b6ed0000000000000000000000000000000000000000000000000000000000000000000000000007a120000050005",
 			blockNumber:                17,
-			totalL1MessagePoppedBefore: 36,
+			totalL1MessagePoppedBefore: 37,
 		},
 		{
 			name:                       "Blocktrace 06 - 3 L1 messages with skipping (error)",
