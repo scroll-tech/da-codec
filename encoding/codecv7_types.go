@@ -526,6 +526,7 @@ func iterateAndVerifyBlocksAndL1Messages(prevL1MessageQueueHash, postL1MessageQu
 	initialL2BlockNumber := blocks[0].Header.Number.Uint64()
 	var startL1MessageIndex *uint64
 	if totalL1MessagePoppedBefore != nil {
+		startL1MessageIndex = new(uint64)
 		*startL1MessageIndex = *totalL1MessagePoppedBefore
 	}
 
