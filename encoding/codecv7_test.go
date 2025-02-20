@@ -339,10 +339,10 @@ func TestCodecV7BlobEncodingAndHashing(t *testing.T) {
 			require.Equal(t, len(tc.batch.Blocks), len(blobPayload.Blocks()))
 			decodedBlocks := blobPayload.Blocks()
 			for i, block := range tc.batch.Blocks {
-				numL1Messages, _, _, err := block.NumL1MessagesNoSkipping()
+				numL1Messages, lowestQueueIndex, _, err := block.NumL1MessagesNoSkipping()
 				require.NoError(t, err)
 
-				daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(block.NumL2Transactions())+numL1Messages, numL1Messages)
+				daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(block.NumL2Transactions())+numL1Messages, numL1Messages, lowestQueueIndex)
 				assertEqualDABlocks(t, daBlock, decodedBlocks[i])
 
 				txDataDecoded := TxsToTxsData(blobPayload.Transactions()[i])

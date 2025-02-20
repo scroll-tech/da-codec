@@ -30,34 +30,7 @@ func (d *DACodecV7) MaxNumChunksPerBatch() int {
 
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (d *DACodecV7) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
-	if !block.Header.Number.IsUint64() {
-		return nil, errors.New("block number is not uint64")
-	}
-
-	numL1Messages, _, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate number of L1 messages: %w", err)
-	}
-	if numL1Messages > 0 && totalL1MessagePoppedBefore+uint64(numL1Messages) != highestQueueIndex+1 {
-		return nil, fmt.Errorf("failed to sanity check L1 messages count: totalL1MessagePoppedBefore + numL1Messages != highestQueueIndex+1: %d + %d != %d", totalL1MessagePoppedBefore, numL1Messages, highestQueueIndex+1)
-	}
-
-	numL2Transactions := block.NumL2Transactions()
-	numTransactions := uint64(numL1Messages) + numL2Transactions
-	if numTransactions > math.MaxUint16 {
-		return nil, errors.New("number of transactions exceeds max uint16")
-	}
-
-	daBlock := newDABlockV7(
-		block.Header.Number.Uint64(), // number
-		block.Header.Time,            // timestamp
-		block.Header.BaseFee,         // baseFee
-		block.Header.GasLimit,        // gasLimit
-		uint16(numTransactions),      // numTransactions
-		numL1Messages,                // numL1Messages
-	)
-
-	return daBlock, nil
+	return newDABlockV7FromBlockWithValidation(block, &totalL1MessagePoppedBefore)
 }
 
 // NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
@@ -77,43 +50,21 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint16)
 	}
 
-	// sanity check: prevL1MessageQueueHash+apply(L1Messages) = postL1MessageQueueHash
-	computedPostL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(chunk.PrevL1MessageQueueHash, chunk.Blocks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply L1 messages to prevL1MessageQueueHash: %w", err)
-	}
-	if computedPostL1MessageQueueHash != chunk.PostL1MessageQueueHash {
-		return nil, fmt.Errorf("failed to sanity check postL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedPostL1MessageQueueHash, chunk.PostL1MessageQueueHash)
-	}
-
-	if !chunk.Blocks[0].Header.Number.IsUint64() {
-		return nil, errors.New("block number of initial block is not uint64")
-	}
-	initialL2BlockNumber := chunk.Blocks[0].Header.Number.Uint64()
-	l1MessageIndex := totalL1MessagePoppedBefore
-
 	blocks := make([]DABlock, 0, len(chunk.Blocks))
 	txs := make([][]*types.TransactionData, 0, len(chunk.Blocks))
 
-	for i, block := range chunk.Blocks {
-		daBlock, err := d.NewDABlock(block, l1MessageIndex)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create DABlock from block %d: %w", block.Header.Number.Uint64(), err)
-		}
-		l1MessageIndex += uint64(daBlock.NumL1Messages())
-
-		// sanity check: block numbers are contiguous
-		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
-			return nil, fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())
-		}
-
+	if err := iterateAndVerifyBlocksAndL1Messages(chunk.PrevL1MessageQueueHash, chunk.PostL1MessageQueueHash, chunk.Blocks, &totalL1MessagePoppedBefore, func(initialBlockNumber uint64) {}, func(block *Block, daBlock *daBlockV7) error {
 		blocks = append(blocks, daBlock)
 		txs = append(txs, block.Transactions)
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to iterate and verify blocks and L1 messages: %w", err)
 	}
 
 	daChunk := newDAChunkV7(
-		blocks, // blocks
-		txs,    // transactions
+		blocks,
+		txs,
 	)
 
 	return daChunk, nil
@@ -125,27 +76,8 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, errors.New("batch must contain at least one block")
 	}
 
-	// If the batch contains chunks, we need to ensure that the blocks in the chunks match the blocks in the batch.
-	// Chunks are not directly used in DACodecV7, but we still need to check the consistency of the blocks.
-	// This is done to ensure compatibility with older versions and the relayer implementation.
-	if len(batch.Chunks) != 0 {
-		totalBlocks := len(batch.Blocks)
-		chunkBlocksCount := 0
-		for _, chunk := range batch.Chunks {
-			for _, block := range chunk.Blocks {
-				if chunkBlocksCount > totalBlocks {
-					return nil, errors.New("chunks contain more blocks than the batch")
-				}
-
-				if batch.Blocks[chunkBlocksCount].Header.Hash() != block.Header.Hash() {
-					return nil, errors.New("blocks in chunks do not match the blocks in the batch")
-				}
-				chunkBlocksCount++
-			}
-		}
-		if chunkBlocksCount != totalBlocks {
-			return nil, fmt.Errorf("chunks contain less blocks than the batch: %d < %d", chunkBlocksCount, totalBlocks)
-		}
+	if err := checkBlocksBatchVSChunksConsistency(batch); err != nil {
+		return nil, fmt.Errorf("failed to check blocks batch vs chunks consistency: %w", err)
 	}
 
 	blob, blobVersionedHash, blobBytes, err := d.constructBlob(batch)
@@ -260,6 +192,9 @@ func (d *DACodecV7) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 
 	// read the compressed flag and decompress if needed
 	compressed := rawBytes[blobEnvelopeV7OffsetCompressedFlag]
+	if compressed != 0x0 && compressed != 0x1 {
+		return nil, fmt.Errorf("invalid compressed flag: %d", compressed)
+	}
 	if compressed == 0x1 {
 		var err error
 		if payloadBytes, err = decompressV7Bytes(payloadBytes); err != nil {
@@ -311,28 +246,12 @@ func (d *DACodecV7) CheckChunkCompressedDataCompatibility(_ *Chunk) (bool, error
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
-	// If the batch contains chunks, we need to ensure that the blocks in the chunks match the blocks in the batch.
-	// Chunks are not directly used in DACodecV7, but we still need to check the consistency of the blocks.
-	// This is done to ensure compatibility with older versions and the relayer implementation.
-	if len(b.Chunks) != 0 {
-		totalBlocks := len(b.Blocks)
-		chunkBlocksCount := 0
-		for _, chunk := range b.Chunks {
-			for _, block := range chunk.Blocks {
-				if chunkBlocksCount > totalBlocks {
-					return false, errors.New("chunks contain more blocks than the batch")
-				}
-
-				if b.Blocks[chunkBlocksCount].Header.Hash() != block.Header.Hash() {
-					return false, errors.New("blocks in chunks do not match the blocks in the batch")
-				}
-				chunkBlocksCount++
-			}
-		}
-	}
-
 	if len(b.Blocks) == 0 {
 		return false, errors.New("batch must contain at least one block")
+	}
+
+	if err := checkBlocksBatchVSChunksConsistency(b); err != nil {
+		return false, fmt.Errorf("failed to check blocks batch vs chunks consistency: %w", err)
 	}
 
 	payloadBytes, err := d.constructBlobPayload(b)

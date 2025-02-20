@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/klauspost/compress/zstd"
@@ -46,15 +48,15 @@ const (
 )
 
 // Below is the encoding for blobPayloadV7.
-//   * Field                       Bytes     Type             Index       Comments
-//   * prevL1MessageQueueHash	   32        bytes32          0           hash of the L1 message queue at the end of previous batch
-//   * postL1MessageQueueHash      32        bytes32          32          hash of the L1 message queue at the end of this batch
-//   * initialL2BlockNumber        8         uint64           64          The initial L2 block number in this batch
-//   * numBlocks                   2         uint16           72          The number of blocks in this batch
-//   * block[0]                    52        BlockContextV2   74          The first block in this batch
-//   * block[i]                    52        BlockContextV2   74+52*i     The (i+1)th block in this batch
-//   * block[n-1]                  52        BlockContextV2   74+52*(n-1) The last block in this batch
-//   * l2Transactions              dynamic   bytes            74+52*n     L2 transactions for this batch
+//   * Field                       Bytes     Type           Index       Comments
+//   * prevL1MessageQueueHash	   32        bytes32        0           hash of the L1 message queue at the end of previous batch
+//   * postL1MessageQueueHash      32        bytes32        32          hash of the L1 message queue at the end of this batch
+//   * initialL2BlockNumber        8         uint64         64          The initial L2 block number in this batch
+//   * numBlocks                   2         uint16         72          The number of blocks in this batch
+//   * block[0]                    52        DABlock7   	74          The first block in this batch
+//   * block[i]                    52        DABlock7   	74+52*i     The (i+1)th block in this batch
+//   * block[n-1]                  52        DABlock7   	74+52*(n-1) The last block in this batch
+//   * l2Transactions              dynamic   bytes          74+52*n     L2 transactions for this batch
 
 const (
 	blobPayloadV7MinEncodedLength           = 2*common.HashLength + 8 + 2
@@ -241,42 +243,11 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 	copy(payloadBytes[blobPayloadV7OffsetPrevL1MessageQueue:blobPayloadV7OffsetPostL1MessageQueue], b.prevL1MessageQueueHash[:])
 	copy(payloadBytes[blobPayloadV7OffsetPostL1MessageQueue:blobPayloadV7OffsetInitialL2BlockNumber], b.postL1MessageQueueHash[:])
 
-	var initialL2BlockNumber uint64
-	if len(b.blocks) > 0 {
-		initialL2BlockNumber = b.blocks[0].Header.Number.Uint64()
-		binary.BigEndian.PutUint64(payloadBytes[blobPayloadV7OffsetInitialL2BlockNumber:blobPayloadV7OffsetNumBlocks], initialL2BlockNumber)
-	}
-	binary.BigEndian.PutUint16(payloadBytes[blobPayloadV7OffsetNumBlocks:blobPayloadV7OffsetBlocks], uint16(len(b.blocks)))
-
-	var l1MessageIndex *uint64
 	var transactionBytes []byte
-	for i, block := range b.blocks {
-		if !block.Header.Number.IsUint64() {
-			return nil, fmt.Errorf("block number is not a uint64: %s", block.Header.Number.String())
-		}
-		// sanity check: block numbers are contiguous
-		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
-			return nil, fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())
-		}
-
-		// sanity check (within NumL1MessagesNoSkipping): L1 message indices are contiguous within a block
-		numL1Messages, lowestQueueIndex, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get numL1Messages: %w", err)
-		}
-		// sanity check: L1 message indices are contiguous across blocks boundaries
-		if numL1Messages > 0 {
-			// set l1MessageIndex to the lowestQueueIndex if it's nil (first L1 message in the batch)
-			if l1MessageIndex == nil {
-				l1MessageIndex = &lowestQueueIndex
-			}
-			if *l1MessageIndex+uint64(numL1Messages) != highestQueueIndex+1 {
-				return nil, fmt.Errorf("failed to sanity check L1 messages count after block %d: l1MessageIndex + numL1Messages != highestQueueIndex+1: %d + %d != %d", block.Header.Number.Uint64(), l1MessageIndex, numL1Messages, highestQueueIndex+1)
-			}
-			*l1MessageIndex += uint64(numL1Messages)
-		}
-
-		daBlock := newDABlockV7(block.Header.Number.Uint64(), block.Header.Time, block.Header.BaseFee, block.Header.GasLimit, uint16(len(block.Transactions)), numL1Messages)
+	if err := iterateAndVerifyBlocksAndL1Messages(b.prevL1MessageQueueHash, b.postL1MessageQueueHash, b.blocks, nil, func(initialL2BlockNumber uint64) {
+		binary.BigEndian.PutUint64(payloadBytes[blobPayloadV7OffsetInitialL2BlockNumber:blobPayloadV7OffsetNumBlocks], initialL2BlockNumber)
+		binary.BigEndian.PutUint16(payloadBytes[blobPayloadV7OffsetNumBlocks:blobPayloadV7OffsetBlocks], uint16(len(b.blocks)))
+	}, func(block *Block, daBlock *daBlockV7) error {
 		payloadBytes = append(payloadBytes, daBlock.Encode()...)
 
 		// encode L2 txs as RLP and append to transactionBytes
@@ -286,21 +257,17 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 			}
 			rlpTxData, err := convertTxDataToRLPEncoding(txData)
 			if err != nil {
-				return nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
+				return fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 			}
 			transactionBytes = append(transactionBytes, rlpTxData...)
 		}
-	}
-	payloadBytes = append(payloadBytes, transactionBytes...)
 
-	// sanity check: prevL1MessageQueueHash+apply(L1Messages) = postL1MessageQueueHash
-	computedPostL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(b.prevL1MessageQueueHash, b.blocks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply L1 messages to prevL1MessageQueueHash: %w", err)
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to iterate and verify blocks and L1 messages: %w", err)
 	}
-	if computedPostL1MessageQueueHash != b.postL1MessageQueueHash {
-		return nil, fmt.Errorf("failed to sanity check postL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedPostL1MessageQueueHash, b.postL1MessageQueueHash)
-	}
+
+	payloadBytes = append(payloadBytes, transactionBytes...)
 
 	return payloadBytes, nil
 }
@@ -368,10 +335,51 @@ func decodeBlobPayloadV7(data []byte) (*blobPayloadV7, error) {
 
 type daBlockV7 struct {
 	daBlockV0
+
+	lowestL1MessageQueueIndex uint64
+}
+
+func newDABlockV7FromBlockWithValidation(block *Block, totalL1MessagePoppedBefore *uint64) (*daBlockV7, error) {
+	if !block.Header.Number.IsUint64() {
+		return nil, errors.New("block number is not uint64")
+	}
+
+	numL1Messages, lowestQueueIndex, highestQueueIndex, err := block.NumL1MessagesNoSkipping()
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate number of L1 messages: %w", err)
+	}
+	if numL1Messages > 0 {
+		var startL1MessageIndex uint64
+		if totalL1MessagePoppedBefore != nil {
+			startL1MessageIndex = *totalL1MessagePoppedBefore
+		} else {
+			startL1MessageIndex = lowestQueueIndex
+		}
+
+		if startL1MessageIndex+uint64(numL1Messages) != highestQueueIndex+1 {
+			return nil, fmt.Errorf("failed to sanity check L1 messages count: startL1MessageIndex + numL1Messages != highestQueueIndex+1: %d + %d != %d", startL1MessageIndex, numL1Messages, highestQueueIndex+1)
+		}
+	}
+
+	numL2Transactions := block.NumL2Transactions()
+	numTransactions := uint64(numL1Messages) + numL2Transactions
+	if numTransactions > math.MaxUint16 {
+		return nil, errors.New("number of transactions exceeds max uint16")
+	}
+
+	return newDABlockV7(
+		block.Header.Number.Uint64(),
+		block.Header.Time,
+		block.Header.BaseFee,
+		block.Header.GasLimit,
+		uint16(numTransactions),
+		numL1Messages,
+		lowestQueueIndex,
+	), nil
 }
 
 // newDABlockV7 is a constructor function for daBlockV7 that initializes the internal fields.
-func newDABlockV7(number uint64, timestamp uint64, baseFee *big.Int, gasLimit uint64, numTransactions uint16, numL1Messages uint16) *daBlockV7 {
+func newDABlockV7(number uint64, timestamp uint64, baseFee *big.Int, gasLimit uint64, numTransactions uint16, numL1Messages uint16, lowestL1MessageQueueIndex uint64) *daBlockV7 {
 	return &daBlockV7{
 		daBlockV0: daBlockV0{
 			number:          number,
@@ -381,6 +389,7 @@ func newDABlockV7(number uint64, timestamp uint64, baseFee *big.Int, gasLimit ui
 			numTransactions: numTransactions,
 			numL1Messages:   numL1Messages,
 		},
+		lowestL1MessageQueueIndex: lowestL1MessageQueueIndex,
 	}
 }
 
@@ -496,4 +505,101 @@ func decodeSize3Bytes(data []byte) uint32 {
 
 func encodeSize3Bytes(data uint32) []byte {
 	return []byte{byte(data >> 16), byte(data >> 8), byte(data)}
+}
+
+// iterateAndVerifyBlocksAndL1Messages iterates over the blocks and verifies the blocks and L1 messages.
+// It verifies:
+//   - that L1 messages within and across blocks are contiguous
+//   - correctness of prevL1MessageQueueHash and postL1MessageQueueHash after applying all L1 messages
+//   - block numbers are contiguous and uint64
+//
+// The function calls the initialL2BlockNumberCallback with the initial L2 block number of the batch once.
+// The function calls the blockCallBack for each block with the block and the corresponding daBlock.
+func iterateAndVerifyBlocksAndL1Messages(prevL1MessageQueueHash, postL1MessageQueueHash common.Hash, blocks []*Block, totalL1MessagePoppedBefore *uint64, initialL2BlockNumberCallback func(initialL2BlockNumber uint64), blockCallBack func(block *Block, daBlock *daBlockV7) error) error {
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	if !blocks[0].Header.Number.IsUint64() {
+		return errors.New("block number of initial block is not uint64")
+	}
+	initialL2BlockNumber := blocks[0].Header.Number.Uint64()
+	var startL1MessageIndex *uint64
+	if totalL1MessagePoppedBefore != nil {
+		*startL1MessageIndex = *totalL1MessagePoppedBefore
+	}
+
+	initialL2BlockNumberCallback(initialL2BlockNumber)
+
+	for i, block := range blocks {
+		if !block.Header.Number.IsUint64() {
+			return fmt.Errorf("block number is not a uint64: %s", block.Header.Number.String())
+		}
+		// sanity check: block numbers are contiguous
+		if block.Header.Number.Uint64() != initialL2BlockNumber+uint64(i) {
+			return fmt.Errorf("invalid block number: expected %d but got %d", initialL2BlockNumber+uint64(i), block.Header.Number.Uint64())
+		}
+
+		// sanity check (within NumL1MessagesNoSkipping in newDABlockV7FromBlockWithValidation): L1 message indices are contiguous within a block
+		daBlock, err := newDABlockV7FromBlockWithValidation(block, startL1MessageIndex)
+		if err != nil {
+			return fmt.Errorf("failed to create DABlock from block %d: %w", block.Header.Number.Uint64(), err)
+		}
+		// sanity check: L1 message indices are contiguous across blocks boundaries as startL1MessageIndex is verified in newDABlockV7FromBlockWithValidation
+		// to be: startL1MessageIndex + numL1Messages in block == highestQueueIndex+1 in block
+		if daBlock.NumL1Messages() > 0 {
+			// set startL1MessageIndex to the lowestQueueIndex if it's nil (first L1 message within the blocks)
+			if startL1MessageIndex == nil {
+				startL1MessageIndex = new(uint64)
+				*startL1MessageIndex = daBlock.lowestL1MessageQueueIndex
+			}
+			*startL1MessageIndex += uint64(daBlock.NumL1Messages())
+		}
+
+		if err = blockCallBack(block, daBlock); err != nil {
+			return fmt.Errorf("failed to process block %d: %w", block.Header.Number.Uint64(), err)
+		}
+	}
+
+	// sanity check: prevL1MessageQueueHash+apply(L1Messages) = postL1MessageQueueHash
+	computedPostL1MessageQueueHash, err := MessageQueueV2ApplyL1MessagesFromBlocks(prevL1MessageQueueHash, blocks)
+	if err != nil {
+		return fmt.Errorf("failed to apply L1 messages to prevL1MessageQueueHash: %w", err)
+	}
+	if computedPostL1MessageQueueHash != postL1MessageQueueHash {
+		return fmt.Errorf("failed to sanity check postL1MessageQueueHash after applying all L1 messages: expected %s, got %s", computedPostL1MessageQueueHash, postL1MessageQueueHash)
+	}
+
+	return nil
+}
+
+// checkBlocksBatchVSChunksConsistency checks the consistency between blocks in the batch and blocks in the chunks.
+// If the batch contains chunks, we need to ensure that the blocks in the chunks match the blocks in the batch.
+// Chunks are not directly used in DACodecV7, but we still need to check the consistency of the blocks.
+// This is done to ensure compatibility with older versions and the relayer implementation.
+func checkBlocksBatchVSChunksConsistency(batch *Batch) error {
+	if len(batch.Chunks) == 0 {
+		return nil
+	}
+
+	totalBlocks := len(batch.Blocks)
+	chunkBlocksCount := 0
+	for _, chunk := range batch.Chunks {
+		for _, block := range chunk.Blocks {
+			if chunkBlocksCount > totalBlocks {
+				return errors.New("chunks contain more blocks than the batch")
+			}
+
+			if batch.Blocks[chunkBlocksCount].Header.Hash() != block.Header.Hash() {
+				return errors.New("blocks in chunks do not match the blocks in the batch")
+			}
+			chunkBlocksCount++
+		}
+	}
+
+	if chunkBlocksCount != totalBlocks {
+		return fmt.Errorf("chunks contain less blocks than the batch: %d < %d", chunkBlocksCount, totalBlocks)
+	}
+
+	return nil
 }
