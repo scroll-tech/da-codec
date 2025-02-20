@@ -264,17 +264,19 @@ func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 
 	case types.SetCodeTxType:
 		tx = types.NewTx(&types.SetCodeTx{
-			ChainID:   uint256.MustFromBig(txData.ChainId.ToInt()),
-			Nonce:     txData.Nonce,
-			To:        *txData.To,
-			Value:     uint256.MustFromBig(txData.Value.ToInt()),
-			Gas:       txData.Gas,
-			GasTipCap: uint256.MustFromBig(txData.GasTipCap.ToInt()),
-			GasFeeCap: uint256.MustFromBig(txData.GasFeeCap.ToInt()),
-			Data:      data,
-			V:         uint256.MustFromBig(txData.V.ToInt()),
-			R:         uint256.MustFromBig(txData.R.ToInt()),
-			S:         uint256.MustFromBig(txData.S.ToInt()),
+			ChainID:    uint256.MustFromBig(txData.ChainId.ToInt()),
+			Nonce:      txData.Nonce,
+			To:         *txData.To,
+			Value:      uint256.MustFromBig(txData.Value.ToInt()),
+			Gas:        txData.Gas,
+			GasTipCap:  uint256.MustFromBig(txData.GasTipCap.ToInt()),
+			GasFeeCap:  uint256.MustFromBig(txData.GasFeeCap.ToInt()),
+			Data:       data,
+			AccessList: txData.AccessList,
+			AuthList:   txData.AuthorizationList,
+			V:          uint256.MustFromBig(txData.V.ToInt()),
+			R:          uint256.MustFromBig(txData.R.ToInt()),
+			S:          uint256.MustFromBig(txData.S.ToInt()),
 		})
 
 	default: // BlobTxType, L1MessageTxType
