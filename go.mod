@@ -18,7 +18,7 @@ require (
 	github.com/ethereum/c-kzg-4844/bindings/go v0.0.0-20230126171313-363c7d7593b4 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
-	github.com/holiman/uint256 v1.2.4 // indirect
+	github.com/holiman/uint256 v1.2.4
 	github.com/iden3/go-iden3-crypto v0.0.15 // indirect
 	github.com/klauspost/compress v1.17.9
 	github.com/kr/text v0.2.0 // indirect
