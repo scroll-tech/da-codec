@@ -53,9 +53,9 @@ const (
 //   * postL1MessageQueueHash      32        bytes32        32          hash of the L1 message queue at the end of this batch
 //   * initialL2BlockNumber        8         uint64         64          The initial L2 block number in this batch
 //   * numBlocks                   2         uint16         72          The number of blocks in this batch
-//   * block[0]                    52        DABlock7   	74          The first block in this batch
-//   * block[i]                    52        DABlock7   	74+52*i     The (i+1)th block in this batch
-//   * block[n-1]                  52        DABlock7   	74+52*(n-1) The last block in this batch
+//   * block[0]                    52        DABlock7       74          The first block in this batch
+//   * block[i]                    52        DABlock7       74+52*i     The (i+1)th block in this batch
+//   * block[n-1]                  52        DABlock7       74+52*(n-1) The last block in this batch
 //   * l2Transactions              dynamic   bytes          74+52*n     L2 transactions for this batch
 
 const (
@@ -517,7 +517,7 @@ func encodeSize3Bytes(data uint32) []byte {
 // The function calls the blockCallBack for each block with the block and the corresponding daBlock.
 func iterateAndVerifyBlocksAndL1Messages(prevL1MessageQueueHash, postL1MessageQueueHash common.Hash, blocks []*Block, totalL1MessagePoppedBefore *uint64, initialL2BlockNumberCallback func(initialL2BlockNumber uint64), blockCallBack func(block *Block, daBlock *daBlockV7) error) error {
 	if len(blocks) == 0 {
-		return nil
+		return errors.New("no blocks to iterate")
 	}
 
 	if !blocks[0].Header.Number.IsUint64() {

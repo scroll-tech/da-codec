@@ -409,9 +409,9 @@ func TestCodecV7BatchStandardTestCasesEnableCompression(t *testing.T) {
 		expectedBlobVersionedHash string
 	}{
 		{
-			name:                      "no blocks",
-			txData:                    []string{},
-			expectedBlobVersionedHash: "0x018ea63fc2caaef749cedbeb0d890c006692a5507bb184817483bd5067e432b9",
+			name:        "no blocks",
+			txData:      []string{},
+			creationErr: "no blocks",
 		},
 		{
 			name:                      "single block, single tx",
@@ -553,9 +553,9 @@ func TestCodecV7BatchStandardTestCasesDisableCompression(t *testing.T) {
 		expectedBlobVersionedHash string
 	}{
 		{
-			name:                      "no blocks",
-			txData:                    []string{},
-			expectedBlobVersionedHash: "0x0127467f5062c887d10c72713d76406ef5caebe2df5b1b679a1b5cd812cf395b",
+			name:        "no blocks",
+			txData:      []string{},
+			creationErr: "no blocks",
 		},
 		{
 			name:                      "single block, single tx",
