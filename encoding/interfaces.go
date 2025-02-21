@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/scroll-tech/go-ethereum/params"
 )
@@ -40,6 +41,13 @@ type DABatch interface {
 	SkippedL1MessageBitmap() []byte
 }
 
+type DABlobPayload interface {
+	Blocks() []DABlock
+	Transactions() []types.Transactions
+	PrevL1MessageQueueHash() common.Hash
+	PostL1MessageQueueHash() common.Hash
+}
+
 // Codec represents the interface for encoding and decoding DA-related structures.
 type Codec interface {
 	Version() CodecVersion
@@ -49,9 +57,11 @@ type Codec interface {
 	NewDAChunk(*Chunk, uint64) (DAChunk, error)
 	NewDABatch(*Batch) (DABatch, error)
 	NewDABatchFromBytes([]byte) (DABatch, error)
+	NewDABatchFromParams(batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash) (DABatch, error)
 
 	DecodeDAChunksRawTx(chunkBytes [][]byte) ([]*DAChunkRawTx, error)
 	DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx) error
+	DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error)
 
 	CheckChunkCompressedDataCompatibility(*Chunk) (bool, error)
 	CheckBatchCompressedDataCompatibility(*Batch) (bool, error)
@@ -78,6 +88,7 @@ const (
 	CodecV4
 	CodecV5
 	CodecV6
+	CodecV7
 )
 
 // CodecFromVersion returns the appropriate codec for the given version.
@@ -97,6 +108,8 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 		return NewDACodecV5(), nil
 	case CodecV6:
 		return NewDACodecV6(), nil
+	case CodecV7:
+		return &DACodecV7{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported codec version: %v", version)
 	}
@@ -104,7 +117,9 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
 func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
-	if chainCfg.IsEuclid(startBlockTimestamp) {
+	if chainCfg.IsEuclidV2(startBlockTimestamp) {
+		return &DACodecV7{}
+	} else if chainCfg.IsEuclid(startBlockTimestamp) {
 		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly
 		return NewDACodecV6()
 	} else if chainCfg.IsDarwinV2(startBlockTimestamp) {

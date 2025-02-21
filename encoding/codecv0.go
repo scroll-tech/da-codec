@@ -161,6 +161,10 @@ func (d *DACodecV0) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 	return nil
 }
 
+func (d *DACodecV0) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
+	return nil, nil
+}
+
 // NewDABatch creates a DABatch from the provided Batch.
 func (d *DACodecV0) NewDABatch(batch *Batch) (DABatch, error) {
 	// this encoding can only support a fixed number of chunks per batch
@@ -221,6 +225,10 @@ func (d *DACodecV0) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		common.BytesToHash(data[daBatchV0OffsetParentBatchHash:daBatchV0OffsetSkippedL1MessageBitmap]),    // parentBatchHash
 		data[daBatchV0OffsetSkippedL1MessageBitmap:],                                                      // skippedL1MessageBitmap
 	), nil
+}
+
+func (d *DACodecV0) NewDABatchFromParams(_ uint64, _, _ common.Hash) (DABatch, error) {
+	return nil, nil
 }
 
 // EstimateBlockL1CommitCalldataSize calculates the calldata size in l1 commit for this block approximately.

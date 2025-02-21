@@ -3,11 +3,14 @@ package encoding
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"slices"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/scroll-tech/go-ethereum/crypto"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/common/hexutil"
@@ -105,6 +108,10 @@ type Block struct {
 // Chunk represents a group of blocks.
 type Chunk struct {
 	Blocks []*Block `json:"blocks"`
+
+	// CodecV7. Used for chunk creation in relayer.
+	PrevL1MessageQueueHash common.Hash
+	PostL1MessageQueueHash common.Hash
 }
 
 // Batch represents a batch of chunks.
@@ -113,6 +120,11 @@ type Batch struct {
 	TotalL1MessagePoppedBefore uint64
 	ParentBatchHash            common.Hash
 	Chunks                     []*Chunk
+
+	// CodecV7
+	PrevL1MessageQueueHash common.Hash
+	PostL1MessageQueueHash common.Hash
+	Blocks                 []*Block
 }
 
 // NumL1Messages returns the number of L1 messages in this block.
@@ -130,6 +142,46 @@ func (b *Block) NumL1Messages(totalL1MessagePoppedBefore uint64) uint64 {
 	// note: last queue index included before this block is totalL1MessagePoppedBefore - 1
 	// TODO: cache results
 	return *lastQueueIndex - totalL1MessagePoppedBefore + 1
+}
+
+// NumL1MessagesNoSkipping returns the number of L1 messages, the lowest and highest queue index in this block.
+// This method assumes that L1 messages can't be skipped.
+func (b *Block) NumL1MessagesNoSkipping() (uint16, uint64, uint64, error) {
+	var count uint16
+	var prevQueueIndex *uint64
+	var lowestQueueIndex uint64
+
+	for _, txData := range b.Transactions {
+		if txData.Type != types.L1MessageTxType {
+			continue
+		}
+
+		// If prevQueueIndex is nil, it means this is the first L1 message in the block.
+		if prevQueueIndex == nil {
+			lowestQueueIndex = txData.Nonce
+			prevQueueIndex = &txData.Nonce
+			count++
+			continue
+		}
+
+		// Check if the queue index is consecutive.
+		if txData.Nonce != *prevQueueIndex+1 {
+			return 0, 0, 0, fmt.Errorf("unexpected queue index: expected %d, got %d", *prevQueueIndex+1, txData.Nonce)
+		}
+
+		if count == math.MaxUint16 {
+			return 0, 0, 0, errors.New("number of L1 messages exceeds max uint16")
+		}
+		count++
+		prevQueueIndex = &txData.Nonce
+	}
+
+	var prevQueueIndexResult uint64
+	if prevQueueIndex != nil {
+		prevQueueIndexResult = *prevQueueIndex
+	}
+
+	return count, lowestQueueIndex, prevQueueIndexResult, nil
 }
 
 // NumL2Transactions returns the number of L2 transactions in this block.
@@ -209,8 +261,7 @@ func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 			S:          txData.S.ToInt(),
 		})
 
-	case types.L1MessageTxType: // L1MessageTxType is not supported
-	default:
+	default: // BlobTxType, SetCodeTxType, L1MessageTxType
 		return nil, fmt.Errorf("unsupported tx type: %d", txData.Type)
 	}
 
@@ -346,7 +397,7 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 // (require specified frame header and each block is compressed)
 func checkCompressedDataCompatibility(data []byte) error {
 	if len(data) < 16 {
-		return fmt.Errorf("too small size (%x), what is it?", data)
+		return fmt.Errorf("too small size (0x%x), what is it?", data)
 	}
 
 	fheader := data[0]
@@ -645,8 +696,10 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "darwin"
 	} else if !config.IsEuclid(blockTimestamp) {
 		return "darwinV2"
-	} else {
+	} else if !config.IsEuclidV2(blockTimestamp) {
 		return "euclid"
+	} else {
+		return "euclidV2"
 	}
 }
 
@@ -663,9 +716,11 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return CodecV3
 	} else if !config.IsEuclid(blockTimestamp) {
 		return CodecV4
-	} else {
+	} else if !config.IsEuclidV2(blockTimestamp) {
 		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly
 		return CodecV6
+	} else {
+		return CodecV7
 	}
 }
 
@@ -694,7 +749,7 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6:
+	case CodecV4, CodecV5, CodecV6, CodecV7:
 		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
@@ -708,9 +763,63 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6:
+	case CodecV4, CodecV5, CodecV6, CodecV7:
 		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
 	}
+}
+
+func MessageQueueV2ApplyL1MessagesFromBlocks(initialQueueHash common.Hash, blocks []*Block) (common.Hash, error) {
+	rollingHash := initialQueueHash
+	for _, block := range blocks {
+		for _, txData := range block.Transactions {
+			if txData.Type != types.L1MessageTxType {
+				continue
+			}
+
+			data, err := hexutil.Decode(txData.Data)
+			if err != nil {
+				return common.Hash{}, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
+			}
+
+			l1Message := &types.L1MessageTx{
+				QueueIndex: txData.Nonce,
+				Gas:        txData.Gas,
+				To:         txData.To,
+				Value:      txData.Value.ToInt(),
+				Data:       data,
+				Sender:     txData.From,
+			}
+
+			rollingHash = messageQueueV2ApplyL1Message(rollingHash, l1Message)
+		}
+	}
+
+	return rollingHash, nil
+}
+
+func MessageQueueV2ApplyL1Messages(initialQueueHash common.Hash, messages []*types.L1MessageTx) common.Hash {
+	rollingHash := initialQueueHash
+	for _, message := range messages {
+		rollingHash = messageQueueV2ApplyL1Message(rollingHash, message)
+	}
+
+	return rollingHash
+}
+
+func messageQueueV2ApplyL1Message(initialQueueHash common.Hash, message *types.L1MessageTx) common.Hash {
+	rollingHash := crypto.Keccak256Hash(initialQueueHash.Bytes(), types.NewTx(message).Hash().Bytes())
+
+	return messageQueueV2EncodeRollingHash(rollingHash)
+}
+
+func messageQueueV2EncodeRollingHash(rollingHash common.Hash) common.Hash {
+	// clear last 32 bits, i.e. 4 bytes.
+	rollingHash[28] = 0
+	rollingHash[29] = 0
+	rollingHash[30] = 0
+	rollingHash[31] = 0
+
+	return rollingHash
 }
