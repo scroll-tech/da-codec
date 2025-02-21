@@ -49,7 +49,7 @@ const (
 
 // Below is the encoding for blobPayloadV7.
 //   * Field                       Bytes     Type           Index       Comments
-//   * prevL1MessageQueueHash	     32        bytes32        0           hash of the L1 message queue at the end of previous batch
+//   * prevL1MessageQueueHash	   32        bytes32        0           hash of the L1 message queue at the end of previous batch
 //   * postL1MessageQueueHash      32        bytes32        32          hash of the L1 message queue at the end of this batch
 //   * initialL2BlockNumber        8         uint64         64          The initial L2 block number in this batch
 //   * numBlocks                   2         uint16         72          The number of blocks in this batch
