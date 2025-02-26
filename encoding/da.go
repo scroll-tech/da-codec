@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"slices"
 
+	"github.com/holiman/uint256"
 	"github.com/klauspost/compress/zstd"
 	"github.com/scroll-tech/go-ethereum/crypto"
 
@@ -261,7 +262,24 @@ func convertTxDataToRLPEncoding(txData *types.TransactionData) ([]byte, error) {
 			S:          txData.S.ToInt(),
 		})
 
-	default: // BlobTxType, SetCodeTxType, L1MessageTxType
+	case types.SetCodeTxType:
+		tx = types.NewTx(&types.SetCodeTx{
+			ChainID:    uint256.MustFromBig(txData.ChainId.ToInt()),
+			Nonce:      txData.Nonce,
+			To:         *txData.To,
+			Value:      uint256.MustFromBig(txData.Value.ToInt()),
+			Gas:        txData.Gas,
+			GasTipCap:  uint256.MustFromBig(txData.GasTipCap.ToInt()),
+			GasFeeCap:  uint256.MustFromBig(txData.GasFeeCap.ToInt()),
+			Data:       data,
+			AccessList: txData.AccessList,
+			AuthList:   txData.AuthorizationList,
+			V:          uint256.MustFromBig(txData.V.ToInt()),
+			R:          uint256.MustFromBig(txData.R.ToInt()),
+			S:          uint256.MustFromBig(txData.S.ToInt()),
+		})
+
+	default: // BlobTxType, L1MessageTxType
 		return nil, fmt.Errorf("unsupported tx type: %d", txData.Type)
 	}
 

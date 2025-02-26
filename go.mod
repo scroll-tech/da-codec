@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.12.0
-	github.com/scroll-tech/go-ethereum v1.10.14-0.20250206083728-ea43834c198f
+	github.com/scroll-tech/go-ethereum v1.10.14-0.20250225152658-bcfdb48dd939
 	github.com/stretchr/testify v1.9.0
 )
 
@@ -18,7 +18,7 @@ require (
 	github.com/ethereum/c-kzg-4844/bindings/go v0.0.0-20230126171313-363c7d7593b4 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
-	github.com/holiman/uint256 v1.2.4 // indirect
+	github.com/holiman/uint256 v1.2.4
 	github.com/iden3/go-iden3-crypto v0.0.15 // indirect
 	github.com/klauspost/compress v1.17.9
 	github.com/kr/text v0.2.0 // indirect
