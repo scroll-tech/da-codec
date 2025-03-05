@@ -7,4 +7,4 @@ edition = "2021"
 [lib]
 
 [dependencies]
-zstd = { git = "https://github.com/scroll-tech/zstd-rs", branch = "hack/mul-block", features = ["experimental"]}
+zstd = { git = "https://github.com/scroll-tech/zstd-rs", branch = "hack/fse_header", features = ["experimental"]}

@@ -57,7 +57,7 @@ dependencies = [
 [[package]]
 name = "zstd"
 version = "0.13.0"
-source = "git+https://github.com/scroll-tech/zstd-rs?branch=hack/mul-block#5c0892b6567dab31394d701477183ce9d6a32aca"
+source = "git+https://github.com/scroll-tech/zstd-rs?branch=hack/fse_header#fa3ce9eedd23764b536980c0afc17b2c8ff705da"
 dependencies = [
  "zstd-safe",
 ]
@@ -65,7 +65,7 @@ dependencies = [
 [[package]]
 name = "zstd-safe"
 version = "7.0.0"
-source = "git+https://github.com/scroll-tech/zstd-rs?branch=hack/mul-block#5c0892b6567dab31394d701477183ce9d6a32aca"
+source = "git+https://github.com/scroll-tech/zstd-rs?branch=hack/fse_header#fa3ce9eedd23764b536980c0afc17b2c8ff705da"
 dependencies = [
  "zstd-sys",
 ]
@@ -73,7 +73,7 @@ dependencies = [
 [[package]]
 name = "zstd-sys"
 version = "2.0.9+zstd.1.5.5"
-source = "git+https://github.com/scroll-tech/zstd-rs?branch=hack/mul-block#5c0892b6567dab31394d701477183ce9d6a32aca"
+source = "git+https://github.com/scroll-tech/zstd-rs?branch=hack/fse_header#fa3ce9eedd23764b536980c0afc17b2c8ff705da"
 dependencies = [
  "cc",
  "pkg-config",
