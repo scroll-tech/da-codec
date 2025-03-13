@@ -381,12 +381,14 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 		v, r, s := tx.RawSignatureValues()
 
 		nonce := tx.Nonce()
+		var from common.Address
 
 		// We need QueueIndex in `NewBatchHeader`. However, `TransactionData`
 		// does not have this field. Since `L1MessageTx` do not have a nonce,
 		// we reuse this field for storing the queue index.
 		if msg := tx.AsL1MessageTx(); msg != nil {
 			nonce = msg.QueueIndex
+			from = msg.Sender
 		}
 
 		txsData[i] = &types.TransactionData{
@@ -398,6 +400,7 @@ func TxsToTxsData(txs types.Transactions) []*types.TransactionData {
 			GasPrice:   (*hexutil.Big)(tx.GasPrice()),
 			GasTipCap:  (*hexutil.Big)(tx.GasTipCap()),
 			GasFeeCap:  (*hexutil.Big)(tx.GasFeeCap()),
+			From:       from,
 			To:         tx.To(),
 			Value:      (*hexutil.Big)(tx.Value()),
 			Data:       hexutil.Encode(tx.Data()),
@@ -796,18 +799,9 @@ func MessageQueueV2ApplyL1MessagesFromBlocks(initialQueueHash common.Hash, block
 				continue
 			}
 
-			data, err := hexutil.Decode(txData.Data)
+			l1Message, err := l1MessageFromTxData(txData)
 			if err != nil {
-				return common.Hash{}, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
-			}
-
-			l1Message := &types.L1MessageTx{
-				QueueIndex: txData.Nonce,
-				Gas:        txData.Gas,
-				To:         txData.To,
-				Value:      txData.Value.ToInt(),
-				Data:       data,
-				Sender:     txData.From,
+				return common.Hash{}, fmt.Errorf("failed to decode L1 message from tx data: %w", err)
 			}
 
 			rollingHash = messageQueueV2ApplyL1Message(rollingHash, l1Message)
@@ -815,6 +809,22 @@ func MessageQueueV2ApplyL1MessagesFromBlocks(initialQueueHash common.Hash, block
 	}
 
 	return rollingHash, nil
+}
+
+func l1MessageFromTxData(txData *types.TransactionData) (*types.L1MessageTx, error) {
+	data, err := hexutil.Decode(txData.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode txData.Data: data=%v, err=%w", txData.Data, err)
+	}
+
+	return &types.L1MessageTx{
+		QueueIndex: txData.Nonce,
+		Gas:        txData.Gas,
+		To:         txData.To,
+		Value:      txData.Value.ToInt(),
+		Data:       data,
+		Sender:     txData.From,
+	}, nil
 }
 
 func MessageQueueV2ApplyL1Messages(initialQueueHash common.Hash, messages []*types.L1MessageTx) common.Hash {
