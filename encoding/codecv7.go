@@ -268,6 +268,10 @@ func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 }
 
 func (d *DACodecV7) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
+	if len(batch.Blocks) == 0 {
+		return 0, 0, errors.New("batch must contain at least one block")
+	}
+
 	blobBytes := make([]byte, blobEnvelopeV7OffsetPayload)
 
 	payloadBytes, err := d.constructBlobPayload(batch)
