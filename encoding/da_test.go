@@ -3,6 +3,7 @@ package encoding
 import (
 	"encoding/hex"
 	"encoding/json"
+	"math/big"
 	"os"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/log"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
@@ -221,4 +223,25 @@ func TestMessageQueueV2EncodeRollingHash(t *testing.T) {
 			assert.Equal(t, tc.expectedOutput, modified)
 		})
 	}
+}
+
+func TestTxsToTxsData_L1Message(t *testing.T) {
+	msg := &types.L1MessageTx{
+		QueueIndex: 100,
+		Gas:        99,
+		To:         &common.Address{0x01, 0x02, 0x03},
+		Value:      new(big.Int).SetInt64(1337),
+		Data:       []byte{0x01, 0x02, 0x03},
+		Sender:     common.Address{0x04, 0x05, 0x06},
+	}
+
+	tx := types.NewTx(msg)
+
+	txData := TxsToTxsData([]*types.Transaction{tx})
+	require.Len(t, txData, 1)
+
+	decoded, err := l1MessageFromTxData(txData[0])
+	require.NoError(t, err)
+
+	require.Equal(t, tx.Hash(), types.NewTx(decoded).Hash())
 }
