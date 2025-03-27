@@ -456,3 +456,20 @@ func (d *DACodecV1) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 	dataHash := crypto.Keccak256Hash(dataBytes)
 	return dataHash, nil
 }
+
+// ChallengeDigestFromBlobBytes calculates the challenge digest from the given blob bytes.
+func (d *DACodecV1) ChallengeDigestFromBlobBytes(blobBytes []byte) (common.Hash, error) {
+	blob, err := makeBlobCanonical(blobBytes)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
+	}
+
+	c, err := kzg4844.BlobToCommitment(blob)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to create blob commitment: %w", err)
+	}
+	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
+
+	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(blobBytes), blobVersionedHash[:])
+	return challengeDigest, nil
+}

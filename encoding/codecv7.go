@@ -10,6 +10,7 @@ import (
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
+	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/scroll-tech/go-ethereum/log"
 
@@ -362,4 +363,28 @@ func (d *DACodecV7) JSONFromBytes(data []byte) ([]byte, error) {
 	}
 
 	return jsonBytes, nil
+}
+
+// ChallengeDigestFromBlobBytes calculates the challenge digest from the given blob bytes.
+func (d *DACodecV7) ChallengeDigestFromBlobBytes(blobBytes []byte) (common.Hash, error) {
+	if len(blobBytes) > maxEffectiveBlobBytes {
+		return common.Hash{}, fmt.Errorf("blob exceeds maximum size: got %d, allowed %d", len(blobBytes), maxEffectiveBlobBytes)
+	}
+
+	blob, err := makeBlobCanonical(blobBytes)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
+	}
+
+	c, err := kzg4844.BlobToCommitment(blob)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to create blob commitment: %w", err)
+	}
+	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
+
+	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
+	copy(paddedBlobBytes, blobBytes)
+
+	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), blobVersionedHash[:])
+	return challengeDigest, nil
 }

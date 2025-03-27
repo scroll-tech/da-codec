@@ -430,3 +430,8 @@ func (d *DACodecV0) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 	dataHash := crypto.Keccak256Hash(dataBytes)
 	return dataHash, nil
 }
+
+// ChallengeDigestFromBlobBytes calculates the challenge digest from the given blob bytes.
+func (d *DACodecV0) ChallengeDigestFromBlobBytes(blobBytes []byte) (common.Hash, error) {
+	return common.Hash{}, nil
+}

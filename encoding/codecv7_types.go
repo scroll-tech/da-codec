@@ -138,7 +138,14 @@ func (b *daBatchV7) Hash() common.Hash {
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
 func (b *daBatchV7) BlobDataProofForPointEvaluation() ([]byte, error) {
-	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(b.blobBytes), b.blobVersionedHash.Bytes())
+	if len(b.blobBytes) > maxEffectiveBlobBytes {
+		return nil, fmt.Errorf("blobBytes length exceeds %d bytes, got %d bytes", maxEffectiveBlobBytes, len(b.blobBytes))
+	}
+
+	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
+	copy(paddedBlobBytes, b.blobBytes)
+
+	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), b.blobVersionedHash.Bytes())
 
 	// z = challengeDigest % BLS_MODULUS
 	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), blsModulus)
