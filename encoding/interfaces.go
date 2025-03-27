@@ -74,6 +74,8 @@ type Codec interface {
 	EstimateBatchL1CommitGas(*Batch) (uint64, error)
 	EstimateBatchL1CommitCalldataSize(*Batch) (uint64, error)
 
+	ChallengeDigestFromBlobBytes([]byte) (common.Hash, error)
+
 	JSONFromBytes([]byte) ([]byte, error) // convert batch header bytes to JSON, this is only used to provide witness data for the prover.
 }
 
