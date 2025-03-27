@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -365,26 +366,44 @@ func (d *DACodecV7) JSONFromBytes(data []byte) ([]byte, error) {
 	return jsonBytes, nil
 }
 
-// ChallengeDigestFromBlobBytes calculates the challenge digest from the given blob bytes.
-func (d *DACodecV7) ChallengeDigestFromBlobBytes(blobBytes []byte) (common.Hash, error) {
+// BlobDataProofFromBlobBytes calculates a blob's challenge digest, commitment, and proof from blob bytes.
+func (d *DACodecV7) BlobDataProofFromBlobBytes(blobBytes []byte) (common.Hash, kzg4844.Commitment, kzg4844.Proof, error) {
 	if len(blobBytes) > maxEffectiveBlobBytes {
-		return common.Hash{}, fmt.Errorf("blob exceeds maximum size: got %d, allowed %d", len(blobBytes), maxEffectiveBlobBytes)
+		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("blob exceeds maximum size: got %d, allowed %d", len(blobBytes), maxEffectiveBlobBytes)
 	}
 
 	blob, err := makeBlobCanonical(blobBytes)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
+		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
 	}
 
-	c, err := kzg4844.BlobToCommitment(blob)
+	commitment, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to create blob commitment: %w", err)
+		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to create blob commitment: %w", err)
 	}
-	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
+	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &commitment)
 
 	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
 	copy(paddedBlobBytes, blobBytes)
 
 	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), blobVersionedHash[:])
-	return challengeDigest, nil
+
+	// z = challengeDigest % BLS_MODULUS
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), blsModulus)
+	pointBytes := pointBigInt.Bytes()
+
+	var z kzg4844.Point
+	if len(pointBytes) > kzgPointByteSize {
+		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("pointBytes length exceeds %d bytes, got %d bytes", kzgPointByteSize, len(pointBytes))
+	}
+
+	start := kzgPointByteSize - len(pointBytes)
+	copy(z[start:], pointBytes)
+
+	proof, _, err := kzg4844.ComputeProof(blob, z)
+	if err != nil {
+		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(z[:]))
+	}
+
+	return challengeDigest, commitment, proof, nil
 }

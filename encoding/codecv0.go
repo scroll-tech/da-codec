@@ -431,7 +431,7 @@ func (d *DACodecV0) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 	return dataHash, nil
 }
 
-// ChallengeDigestFromBlobBytes calculates the challenge digest from the given blob bytes.
-func (d *DACodecV0) ChallengeDigestFromBlobBytes(blobBytes []byte) (common.Hash, error) {
-	return common.Hash{}, nil
+// BlobDataProofFromBlobBytes calculates a blob's challenge digest, commitment, and proof from blob bytes.
+func (d *DACodecV0) BlobDataProofFromBlobBytes([]byte) (common.Hash, kzg4844.Commitment, kzg4844.Proof, error) {
+	return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, nil
 }
