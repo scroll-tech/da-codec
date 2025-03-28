@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -82,12 +81,12 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, fmt.Errorf("failed to check blocks batch vs chunks consistency: %w", err)
 	}
 
-	blob, blobVersionedHash, blobBytes, err := d.constructBlob(batch)
+	blob, blobVersionedHash, blobBytes, challengeDigest, err := d.constructBlob(batch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct blob: %w", err)
 	}
 
-	daBatch, err := newDABatchV7(CodecV7, batch.Index, blobVersionedHash, batch.ParentBatchHash, blob, blobBytes)
+	daBatch, err := newDABatchV7(CodecV7, batch.Index, blobVersionedHash, batch.ParentBatchHash, blob, blobBytes, challengeDigest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct DABatch: %w", err)
 	}
@@ -95,17 +94,17 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 	return daBatch, nil
 }
 
-func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []byte, error) {
+func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []byte, common.Hash, error) {
 	blobBytes := make([]byte, blobEnvelopeV7OffsetPayload)
 
 	payloadBytes, err := d.constructBlobPayload(batch)
 	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to construct blob payload: %w", err)
+		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
 	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
+		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
 
 	isCompressedFlag := uint8(0x0)
@@ -123,23 +122,28 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 
 	if len(blobBytes) > maxEffectiveBlobBytes {
 		log.Error("ConstructBlob: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
-		return nil, common.Hash{}, nil, fmt.Errorf("blob exceeds maximum size: got %d, allowed %d", len(blobBytes), maxEffectiveBlobBytes)
+		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("blob exceeds maximum size: got %d, allowed %d", len(blobBytes), maxEffectiveBlobBytes)
 	}
 
 	// convert raw data to BLSFieldElements
 	blob, err := makeBlobCanonical(blobBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
+		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
 	}
 
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, fmt.Errorf("failed to create blob commitment: %w", err)
+		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to create blob commitment: %w", err)
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
-	return blob, blobVersionedHash, blobBytes, nil
+	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
+	copy(paddedBlobBytes, blobBytes)
+
+	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), blobVersionedHash[:])
+
+	return blob, blobVersionedHash, blobBytes, challengeDigest, nil
 }
 
 func (d *DACodecV7) constructBlobPayload(batch *Batch) ([]byte, error) {
@@ -168,7 +172,7 @@ func (d *DACodecV7) NewDABatchFromBytes(data []byte) (DABatch, error) {
 }
 
 func (d *DACodecV7) NewDABatchFromParams(batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash) (DABatch, error) {
-	return newDABatchV7(CodecV7, batchIndex, blobVersionedHash, parentBatchHash, nil, nil)
+	return newDABatchV7(CodecV7, batchIndex, blobVersionedHash, parentBatchHash, nil, nil, common.Hash{})
 }
 
 func (d *DACodecV7) DecodeDAChunksRawTx(_ [][]byte) ([]*DAChunkRawTx, error) {
@@ -364,46 +368,4 @@ func (d *DACodecV7) JSONFromBytes(data []byte) ([]byte, error) {
 	}
 
 	return jsonBytes, nil
-}
-
-// BlobDataProofFromBlobBytes calculates a blob's challenge digest, commitment, and proof from blob bytes.
-func (d *DACodecV7) BlobDataProofFromBlobBytes(blobBytes []byte) (common.Hash, kzg4844.Commitment, kzg4844.Proof, error) {
-	if len(blobBytes) > maxEffectiveBlobBytes {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("blob exceeds maximum size: got %d, allowed %d", len(blobBytes), maxEffectiveBlobBytes)
-	}
-
-	blob, err := makeBlobCanonical(blobBytes)
-	if err != nil {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
-	}
-
-	commitment, err := kzg4844.BlobToCommitment(blob)
-	if err != nil {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to create blob commitment: %w", err)
-	}
-	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &commitment)
-
-	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
-	copy(paddedBlobBytes, blobBytes)
-
-	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), blobVersionedHash[:])
-
-	// z = challengeDigest % BLS_MODULUS
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), blsModulus)
-	pointBytes := pointBigInt.Bytes()
-
-	var z kzg4844.Point
-	if len(pointBytes) > kzgPointByteSize {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("pointBytes length exceeds %d bytes, got %d bytes", kzgPointByteSize, len(pointBytes))
-	}
-
-	start := kzgPointByteSize - len(pointBytes)
-	copy(z[start:], pointBytes)
-
-	proof, _, err := kzg4844.ComputeProof(blob, z)
-	if err != nil {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(z[:]))
-	}
-
-	return challengeDigest, commitment, proof, nil
 }

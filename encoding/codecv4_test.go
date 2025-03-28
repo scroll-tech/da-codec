@@ -1300,7 +1300,7 @@ func TestCodecV4BatchStandardTestCasesEnableCompression(t *testing.T) {
 			return nil
 		})
 
-		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), true /* enable encode */)
+		blob, blobVersionedHash, z, _, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), true /* enable encode */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
@@ -1463,7 +1463,7 @@ func TestCodecV4BatchStandardTestCasesDisableCompression(t *testing.T) {
 			return nil
 		})
 
-		blob, blobVersionedHash, z, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), false /* disable encode */)
+		blob, blobVersionedHash, z, _, _, err := codecv4.(*DACodecV4).constructBlobPayload(chunks, codecv4.MaxNumChunksPerBatch(), false /* disable encode */)
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)

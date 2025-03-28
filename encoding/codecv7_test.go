@@ -492,7 +492,7 @@ func TestCodecV7BatchStandardTestCasesEnableCompression(t *testing.T) {
 				blocks = append(blocks, block)
 			}
 
-			_, blobVersionedHash, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
+			_, blobVersionedHash, _, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
 			if tc.creationErr != "" {
 				require.ErrorContains(t, err, tc.creationErr)
 				return
@@ -636,7 +636,7 @@ func TestCodecV7BatchStandardTestCasesDisableCompression(t *testing.T) {
 				blocks = append(blocks, block)
 			}
 
-			_, blobVersionedHash, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
+			_, blobVersionedHash, _, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
 			if tc.creationErr != "" {
 				require.ErrorContains(t, err, tc.creationErr)
 				return

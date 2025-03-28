@@ -3,7 +3,6 @@ package encoding
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -456,39 +455,4 @@ func (d *DACodecV1) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 
 	dataHash := crypto.Keccak256Hash(dataBytes)
 	return dataHash, nil
-}
-
-// BlobDataProofFromBlobBytes calculates a blob's challenge digest, commitment, and proof from blob bytes.
-func (d *DACodecV1) BlobDataProofFromBlobBytes(blobBytes []byte) (common.Hash, kzg4844.Commitment, kzg4844.Proof, error) {
-	blob, err := makeBlobCanonical(blobBytes)
-	if err != nil {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
-	}
-
-	commitment, err := kzg4844.BlobToCommitment(blob)
-	if err != nil {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to create blob commitment: %w", err)
-	}
-	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &commitment)
-
-	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(blobBytes), blobVersionedHash[:])
-
-	// z = challengeDigest % BLS_MODULUS
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), blsModulus)
-	pointBytes := pointBigInt.Bytes()
-
-	var z kzg4844.Point
-	if len(pointBytes) > kzgPointByteSize {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("pointBytes length exceeds %d bytes, got %d bytes", kzgPointByteSize, len(pointBytes))
-	}
-
-	start := kzgPointByteSize - len(pointBytes)
-	copy(z[start:], pointBytes)
-
-	proof, _, err := kzg4844.ComputeProof(blob, z)
-	if err != nil {
-		return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, fmt.Errorf("failed to create KZG proof at point, err: %w, z: %v", err, hex.EncodeToString(z[:]))
-	}
-
-	return challengeDigest, commitment, proof, nil
 }

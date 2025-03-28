@@ -430,8 +430,3 @@ func (d *DACodecV0) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 	dataHash := crypto.Keccak256Hash(dataBytes)
 	return dataHash, nil
 }
-
-// BlobDataProofFromBlobBytes calculates a blob's challenge digest, commitment, and proof from blob bytes.
-func (d *DACodecV0) BlobDataProofFromBlobBytes([]byte) (common.Hash, kzg4844.Commitment, kzg4844.Proof, error) {
-	return common.Hash{}, kzg4844.Commitment{}, kzg4844.Proof{}, nil
-}

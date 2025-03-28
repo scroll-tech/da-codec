@@ -39,6 +39,7 @@ type DABatch interface {
 	BlobBytes() []byte
 	Version() CodecVersion
 	SkippedL1MessageBitmap() []byte
+	ChallengeDigest() common.Hash
 }
 
 type DABlobPayload interface {
@@ -73,8 +74,6 @@ type Codec interface {
 	EstimateChunkL1CommitGas(*Chunk) (uint64, error)
 	EstimateBatchL1CommitGas(*Batch) (uint64, error)
 	EstimateBatchL1CommitCalldataSize(*Batch) (uint64, error)
-
-	BlobDataProofFromBlobBytes([]byte) (common.Hash, kzg4844.Commitment, kzg4844.Proof, error)
 
 	JSONFromBytes([]byte) ([]byte, error) // convert batch header bytes to JSON, this is only used to provide witness data for the prover.
 }

@@ -91,11 +91,12 @@ type daBatchV7 struct {
 	blobVersionedHash common.Hash
 	parentBatchHash   common.Hash
 
-	blob      *kzg4844.Blob
-	blobBytes []byte
+	blob            *kzg4844.Blob
+	blobBytes       []byte
+	challengeDigest common.Hash
 }
 
-func newDABatchV7(version CodecVersion, batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash, blob *kzg4844.Blob, blobBytes []byte) (*daBatchV7, error) {
+func newDABatchV7(version CodecVersion, batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash, blob *kzg4844.Blob, blobBytes []byte, challengeDigest common.Hash) (*daBatchV7, error) {
 	daBatch := &daBatchV7{
 		version:           version,
 		batchIndex:        batchIndex,
@@ -103,6 +104,7 @@ func newDABatchV7(version CodecVersion, batchIndex uint64, blobVersionedHash, pa
 		parentBatchHash:   parentBatchHash,
 		blob:              blob,
 		blobBytes:         blobBytes,
+		challengeDigest:   challengeDigest,
 	}
 
 	return daBatch, nil
@@ -118,7 +120,7 @@ func decodeDABatchV7(data []byte) (*daBatchV7, error) {
 	blobVersionedHash := common.BytesToHash(data[daBatchV7OffsetBlobVersionedHash:daBatchV7OffsetParentBatchHash])
 	parentBatchHash := common.BytesToHash(data[daBatchV7OffsetParentBatchHash:daBatchV7EncodedLength])
 
-	return newDABatchV7(version, batchIndex, blobVersionedHash, parentBatchHash, nil, nil)
+	return newDABatchV7(version, batchIndex, blobVersionedHash, parentBatchHash, nil, nil, common.Hash{})
 }
 
 // Encode serializes the dABatchV7 into bytes.
@@ -138,17 +140,8 @@ func (b *daBatchV7) Hash() common.Hash {
 
 // BlobDataProofForPointEvaluation computes the abi-encoded blob verification data.
 func (b *daBatchV7) BlobDataProofForPointEvaluation() ([]byte, error) {
-	if len(b.blobBytes) > maxEffectiveBlobBytes {
-		return nil, fmt.Errorf("blobBytes length exceeds %d bytes, got %d bytes", maxEffectiveBlobBytes, len(b.blobBytes))
-	}
-
-	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
-	copy(paddedBlobBytes, b.blobBytes)
-
-	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), b.blobVersionedHash.Bytes())
-
 	// z = challengeDigest % BLS_MODULUS
-	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(challengeDigest[:]), blsModulus)
+	pointBigInt := new(big.Int).Mod(new(big.Int).SetBytes(b.challengeDigest[:]), blsModulus)
 	pointBytes := pointBigInt.Bytes()
 
 	var z kzg4844.Point
@@ -610,4 +603,9 @@ func checkBlocksBatchVSChunksConsistency(batch *Batch) error {
 	}
 
 	return nil
+}
+
+// ChallengeDigest returns the challenge digest of the DABatch.
+func (b *daBatchV7) ChallengeDigest() common.Hash {
+	return b.challengeDigest
 }
