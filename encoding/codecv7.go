@@ -138,6 +138,8 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
+	// compute challenge digest for codecv7, different from previous versions,
+	// the blob bytes are padded to the max effective blob size, which is 131072 / 32 * 31 due to the blob encoding
 	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
 	copy(paddedBlobBytes, blobBytes)
 

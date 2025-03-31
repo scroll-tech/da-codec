@@ -466,6 +466,8 @@ func checkCompressedDataCompatibility(data []byte) error {
 }
 
 // makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
+// The canonical blob representation is a 32-byte array where every 31 bytes are prepended with 1 zero byte.
+// The kzg4844.Blob is a 4096-byte array, thus 0s are padded to the end of the array.
 func makeBlobCanonical(blobBytes []byte) (*kzg4844.Blob, error) {
 	if len(blobBytes) > maxEffectiveBlobBytes {
 		return nil, fmt.Errorf("oversized batch payload, blob bytes length: %v, max length: %v", len(blobBytes), maxEffectiveBlobBytes)
