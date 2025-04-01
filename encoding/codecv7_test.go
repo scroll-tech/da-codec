@@ -492,7 +492,7 @@ func TestCodecV7BatchStandardTestCasesEnableCompression(t *testing.T) {
 				blocks = append(blocks, block)
 			}
 
-			_, blobVersionedHash, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
+			_, blobVersionedHash, _, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
 			if tc.creationErr != "" {
 				require.ErrorContains(t, err, tc.creationErr)
 				return
@@ -636,7 +636,7 @@ func TestCodecV7BatchStandardTestCasesDisableCompression(t *testing.T) {
 				blocks = append(blocks, block)
 			}
 
-			_, blobVersionedHash, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
+			_, blobVersionedHash, _, _, err := codecV7.(*DACodecV7).constructBlob(&Batch{Blocks: blocks})
 			if tc.creationErr != "" {
 				require.ErrorContains(t, err, tc.creationErr)
 				return
@@ -822,7 +822,7 @@ func TestCodecV7BatchBlobDataProofForPointEvaluation(t *testing.T) {
 				PostL1MessageQueueHash: common.Hash{},
 				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_02.json")},
 			},
-			expectedBlobDataProof: "0a8939c8acbd2bc2fb3ffd61624e55ebe6d0e000958d7505df6863c4062438414cf197faff537d1549b333f4f5d28a1f26123b723c316862e0f285193accead8949b925113ca4f9a8de59f234af023e4da3892e02dd786092699f15bdce7f3be248a075a1f40d82b86e65895b38693b68b08960479a11237c6699777fc97cf53c10f6503a6a8c0ad8eb35b68d6b051506b20ea3a8f41c3058a366c71fb7c1790",
+			expectedBlobDataProof: "2f1b3db4850bea780744479623d98dec2f5bd243e775a9e7667290136a53407454ae231942e31d6ba3430ffcb0bc306d01720f51d20f83aa40b18bb400c0dabf949b925113ca4f9a8de59f234af023e4da3892e02dd786092699f15bdce7f3be248a075a1f40d82b86e65895b38693b6948eafad556bbcde94b900939d9130138a5c4628b898196fbb948c51d62a8a1741d013eec12c4df8ec69386dad33b7db",
 		},
 		{
 			name: "Batch with 1 block, blocktrace 03",
@@ -833,7 +833,7 @@ func TestCodecV7BatchBlobDataProofForPointEvaluation(t *testing.T) {
 				PostL1MessageQueueHash: common.Hash{},
 				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_03.json")},
 			},
-			expectedBlobDataProof: "05a0e06b0cc573a726a3a3a48ee7b7014480968bd4ec9848effb7d0af33d4127589fc8cc458c673e174455d68d2c2c31847ad09b8805deb61cbef48505a34d88841ff44ffeeb9dc073ef133be9a34cc796babdfbd2f4d5785faf18b96558918e1fe5193d78e2611acf4671888a01a0fc89dde18bef6ab54c7af95df8e3016f0c930ca5f4967de08c6b20c52005acf1dc248eace2ff0a98a89c840bfe15b1594e",
+			expectedBlobDataProof: "67de386f8b4047b74b4cfe084c3a5f6679cfbf93c7bf0b6b9bd1c73e5321b48d5c4306c7ce75456d3c1c7ef3ad44d1b45baf280617fe1a1a2322a4b23d340c0c841ff44ffeeb9dc073ef133be9a34cc796babdfbd2f4d5785faf18b96558918e1fe5193d78e2611acf4671888a01a0fcb5c0f6130730dbe5f516bbf91c580872999b31f51c5c8856df44f83b341410d89b76cda317ab3ffef76b5b4adefb382f",
 		},
 		{
 			name: "Batch with 1 block, blocktrace 04",
@@ -844,7 +844,7 @@ func TestCodecV7BatchBlobDataProofForPointEvaluation(t *testing.T) {
 				PostL1MessageQueueHash: common.HexToHash("0x6250cf03e7f922eefe450e9d4234ec56a1502066cd55eff22939df6100000000"),
 				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_04.json")},
 			},
-			expectedBlobDataProof: "1c8917a0f90db3a2370fd18528d1cc9146340ef5cab7511786e212685c0ecfb656d871474ea7fd56a454b4042222240bf4b2fa15ab651cf0cd0b2bed9a9c9271ab3f7d6468190f56f55aca9802683ee6b9cada6fead43bb3cedbb132bcf08a27fcff326a0bb8599a89a57facbbcb49f5a8fa213e77c56332f996e020fed17cf2e607d015b997a9ad1cb993efff674cd8810c00a7539a771feb6fb5b2d41c2512",
+			expectedBlobDataProof: "0bc3e60c09957e159865dddcb43437b5cf75335c2d768c366858686bbf3908d44dc27f678f5b2721d510e02e5d08e7c396d0daadced06a70d4477bdc284c328eab3f7d6468190f56f55aca9802683ee6b9cada6fead43bb3cedbb132bcf08a27fcff326a0bb8599a89a57facbbcb49f5a718ae5c501927c696ae3f80765cd90c3f42deed906ef7a4f408afd8ab3764075090d49bf6646ed81bc073014d284d40",
 		},
 		{
 			name: "Batch with 1 block, blocktrace 05",
@@ -855,7 +855,7 @@ func TestCodecV7BatchBlobDataProofForPointEvaluation(t *testing.T) {
 				PostL1MessageQueueHash: common.HexToHash("0xc31c3ca9a880b80c4e7fcb88844a5e21433bd2801bdd504e1ca4aed900000000"),
 				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_05.json")},
 			},
-			expectedBlobDataProof: "21c2fc4f348de240738bec7591ef72586db52feb7fca79f4d86c87e2b68efa9f1a3bf56b3991eb2e31347054ff227759779acec5ff78c3285c4abb09f2e785bd8d724b0c40745df1e30d6609899b63d88015110bd0f7ca4c9bee0dda327f8ce038e8d0b1179838086799d3c33ce31766afcf23fb52de7757c16a7766f2dc20179d832614bb070431ad5b90fe5b393d34423bf3291373b6072e05c46bc519a752",
+			expectedBlobDataProof: "49ea320f3941ade70aa9bbb0a583e8d1f1f84b559f48214a98078dc4aa38556f607b2a2499ed718753d9dfbfcd5e35bb74231645b6360d2129f1bf7d772deff18d724b0c40745df1e30d6609899b63d88015110bd0f7ca4c9bee0dda327f8ce038e8d0b1179838086799d3c33ce3176685db53d5c95bc08df588acbadd8265801af644f145022e52803688058e3a10ebcc615e5836f62c40e997ba1cfa14e103",
 		},
 		{
 			name: "Batch with 3 blocks, blocktrace 02 + 03 + 04",
@@ -866,7 +866,7 @@ func TestCodecV7BatchBlobDataProofForPointEvaluation(t *testing.T) {
 				PostL1MessageQueueHash: common.HexToHash("0x20f1c72064552d63fb7e1352b7815a9f8231a028220bf63d27b24bec00000000"),
 				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_02.json"), readBlockFromJSON(t, "testdata/blockTrace_03.json"), replaceBlockNumber(readBlockFromJSON(t, "testdata/blockTrace_04.json"), 4)},
 			},
-			expectedBlobDataProof: "0b2f1a222f892d9114f3218ce3e5d1a7ba5f043960eff378250e1fa8d649bd076f7ff992b3f030a568543585a9d20bd8ede981dc6901ece26e273b1217da07f4852da1ea424859a212ac35d7d2262ca380c4bc017b20a01b00786a580916b48e763e3ae5c59eeac4d121db442efc7763b3dca263a31bdb7f27ab0a59e8d80566120c8a8d92e4b22efeed5b1863349da44c5103b1420c45598a74cd7cc8d788df",
+			expectedBlobDataProof: "12b99c3254754f37a581f349ef5a121040c531beda289730e2d21f18e5f3b4ea16705a0e98c1819fdedee976064c0ec1e7f52d5177a154e3c2717006c062c32d852da1ea424859a212ac35d7d2262ca380c4bc017b20a01b00786a580916b48e763e3ae5c59eeac4d121db442efc7763a7a24ec387b54f73d1f02e6feea8468890845df9ca19ca63e219d30d9e5bd08a7039eb1cee399f8129355f3a8d4c4e62",
 		},
 		{
 			name: "Batch with 3 blocks, blocktrace 02 + 05 (L1 messages only) + 03",
@@ -877,7 +877,7 @@ func TestCodecV7BatchBlobDataProofForPointEvaluation(t *testing.T) {
 				PostL1MessageQueueHash: common.HexToHash("0x3d35d6b71c2769de1a4eb8f603e20f539c53a10c6764a6f5836cf13100000000"),
 				Blocks:                 []*Block{readBlockFromJSON(t, "testdata/blockTrace_02.json"), replaceBlockNumber(readBlockFromJSON(t, "testdata/blockTrace_05.json"), 3), replaceBlockNumber(readBlockFromJSON(t, "testdata/blockTrace_03.json"), 4)},
 			},
-			expectedBlobDataProof: "04ca4fb500d52948a622671911cdfc4856b5d169a0a0aed5ff19dc2be2a4eb7f4665316bafd3bf33b8e1df624dbfbb1df762aa65a41c880d38b4e7d734a098c6a3e23c97184774ae69247dbec30060787f1ba97472bb41184b768d9180e860fc4ee91770a4236f224f01dcffb443c259a273b07de848a5db106f6fa7558e26011637c0851e047db4f12c26132d8a0355a3745f34b53ceadb6eb5f368d9ddfef0",
+			expectedBlobDataProof: "5e4a5a196a5d27be5b2d1a1a71c4b8fa7bfb97a4686ac7bd943a657088c1f05e672f68b9fcfddf6b88bf61a54c8865475937a73b345af77cde1c4a425194f341a3e23c97184774ae69247dbec30060787f1ba97472bb41184b768d9180e860fc4ee91770a4236f224f01dcffb443c25994dc6b8c8e7e4cd23c42dfc095ad761c80e414dc1f8e7f36732f9e0ba941d5d009d9589255229d6153137e3c6882fa5d",
 		},
 	}
 

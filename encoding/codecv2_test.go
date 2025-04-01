@@ -1082,7 +1082,7 @@ func TestCodecV2BatchStandardTestCases(t *testing.T) {
 			return nil
 		})
 
-		blob, blobVersionedHash, z, _, err := codecv2.(*DACodecV2).constructBlobPayload(chunks, codecv2.MaxNumChunksPerBatch())
+		blob, blobVersionedHash, z, _, _, err := codecv2.(*DACodecV2).constructBlobPayload(chunks, codecv2.MaxNumChunksPerBatch())
 		require.NoError(t, err)
 		actualZ := hex.EncodeToString(z[:])
 		assert.Equal(t, tc.expectedz, actualZ)
