@@ -250,10 +250,12 @@ func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte, checkL
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
 func (d *DACodecV7) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+	// filling the needed fields for the batch used in the check
 	b := &Batch{
 		Chunks:                 []*Chunk{c},
 		PrevL1MessageQueueHash: c.PrevL1MessageQueueHash,
 		PostL1MessageQueueHash: c.PostL1MessageQueueHash,
+		Blocks:                 c.Blocks,
 	}
 
 	return d.CheckBatchCompressedDataCompatibility(b)
