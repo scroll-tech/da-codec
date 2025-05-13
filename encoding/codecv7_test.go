@@ -628,7 +628,7 @@ func TestCodecV7BatchCompressedDataCompatibilityCheck(t *testing.T) {
 	require.NoError(t, err)
 
 	// bypass batch validation checks by calling checkCompressedDataCompatibility directly
-	_, compatible, err := codecV7.(*DACodecV7).checkCompressedDataCompatibility([]byte{0})
+	_, compatible, err := codecV7.(*DACodecV7).checkCompressedDataCompatibility([]byte{0}, true /* checkLength */)
 	require.NoError(t, err)
 	require.Equal(t, false, compatible)
 

@@ -102,7 +102,7 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
-	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes)
+	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true /* checkLength */)
 	if err != nil {
 		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
@@ -225,7 +225,10 @@ func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 
 // checkCompressedDataCompatibility checks the compressed data compatibility for a batch.
 // It constructs a blob payload, compresses the data, and checks the compressed data compatibility.
-func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte) ([]byte, bool, error) {
+// flag checkLength indicates whether to check the length of the compressed data against the original data.
+// If checkLength is true, this function returns if compression is needed based on the compressed data's length, which is used when doing batch bytes encoding.
+// If checkLength is false, this function returns the result of the compatibility check, which is used when determining the chunk and batch contents.
+func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte, checkLength bool) ([]byte, bool, error) {
 	compressedPayloadBytes, err := zstd.CompressScrollBatchBytes(payloadBytes)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to compress blob payload: %w", err)
@@ -237,7 +240,7 @@ func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte) ([]byt
 	}
 
 	// check if compressed data is bigger or equal to the original data -> no need to compress
-	if len(compressedPayloadBytes) >= len(payloadBytes) {
+	if checkLength && len(compressedPayloadBytes) >= len(payloadBytes) {
 		log.Warn("Compressed data is bigger or equal to the original data", "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
 		return nil, false, nil
 	}
@@ -271,7 +274,7 @@ func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 		return false, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
-	_, compatible, err := d.checkCompressedDataCompatibility(payloadBytes)
+	_, compatible, err := d.checkCompressedDataCompatibility(payloadBytes, false /* checkLength */)
 	if err != nil {
 		return false, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
@@ -291,7 +294,7 @@ func (d *DACodecV7) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, 
 		return 0, 0, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
-	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes)
+	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true /* checkLength */)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
