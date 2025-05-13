@@ -246,10 +246,14 @@ func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte) ([]byt
 }
 
 // CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
-// Note: For DACodecV7, this function is not implemented since there is no notion of DAChunk in this version. Blobs
-// contain the entire batch data, and it is up to a prover to decide the chunk sizes.
-func (d *DACodecV7) CheckChunkCompressedDataCompatibility(_ *Chunk) (bool, error) {
-	return true, nil
+func (d *DACodecV7) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+	b := &Batch{
+		Chunks:                 []*Chunk{c},
+		PrevL1MessageQueueHash: c.PrevL1MessageQueueHash,
+		PostL1MessageQueueHash: c.PostL1MessageQueueHash,
+	}
+
+	return d.CheckBatchCompressedDataCompatibility(b)
 }
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
