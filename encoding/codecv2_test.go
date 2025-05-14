@@ -1090,8 +1090,8 @@ func TestCodecV2BatchStandardTestCases(t *testing.T) {
 
 		_, y, err := kzg4844.ComputeProof(blob, *z)
 		require.NoError(t, err)
-		actualY := hex.EncodeToString(y[:])
-		assert.Equal(t, tc.expectedy, actualY)
+		actually := hex.EncodeToString(y[:])
+		assert.Equal(t, tc.expectedy, actually)
 
 		// Note: this is a dummy dataHash (for each chunk, we use 0xff00..0000)
 		dataBytes := make([]byte, 32*len(chunks))
