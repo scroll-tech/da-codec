@@ -457,7 +457,6 @@ func checkCompressedDataCompatibility(data []byte) error {
 		data = data[3+blkSize:]
 	}
 
-	// Should we return invalid if isLast is still false?
 	if !isLast {
 		return fmt.Errorf("unexpected end before last block")
 	}
@@ -503,7 +502,6 @@ func checkCompressedDataCompatibilityV7(data []byte) error {
 		data = data[3+blkSize:]
 	}
 
-	// Should we return invalid if isLast is still false?
 	if !isLast {
 		return fmt.Errorf("unexpected end before last block")
 	}

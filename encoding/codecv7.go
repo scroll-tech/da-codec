@@ -276,6 +276,9 @@ func (d *DACodecV7) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error
 		return false, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
+	// This check is only used for sanity checks. If the check fails, it means that the compression did not work as expected.
+	// rollup-relayer will try popping the last chunk of the batch (or last block of the chunk when in proposing chunks) and try again to see if it works as expected.
+	// Since length check is used for DA and proving efficiency, it does not need to be checked here.
 	_, compatible, err := d.checkCompressedDataCompatibility(payloadBytes, false /* checkLength */)
 	if err != nil {
 		return false, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
