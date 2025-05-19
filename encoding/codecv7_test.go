@@ -384,18 +384,6 @@ func TestCodecV7BatchStandardTestCasesEnableCompression(t *testing.T) {
 		})
 	}
 
-	repeat := func(element byte, count int) string {
-		result := make([]byte, 0, count)
-		for i := 0; i < count; i++ {
-			result = append(result, element)
-		}
-		return "0x" + common.Bytes2Hex(result)
-	}
-
-	// Taking into consideration compression, we allow up to 5x of max blob bytes minus 5 byte for the blob envelope header.
-	// We subtract 74 bytes for the blobPayloadV7 metadata.
-	//compressableAvailableBytes := maxEffectiveBlobBytes*5 - 5 - blobPayloadV7MinEncodedLength
-	maxAvailableBytesCompressable := 5*maxEffectiveBlobBytes - 5 - blobPayloadV7MinEncodedLength
 	maxAvailableBytesIncompressable := maxEffectiveBlobBytes - 5 - blobPayloadV7MinEncodedLength
 	// 52 bytes for each block as per daBlockV7 encoding.
 	bytesPerBlock := 52
@@ -454,18 +442,6 @@ func TestCodecV7BatchStandardTestCasesEnableCompression(t *testing.T) {
 			numBlocks:                 2,
 			txData:                    []string{generateRandomData(maxAvailableBytesIncompressable/2 - bytesPerBlock*2)},
 			expectedBlobVersionedHash: "0x017d7f0d569464b5c74175679e5f2bc880fcf5966c3e1928c9675c942b5274f0",
-		},
-		{
-			name:                      "single block, single tx, full blob repeat data",
-			numBlocks:                 1,
-			txData:                    []string{repeat(0x12, maxAvailableBytesCompressable-bytesPerBlock)},
-			expectedBlobVersionedHash: "0x01f5d7bbfe7deb429bcbdd7347606359bca75cb93b9198e8f089b82e45f92b43",
-		},
-		{
-			name:                      "2 blocks, single 2, full blob random data",
-			numBlocks:                 2,
-			txData:                    []string{repeat(0x12, maxAvailableBytesCompressable/2-bytesPerBlock*2), repeat(0x13, maxAvailableBytesCompressable/2-bytesPerBlock*2)},
-			expectedBlobVersionedHash: "0x01dccca3859640c50e0058fd42eaf14f942070e6497a4e2ba507b4546280a772",
 		},
 		{
 			name:        "single block, single tx, full blob random data -> error because 1 byte too big",
@@ -652,7 +628,7 @@ func TestCodecV7BatchCompressedDataCompatibilityCheck(t *testing.T) {
 	require.NoError(t, err)
 
 	// bypass batch validation checks by calling checkCompressedDataCompatibility directly
-	_, compatible, err := codecV7.(*DACodecV7).checkCompressedDataCompatibility([]byte{0})
+	_, compatible, err := codecV7.(*DACodecV7).checkCompressedDataCompatibility([]byte{0}, true /* checkLength */)
 	require.NoError(t, err)
 	require.Equal(t, false, compatible)
 

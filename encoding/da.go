@@ -457,7 +457,51 @@ func checkCompressedDataCompatibility(data []byte) error {
 		data = data[3+blkSize:]
 	}
 
-	// Should we return invalid if isLast is still false?
+	if !isLast {
+		return fmt.Errorf("unexpected end before last block")
+	}
+
+	return nil
+}
+
+// Fast testing if the compressed data (v7) is compatible with our circuit
+// (require specified frame header and each block is compressed)
+func checkCompressedDataCompatibilityV7(data []byte) error {
+	if len(data) < 16 {
+		return fmt.Errorf("too small size (0x%x), what is it?", data)
+	}
+
+	fheader := data[0]
+	// it is not the encoding type we expected in our zstd header
+	if fheader&63 != 32 {
+		return fmt.Errorf("unexpected header type (%x)", fheader)
+	}
+
+	// skip content size
+	switch fheader >> 6 {
+	case 0:
+		data = data[2:]
+	case 1:
+		data = data[3:]
+	case 2:
+		data = data[5:]
+	case 3:
+		data = data[9:]
+	default:
+		panic("impossible")
+	}
+
+	isLast := false
+	// scan each block until done
+	for len(data) > 3 && !isLast {
+		isLast = (data[0] & 1) == 1
+		blkSize := (uint(data[2])*65536 + uint(data[1])*256 + uint(data[0])) >> 3
+		if len(data) < 3+int(blkSize) {
+			return fmt.Errorf("wrong data len {%d}, expect min {%d}", len(data), 3+blkSize)
+		}
+		data = data[3+blkSize:]
+	}
+
 	if !isLast {
 		return fmt.Errorf("unexpected end before last block")
 	}
