@@ -766,8 +766,10 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "darwinV2"
 	} else if !config.IsEuclidV2(blockTimestamp) {
 		return "euclid"
-	} else {
+	} else if !config.IsFeynman(blockTimestamp) {
 		return "euclidV2"
+	} else {
+		return "feynman"
 	}
 }
 
@@ -787,8 +789,10 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 	} else if !config.IsEuclidV2(blockTimestamp) {
 		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly
 		return CodecV6
-	} else {
+	} else if !config.IsFeynman(blockTimestamp) {
 		return CodecV7
+	} else {
+		return CodecV8
 	}
 }
 
