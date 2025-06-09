@@ -64,8 +64,6 @@ func (d *DACodecV8) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
-	log.Info("ConstructBlob V8: Blob payload size", "size", len(payloadBytes), "batchIndex", batch.Index, "payloadBytes", hex.EncodeToString(payloadBytes))
-
 	// Use standard zstd compression for V8
 	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true)
 	if err != nil {
