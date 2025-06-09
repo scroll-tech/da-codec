@@ -10,8 +10,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/scroll-tech/go-ethereum/log"
-
-	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
 type DACodecV8 struct {
@@ -56,63 +54,6 @@ func (d *DACodecV8) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	return daBatch, nil
-}
-
-// NewDABatchFromBytes decodes the given byte slice into a DABatch.
-func (d *DACodecV8) NewDABatchFromBytes(data []byte) (DABatch, error) {
-	daBatch, err := decodeDABatchV8(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode DA batch: %w", err)
-	}
-
-	if daBatch.version != CodecV8 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV8, daBatch.version)
-	}
-
-	return daBatch, nil
-}
-
-func (d *DACodecV8) NewDABatchFromParams(batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash) (DABatch, error) {
-	return newDABatchV8(CodecV8, batchIndex, blobVersionedHash, parentBatchHash, nil, nil, common.Hash{})
-}
-
-func (d *DACodecV8) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
-	rawBytes := bytesFromBlobCanonical(blob)
-
-	// read the blob envelope header
-	version := rawBytes[blobEnvelopeV7OffsetVersion]
-	if CodecVersion(version) != CodecV8 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV8, version)
-	}
-
-	// read the data size
-	blobPayloadSize := decodeSize3Bytes(rawBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag])
-	if blobPayloadSize+blobEnvelopeV7OffsetPayload > uint32(len(rawBytes)) {
-		return nil, fmt.Errorf("blob envelope size exceeds the raw data size: %d > %d", blobPayloadSize, len(rawBytes))
-	}
-
-	payloadBytes := rawBytes[blobEnvelopeV7OffsetPayload : blobEnvelopeV7OffsetPayload+blobPayloadSize]
-
-	// read the compressed flag and decompress if needed
-	compressed := rawBytes[blobEnvelopeV7OffsetCompressedFlag]
-	if compressed != 0x0 && compressed != 0x1 {
-		return nil, fmt.Errorf("invalid compressed flag: %d", compressed)
-	}
-	if compressed == 0x1 {
-		var err error
-		// v8's payload is compressed the same way as v7
-		if payloadBytes, err = decompressV7Bytes(payloadBytes); err != nil {
-			return nil, fmt.Errorf("failed to decompress blob payload: %w", err)
-		}
-	}
-
-	// read the payload
-	payload, err := decodeBlobPayloadV8(payloadBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode blob payload: %w", err)
-	}
-
-	return payload, nil
 }
 
 func (d *DACodecV8) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []byte, common.Hash, error) {
@@ -180,17 +121,60 @@ func (d *DACodecV8) constructBlobPayload(batch *Batch) ([]byte, error) {
 	return blobPayload.Encode()
 }
 
-// checkCompressedDataCompatibility uses standard zstd for V8
-func (d *DACodecV8) checkCompressedDataCompatibility(payloadBytes []byte, checkLength bool) ([]byte, bool, error) {
-	compressedPayloadBytes, err := zstd.CompressScrollBatchBytes(payloadBytes)
+// NewDABatchFromBytes decodes the given byte slice into a DABatch.
+// Note: This function only populates the batch header, it leaves the blob-related fields empty.
+func (d *DACodecV8) NewDABatchFromBytes(data []byte) (DABatch, error) {
+	daBatch, err := decodeDABatchV8(data)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to compress blob payload: %w", err)
+		return nil, fmt.Errorf("failed to decode DA batch: %w", err)
 	}
 
-	// V8 uses standard zstd, so no custom compatibility check needed
-	if checkLength && len(compressedPayloadBytes) >= len(payloadBytes) {
-		return nil, false, nil
+	if daBatch.version != CodecV8 {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV8, daBatch.version)
 	}
 
-	return compressedPayloadBytes, true, nil
+	return daBatch, nil
+}
+
+func (d *DACodecV8) NewDABatchFromParams(batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash) (DABatch, error) {
+	return newDABatchV8(CodecV8, batchIndex, blobVersionedHash, parentBatchHash, nil, nil, common.Hash{})
+}
+
+func (d *DACodecV8) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
+	rawBytes := bytesFromBlobCanonical(blob)
+
+	// read the blob envelope header
+	version := rawBytes[blobEnvelopeV7OffsetVersion]
+	if CodecVersion(version) != CodecV8 {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV8, version)
+	}
+
+	// read the data size
+	blobPayloadSize := decodeSize3Bytes(rawBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag])
+	if blobPayloadSize+blobEnvelopeV7OffsetPayload > uint32(len(rawBytes)) {
+		return nil, fmt.Errorf("blob envelope size exceeds the raw data size: %d > %d", blobPayloadSize, len(rawBytes))
+	}
+
+	payloadBytes := rawBytes[blobEnvelopeV7OffsetPayload : blobEnvelopeV7OffsetPayload+blobPayloadSize]
+
+	// read the compressed flag and decompress if needed
+	compressed := rawBytes[blobEnvelopeV7OffsetCompressedFlag]
+	if compressed != 0x0 && compressed != 0x1 {
+		return nil, fmt.Errorf("invalid compressed flag: %d", compressed)
+	}
+	if compressed == 0x1 {
+		var err error
+		// v8's payload is compressed the same way as v7
+		if payloadBytes, err = decompressV7Bytes(payloadBytes); err != nil {
+			return nil, fmt.Errorf("failed to decompress blob payload: %w", err)
+		}
+	}
+
+	// read the payload
+	payload, err := decodeBlobPayloadV8(payloadBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode blob payload: %w", err)
+	}
+
+	return payload, nil
 }
