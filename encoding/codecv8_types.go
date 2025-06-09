@@ -2,6 +2,7 @@ package encoding
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -9,6 +10,7 @@ import (
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
+	"github.com/scroll-tech/go-ethereum/log"
 )
 
 // Below is the encoding for DABlockV8, variable length 5-57 bytes.
@@ -76,6 +78,8 @@ func (b *blobPayloadV8) Encode() ([]byte, error) {
 		encodedBlock := daBlock.encodeWithDelta(previousBlock)
 		payloadBytes = append(payloadBytes, encodedBlock...)
 		previousBlock = daBlock
+
+		log.Info("Encoding v8 block for blob payload", "blockNumber", block.Header.Number, "length", len(encodedBlock), "encoded content", hex.EncodeToString(encodedBlock))
 
 		// encode L2 txs as RLP and append to transactionBytes
 		for _, txData := range block.Transactions {
