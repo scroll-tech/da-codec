@@ -180,3 +180,72 @@ func (d *DACodecV8) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 
 	return payload, nil
 }
+
+// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
+func (d *DACodecV8) EstimateBatchL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
+	daBatch, err := d.NewDABatch(batch)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	batchBytes := daBatch.Encode()
+	blobBytes := daBatch.BlobBytes()
+
+	return uint64(len(batchBytes)), uint64(len(blobBytes)), nil
+}
+
+// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a chunk.
+func (d *DACodecV8) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
+	// Create a temporary batch for the chunk
+	batch := &Batch{
+		Index:                      0,
+		PrevL1MessageQueueHash:     chunk.PrevL1MessageQueueHash,
+		PostL1MessageQueueHash:     chunk.PostL1MessageQueueHash,
+		ParentBatchHash:            common.Hash{},
+		Chunks:                     []*Chunk{chunk},
+		Blocks:                     chunk.Blocks,
+		TotalL1MessagePoppedBefore: 0,
+	}
+
+	return d.EstimateBatchL1CommitBatchSizeAndBlobSize(batch)
+}
+
+// CheckBatchCompressedDataCompatibility checks if the batch compressed data is compatible.
+func (d *DACodecV8) CheckBatchCompressedDataCompatibility(batch *Batch) (bool, error) {
+	if len(batch.Blocks) == 0 {
+		return false, errors.New("batch must contain at least one block")
+	}
+
+	if err := checkBlocksBatchVSChunksConsistency(batch); err != nil {
+		return false, fmt.Errorf("failed to check blocks batch vs chunks consistency: %w", err)
+	}
+
+	payloadBytes, err := d.constructBlobPayload(batch)
+	if err != nil {
+		return false, fmt.Errorf("failed to construct blob payload: %w", err)
+	}
+
+	// Use standard zstd compression for V8
+	_, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true)
+	if err != nil {
+		return false, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
+	}
+
+	return enableCompression, nil
+}
+
+// CheckChunkCompressedDataCompatibility checks if the chunk compressed data is compatible.
+func (d *DACodecV8) CheckChunkCompressedDataCompatibility(chunk *Chunk) (bool, error) {
+	// Create a temporary batch for the chunk
+	batch := &Batch{
+		Index:                      0,
+		PrevL1MessageQueueHash:     chunk.PrevL1MessageQueueHash,
+		PostL1MessageQueueHash:     chunk.PostL1MessageQueueHash,
+		ParentBatchHash:            common.Hash{},
+		Chunks:                     []*Chunk{chunk},
+		Blocks:                     chunk.Blocks,
+		TotalL1MessagePoppedBefore: 0,
+	}
+
+	return d.CheckBatchCompressedDataCompatibility(batch)
+}

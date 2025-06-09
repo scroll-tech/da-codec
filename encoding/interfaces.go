@@ -113,7 +113,7 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 	case CodecV7:
 		return &DACodecV7{}, nil
 	case CodecV8:
-		return &DACodecV8{}, nil
+		return NewDACodecV8(), nil
 	default:
 		return nil, fmt.Errorf("unsupported codec version: %v", version)
 	}
@@ -122,7 +122,7 @@ func CodecFromVersion(version CodecVersion) (Codec, error) {
 // CodecFromConfig determines and returns the appropriate codec based on chain configuration, block number, and timestamp.
 func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, startBlockTimestamp uint64) Codec {
 	if chainCfg.IsFeynman(startBlockTimestamp) {
-		return &DACodecV8{}
+		return NewDACodecV8()
 	} else if chainCfg.IsEuclidV2(startBlockTimestamp) {
 		return &DACodecV7{}
 	} else if chainCfg.IsEuclid(startBlockTimestamp) {
