@@ -102,8 +102,6 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
-	log.Info("ConstructBlob V7: Blob payload size", "size", len(payloadBytes), "batchIndex", batch.Index, "payloadBytes", hex.EncodeToString(payloadBytes))
-
 	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true /* checkLength */)
 	if err != nil {
 		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)

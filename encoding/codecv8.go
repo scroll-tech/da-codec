@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/scroll-tech/go-ethereum/log"
@@ -31,6 +33,43 @@ func (d *DACodecV8) Version() CodecVersion {
 // NewDABlock creates a new DABlock from the given Block and the total number of L1 messages popped before.
 func (d *DACodecV8) NewDABlock(block *Block, totalL1MessagePoppedBefore uint64) (DABlock, error) {
 	return newDABlockV8FromBlockWithValidation(block, &totalL1MessagePoppedBefore)
+}
+
+// NewDAChunk creates a new DAChunk from the given Chunk and the total number of L1 messages popped before.
+// Note: In DACodecV8 there is no notion of chunks. Blobs contain the entire batch data without any information of Chunks within.
+// However, for compatibility reasons this function is implemented to create a DAChunk from a Chunk.
+// This way we can still uniquely identify a set of blocks and their L1 messages.
+func (d *DACodecV8) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) (DAChunk, error) {
+	if chunk == nil {
+		return nil, errors.New("chunk is nil")
+	}
+
+	if len(chunk.Blocks) == 0 {
+		return nil, errors.New("number of blocks is 0")
+	}
+
+	if len(chunk.Blocks) > math.MaxUint16 {
+		return nil, fmt.Errorf("number of blocks (%d) exceeds maximum allowed (%d)", len(chunk.Blocks), math.MaxUint16)
+	}
+
+	blocks := make([]DABlock, 0, len(chunk.Blocks))
+	txs := make([][]*types.TransactionData, 0, len(chunk.Blocks))
+
+	if err := iterateAndVerifyBlocksAndL1MessagesV8(chunk.PrevL1MessageQueueHash, chunk.PostL1MessageQueueHash, chunk.Blocks, &totalL1MessagePoppedBefore, func(initialBlockNumber uint64) {}, func(block *Block, daBlock *daBlockV8) error {
+		blocks = append(blocks, daBlock)
+		txs = append(txs, block.Transactions)
+
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to iterate and verify blocks and L1 messages: %w", err)
+	}
+
+	daChunk := newDAChunkV7(
+		blocks,
+		txs,
+	)
+
+	return daChunk, nil
 }
 
 // NewDABatch creates a DABatch including blob from the provided Batch.
@@ -64,8 +103,7 @@ func (d *DACodecV8) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
-	// Use standard zstd compression for V8
-	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true)
+	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true /* checkLength */)
 	if err != nil {
 		return nil, common.Hash{}, nil, common.Hash{}, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
@@ -104,6 +142,7 @@ func (d *DACodecV8) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 	// compute challenge digest
 	paddedBlobBytes := make([]byte, maxEffectiveBlobBytes)
 	copy(paddedBlobBytes, blobBytes)
+
 	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), blobVersionedHash[:])
 
 	return blob, blobVersionedHash, blobBytes, challengeDigest, nil
@@ -179,36 +218,20 @@ func (d *DACodecV8) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 	return payload, nil
 }
 
-// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
-func (d *DACodecV8) EstimateBatchL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
-	daBatch, err := d.NewDABatch(batch)
-	if err != nil {
-		return 0, 0, err
+// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
+func (d *DACodecV8) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+	// filling the needed fields for the batch used in the check
+	b := &Batch{
+		Chunks:                 []*Chunk{c},
+		PrevL1MessageQueueHash: c.PrevL1MessageQueueHash,
+		PostL1MessageQueueHash: c.PostL1MessageQueueHash,
+		Blocks:                 c.Blocks,
 	}
 
-	batchBytes := daBatch.Encode()
-	blobBytes := daBatch.BlobBytes()
-
-	return uint64(len(batchBytes)), uint64(len(blobBytes)), nil
+	return d.CheckBatchCompressedDataCompatibility(b)
 }
 
-// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a chunk.
-func (d *DACodecV8) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
-	// Create a temporary batch for the chunk
-	batch := &Batch{
-		Index:                      0,
-		PrevL1MessageQueueHash:     chunk.PrevL1MessageQueueHash,
-		PostL1MessageQueueHash:     chunk.PostL1MessageQueueHash,
-		ParentBatchHash:            common.Hash{},
-		Chunks:                     []*Chunk{chunk},
-		Blocks:                     chunk.Blocks,
-		TotalL1MessagePoppedBefore: 0,
-	}
-
-	return d.EstimateBatchL1CommitBatchSizeAndBlobSize(batch)
-}
-
-// CheckBatchCompressedDataCompatibility checks if the batch compressed data is compatible.
+// CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
 func (d *DACodecV8) CheckBatchCompressedDataCompatibility(batch *Batch) (bool, error) {
 	if len(batch.Blocks) == 0 {
 		return false, errors.New("batch must contain at least one block")
@@ -223,27 +246,53 @@ func (d *DACodecV8) CheckBatchCompressedDataCompatibility(batch *Batch) (bool, e
 		return false, fmt.Errorf("failed to construct blob payload: %w", err)
 	}
 
-	// Use standard zstd compression for V8
-	_, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true)
+	// This check is only used for sanity checks. If the check fails, it means that the compression did not work as expected.
+	// rollup-relayer will try popping the last chunk of the batch (or last block of the chunk when in proposing chunks) and try again to see if it works as expected.
+	// Since length check is used for DA and proving efficiency, it does not need to be checked here.
+	_, compatible, err := d.checkCompressedDataCompatibility(payloadBytes, true)
 	if err != nil {
 		return false, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
 
-	return enableCompression, nil
+	return compatible, nil
 }
 
-// CheckChunkCompressedDataCompatibility checks if the chunk compressed data is compatible.
-func (d *DACodecV8) CheckChunkCompressedDataCompatibility(chunk *Chunk) (bool, error) {
-	// Create a temporary batch for the chunk
-	batch := &Batch{
-		Index:                      0,
-		PrevL1MessageQueueHash:     chunk.PrevL1MessageQueueHash,
-		PostL1MessageQueueHash:     chunk.PostL1MessageQueueHash,
-		ParentBatchHash:            common.Hash{},
-		Chunks:                     []*Chunk{chunk},
-		Blocks:                     chunk.Blocks,
-		TotalL1MessagePoppedBefore: 0,
+func (d *DACodecV8) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
+	if len(batch.Blocks) == 0 {
+		return 0, 0, errors.New("batch must contain at least one block")
 	}
 
-	return d.CheckBatchCompressedDataCompatibility(batch)
+	blobBytes := make([]byte, blobEnvelopeV7OffsetPayload)
+
+	payloadBytes, err := d.constructBlobPayload(batch)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to construct blob payload: %w", err)
+	}
+
+	compressedPayloadBytes, enableCompression, err := d.checkCompressedDataCompatibility(payloadBytes, true /* checkLength */)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
+	}
+
+	if enableCompression {
+		blobBytes = append(blobBytes, compressedPayloadBytes...)
+	} else {
+		blobBytes = append(blobBytes, payloadBytes...)
+	}
+
+	return blobEnvelopeV7OffsetPayload + uint64(len(payloadBytes)), calculatePaddedBlobSize(uint64(len(blobBytes))), nil
+}
+
+// EstimateChunkL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a single chunk.
+func (d *DACodecV8) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uint64, uint64, error) {
+	return d.estimateL1CommitBatchSizeAndBlobSize(&Batch{
+		Blocks:                 chunk.Blocks,
+		PrevL1MessageQueueHash: chunk.PrevL1MessageQueueHash,
+		PostL1MessageQueueHash: chunk.PostL1MessageQueueHash,
+	})
+}
+
+// EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
+func (d *DACodecV8) EstimateBatchL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
+	return d.estimateL1CommitBatchSizeAndBlobSize(batch)
 }
