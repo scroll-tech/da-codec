@@ -24,6 +24,7 @@ func TestCodecFromVersion(t *testing.T) {
 		{"CodecV5", CodecV5, &DACodecV5{}, false},
 		{"CodecV6", CodecV6, &DACodecV6{}, false},
 		{"CodecV7", CodecV7, &DACodecV7{}, false},
+		{"CodecV8", CodecV8, &DACodecV8{}, false},
 		{"InvalidCodec", CodecVersion(99), nil, true},
 	}
 
@@ -48,6 +49,22 @@ func TestCodecFromConfig(t *testing.T) {
 		timestamp uint64
 		want      Codec
 	}{
+		{
+			name: "Feynman active",
+			config: &params.ChainConfig{
+				LondonBlock:    big.NewInt(0),
+				BernoulliBlock: big.NewInt(0),
+				CurieBlock:     big.NewInt(0),
+				DarwinTime:     new(uint64),
+				DarwinV2Time:   new(uint64),
+				EuclidTime:     new(uint64),
+				EuclidV2Time:   new(uint64),
+				FeynmanTime:    new(uint64),
+			},
+			blockNum:  big.NewInt(0),
+			timestamp: 0,
+			want:      &DACodecV8{},
+		},
 		{
 			name: "EuclidV2 active",
 			config: &params.ChainConfig{

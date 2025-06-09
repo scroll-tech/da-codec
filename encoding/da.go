@@ -821,7 +821,7 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
 		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
@@ -835,7 +835,7 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
 		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
