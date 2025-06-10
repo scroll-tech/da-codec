@@ -15,7 +15,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
-	"github.com/scroll-tech/go-ethereum/log"
 )
 
 // Below is the encoding for `BatchHeader` V7, total 73 bytes.
@@ -250,8 +249,6 @@ func (b *blobPayloadV7) Encode() ([]byte, error) {
 		binary.BigEndian.PutUint16(payloadBytes[blobPayloadV7OffsetNumBlocks:blobPayloadV7OffsetBlocks], uint16(len(b.blocks)))
 	}, func(block *Block, daBlock *daBlockV7) error {
 		payloadBytes = append(payloadBytes, daBlock.Encode()...)
-
-		log.Info("Encoding v7 block for blob payload", "blockNumber", block.Header.Number, "length", daBlockV7BlockContextEncodedLength, "encoded content", hex.EncodeToString(daBlock.Encode()))
 
 		// encode L2 txs as RLP and append to transactionBytes
 		for _, txData := range block.Transactions {
