@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/scroll-tech/go-ethereum/common"
 	"github.com/scroll-tech/go-ethereum/core/types"
@@ -73,6 +74,11 @@ func (d *DACodecV7) NewDAChunk(chunk *Chunk, totalL1MessagePoppedBefore uint64) 
 
 // NewDABatch creates a DABatch including blob from the provided Batch.
 func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
+	start := time.Now()
+	defer func() {
+		log.Info("DACodecV7.NewDABatch completed", "duration", time.Since(start), "blocks", len(batch.Blocks), "start block number", batch.Blocks[0].Header.Number)
+	}()
+
 	if len(batch.Blocks) == 0 {
 		return nil, errors.New("batch must contain at least one block")
 	}
@@ -303,6 +309,8 @@ func (d *DACodecV7) estimateL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, 
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to check batch compressed data compatibility: %w", err)
 	}
+
+	log.Info("DACodecV7 compression statistics", "blocks", len(batch.Blocks), "startBlockHeight", batch.Blocks[0].Header.Number, "originalSize", len(payloadBytes), "compressedSize", len(compressedPayloadBytes), "enableCompression", enableCompression)
 
 	if enableCompression {
 		blobBytes = append(blobBytes, compressedPayloadBytes...)
