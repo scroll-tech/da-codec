@@ -68,7 +68,7 @@ func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 	}
 
 	// blob payload
-	blob, blobVersionedHash, z, _, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch())
+	blob, blobVersionedHash, z, _, _, err := d.constructBlobPayload(batch.Chunks, d.MaxNumChunksPerBatch())
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct blob payload, index: %d, err: %w", batch.Index, err)
 	}
@@ -95,7 +95,7 @@ func (d *DACodecV2) NewDABatch(batch *Batch) (DABatch, error) {
 }
 
 // constructBlobPayload constructs the 4844 blob payload.
-func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, error) {
+func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch int) (*kzg4844.Blob, common.Hash, *kzg4844.Point, []byte, common.Hash, error) {
 	// metadata consists of num_chunks (2 bytes) and chunki_size (4 bytes per chunk)
 	metadataLength := 2 + maxNumChunksPerBatch*4
 
@@ -126,7 +126,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 				// encode L2 txs into blob payload
 				rlpTxData, err := convertTxDataToRLPEncoding(tx)
 				if err != nil {
-					return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
+					return nil, common.Hash{}, nil, nil, common.Hash{}, fmt.Errorf("failed to convert txData to RLP encoding: %w", err)
 				}
 				batchBytes = append(batchBytes, rlpTxData...)
 			}
@@ -156,7 +156,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// blobBytes represents the compressed blob payload (batchBytes)
 	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, nil, common.Hash{}, err
 	}
 
 	// Only apply this check when the uncompressed batch data has exceeded 128 KiB.
@@ -164,25 +164,25 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 		// Check compressed data compatibility.
 		if err = checkCompressedDataCompatibility(blobBytes); err != nil {
 			log.Error("constructBlobPayload: compressed data compatibility check failed", "err", err, "batchBytes", hex.EncodeToString(batchBytes), "blobBytes", hex.EncodeToString(blobBytes))
-			return nil, common.Hash{}, nil, nil, err
+			return nil, common.Hash{}, nil, nil, common.Hash{}, err
 		}
 	}
 
 	if len(blobBytes) > maxEffectiveBlobBytes {
 		log.Error("constructBlobPayload: Blob payload exceeds maximum size", "size", len(blobBytes), "blobBytes", hex.EncodeToString(blobBytes))
-		return nil, common.Hash{}, nil, nil, errors.New("Blob payload exceeds maximum size")
+		return nil, common.Hash{}, nil, nil, common.Hash{}, errors.New("Blob payload exceeds maximum size")
 	}
 
 	// convert raw data to BLSFieldElements
 	blob, err := makeBlobCanonical(blobBytes)
 	if err != nil {
-		return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
+		return nil, common.Hash{}, nil, nil, common.Hash{}, fmt.Errorf("failed to convert blobBytes to canonical form: %w", err)
 	}
 
 	// compute blob versioned hash
 	c, err := kzg4844.BlobToCommitment(blob)
 	if err != nil {
-		return nil, common.Hash{}, nil, nil, fmt.Errorf("failed to create blob commitment: %w", err)
+		return nil, common.Hash{}, nil, nil, common.Hash{}, fmt.Errorf("failed to create blob commitment: %w", err)
 	}
 	blobVersionedHash := kzg4844.CalcBlobHashV1(sha256.New(), &c)
 
@@ -197,12 +197,12 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	// the challenge point z
 	var z kzg4844.Point
 	if len(pointBytes) > kzgPointByteSize {
-		return nil, common.Hash{}, nil, nil, fmt.Errorf("pointBytes length exceeds %d bytes, got %d bytes", kzgPointByteSize, len(pointBytes))
+		return nil, common.Hash{}, nil, nil, common.Hash{}, fmt.Errorf("pointBytes length exceeds %d bytes, got %d bytes", kzgPointByteSize, len(pointBytes))
 	}
 	start := kzgPointByteSize - len(pointBytes)
 	copy(z[start:], pointBytes)
 
-	return blob, blobVersionedHash, &z, blobBytes, nil
+	return blob, blobVersionedHash, &z, blobBytes, challengeDigest, nil
 }
 
 // NewDABatchFromBytes decodes the given byte slice into a DABatch.

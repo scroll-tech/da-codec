@@ -283,3 +283,8 @@ func (b *daBatchV0) SkippedL1MessageBitmap() []byte {
 func (b *daBatchV0) DataHash() common.Hash {
 	return b.dataHash
 }
+
+// ChallengeDigest returns the challenge digest of the DABatch.
+func (b *daBatchV0) ChallengeDigest() common.Hash {
+	return common.Hash{}
+}

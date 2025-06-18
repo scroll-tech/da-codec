@@ -22,12 +22,13 @@ type daBatchV3 struct {
 	blob               *kzg4844.Blob
 	z                  *kzg4844.Point
 	blobBytes          []byte
+	challengeDigest    common.Hash
 }
 
 // newDABatchV3 is a constructor for daBatchV3 that calls blobDataProofForPICircuit internally.
 func newDABatchV3(version CodecVersion, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte, blob *kzg4844.Blob,
-	z *kzg4844.Point, blobBytes []byte,
+	z *kzg4844.Point, blobBytes []byte, challengeDigest common.Hash,
 ) (*daBatchV3, error) {
 	daBatch := &daBatchV3{
 		daBatchV0: daBatchV0{
@@ -44,6 +45,7 @@ func newDABatchV3(version CodecVersion, batchIndex, l1MessagePopped, totalL1Mess
 		blob:               blob,
 		z:                  z,
 		blobBytes:          blobBytes,
+		challengeDigest:    challengeDigest,
 	}
 
 	proof, err := daBatch.blobDataProofForPICircuit()
@@ -59,7 +61,7 @@ func newDABatchV3(version CodecVersion, batchIndex, l1MessagePopped, totalL1Mess
 // newDABatchV3WithProof is a constructor for daBatchV3 that allows directly passing blobDataProof.
 func newDABatchV3WithProof(version CodecVersion, batchIndex, l1MessagePopped, totalL1MessagePopped, lastBlockTimestamp uint64,
 	dataHash, parentBatchHash, blobVersionedHash common.Hash, skippedL1MessageBitmap []byte,
-	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte, blobDataProof [2]common.Hash,
+	blob *kzg4844.Blob, z *kzg4844.Point, blobBytes []byte, challengeDigest common.Hash, blobDataProof [2]common.Hash,
 ) *daBatchV3 {
 	return &daBatchV3{
 		daBatchV0: daBatchV0{
@@ -76,6 +78,7 @@ func newDABatchV3WithProof(version CodecVersion, batchIndex, l1MessagePopped, to
 		blob:               blob,
 		z:                  z,
 		blobBytes:          blobBytes,
+		challengeDigest:    challengeDigest,
 		blobDataProof:      blobDataProof, // Set blobDataProof directly
 	}
 }
@@ -203,4 +206,9 @@ func (b *daBatchV3) SkippedL1MessageBitmap() []byte {
 // DataHash returns the data hash of the DABatch.
 func (b *daBatchV3) DataHash() common.Hash {
 	return b.dataHash
+}
+
+// ChallengeDigest returns the challenge digest of the DABatch.
+func (b *daBatchV3) ChallengeDigest() common.Hash {
+	return b.challengeDigest
 }

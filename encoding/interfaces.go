@@ -39,6 +39,7 @@ type DABatch interface {
 	BlobBytes() []byte
 	Version() CodecVersion
 	SkippedL1MessageBitmap() []byte
+	ChallengeDigest() common.Hash
 }
 
 type DABlobPayload interface {
