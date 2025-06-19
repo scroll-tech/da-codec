@@ -2,10 +2,13 @@ package encoding
 
 import (
 	"encoding/hex"
+	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/agiledragon/gomonkey/v2"
 	"github.com/scroll-tech/go-ethereum/common"
+	"github.com/scroll-tech/go-ethereum/common/hexutil"
 	"github.com/scroll-tech/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 )
@@ -264,6 +267,122 @@ func TestCodecV8BlobEncodingAndHashing(t *testing.T) {
 					j++
 				}
 			}
+		})
+	}
+}
+func TestCodecV8BatchStandardTestCasesEnableCompression(t *testing.T) {
+	codecV8, err := CodecFromVersion(CodecV8)
+	require.NoError(t, err)
+
+	// Apply patches to functions to replace behavior for testing.
+	{
+		patches := gomonkey.NewPatches()
+		defer patches.Reset()
+
+		patches.ApplyFunc(convertTxDataToRLPEncoding, func(txData *types.TransactionData) ([]byte, error) {
+			data, err := hexutil.Decode(txData.Data)
+			if err != nil {
+				return nil, err
+			}
+			return data, nil
+		})
+
+		patches.ApplyFunc(checkCompressedDataCompatibility, func(_ []byte) error {
+			return nil
+		})
+	}
+
+	maxAvailableBytesIncompressable := maxEffectiveBlobBytes - 5 - blobPayloadV7MinEncodedLength
+	// 52 bytes for each block as per daBlockV7 encoding.
+	bytesPerBlock := 52
+
+	testCases := []struct {
+		name        string
+		numBlocks   int
+		txData      []string
+		creationErr string
+
+		expectedBlobVersionedHash string
+	}{
+		{
+			name:        "no blocks",
+			txData:      []string{},
+			creationErr: "no blocks",
+		},
+		{
+			name:                      "single block, single tx",
+			numBlocks:                 1,
+			txData:                    []string{"0x010203"},
+			expectedBlobVersionedHash: "0x0184fd3d7edf3ea50c76c1751fcc0c4b605ef1f8e7c434ec1c1a1e0e57226cce",
+		},
+		{
+			name:                      "single block, multiple tx",
+			numBlocks:                 1,
+			txData:                    []string{"0x010203", "0x040506", "0x070809"},
+			expectedBlobVersionedHash: "0x01aa8fde33c446276224f47187c7b30f53df61b3a56f5c8876f9c00828642d13",
+		},
+		{
+			name:                      "multiple blocks, single tx per block",
+			numBlocks:                 3,
+			txData:                    []string{"0x010203"},
+			expectedBlobVersionedHash: "0x01b7c6888a192ee1d221eb5fe1e6d15927903541eb178964d851b742c518ccb0",
+		},
+		{
+			name:                      "multiple blocks, multiple tx per block",
+			numBlocks:                 3,
+			txData:                    []string{"0x010203", "0x040506", "0x070809"},
+			expectedBlobVersionedHash: "0x017cd27686cbe8f92b596f0e21f355be1371979624b1a72e6c7471cd5fa782e4",
+		},
+		{
+			name:                      "thousands of blocks, multiple tx per block",
+			numBlocks:                 10000,
+			txData:                    []string{"0x010203", "0x040506", "0x070809"},
+			expectedBlobVersionedHash: "0x0180a4479ba88dd950c9742d43529224e7c5385a461452f66aff23dd9fe22dd3",
+		},
+		{
+			name:                      "single block, single tx, full blob random data -> data bigger compressed than uncompressed",
+			numBlocks:                 1,
+			txData:                    []string{generateRandomData(maxAvailableBytesIncompressable - bytesPerBlock)},
+			expectedBlobVersionedHash: "0x0128c6dcaa56600132bc09c26af86c31370d0a3dfb8bece776d28291ca3a721e",
+		},
+		{
+			name:                      "2 blocks, single tx, full blob random data",
+			numBlocks:                 2,
+			txData:                    []string{generateRandomData(maxAvailableBytesIncompressable/2 - bytesPerBlock*2)},
+			expectedBlobVersionedHash: "0x018e8240255f00a81140ae445d1784c16f77791b4fe55c07fffa31c9bc15b3a4",
+		},
+		{
+			name:        "single block, single tx, full blob random data -> error because 1 byte too big",
+			numBlocks:   1,
+			txData:      []string{generateRandomData(maxAvailableBytesIncompressable - bytesPerBlock + 1)},
+			creationErr: "blob exceeds maximum size",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var blocks []*Block
+			for i := 0; i < tc.numBlocks; i++ {
+				block := &Block{
+					Header: &types.Header{
+						Number: big.NewInt(int64(i)),
+					},
+					Transactions: []*types.TransactionData{},
+				}
+				for _, data := range tc.txData {
+					tx := &types.TransactionData{Type: 0xff, Data: data}
+					block.Transactions = append(block.Transactions, tx)
+				}
+				blocks = append(blocks, block)
+			}
+
+			_, blobVersionedHash, _, _, err := codecV8.(*DACodecV8).constructBlob(&Batch{Blocks: blocks})
+			if tc.creationErr != "" {
+				require.ErrorContains(t, err, tc.creationErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, common.HexToHash(tc.expectedBlobVersionedHash), blobVersionedHash)
 		})
 	}
 }

@@ -234,7 +234,7 @@ func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 // If checkLength is true, this function returns if compression is needed based on the compressed data's length, which is used when doing batch bytes encoding.
 // If checkLength is false, this function returns the result of the compatibility check, which is used when determining the chunk and batch contents.
 func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte, checkLength bool) ([]byte, bool, error) {
-	compressedPayloadBytes, err := zstd.CompressScrollBatchBytes(payloadBytes)
+	compressedPayloadBytes, err := zstd.CompressScrollBatchBytesLegacy(payloadBytes)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to compress blob payload: %w", err)
 	}
