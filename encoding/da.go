@@ -110,7 +110,7 @@ type Block struct {
 type Chunk struct {
 	Blocks []*Block `json:"blocks"`
 
-	// CodecV7. Used for chunk creation in relayer.
+	// CodecV7, CodecV8. Used for chunk creation in relayer.
 	PrevL1MessageQueueHash common.Hash
 	PostL1MessageQueueHash common.Hash
 }
@@ -122,7 +122,7 @@ type Batch struct {
 	ParentBatchHash            common.Hash
 	Chunks                     []*Chunk
 
-	// CodecV7
+	// CodecV7, CodecV8.
 	PrevL1MessageQueueHash common.Hash
 	PostL1MessageQueueHash common.Hash
 	Blocks                 []*Block
@@ -766,8 +766,10 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "darwinV2"
 	} else if !config.IsEuclidV2(blockTimestamp) {
 		return "euclid"
-	} else {
+	} else if !config.IsFeynman(blockTimestamp) {
 		return "euclidV2"
+	} else {
+		return "feynman"
 	}
 }
 
@@ -787,8 +789,10 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 	} else if !config.IsEuclidV2(blockTimestamp) {
 		// V5 is skipped, because it is only used for the special Euclid transition batch that we handle explicitly
 		return CodecV6
-	} else {
+	} else if !config.IsFeynman(blockTimestamp) {
 		return CodecV7
+	} else {
+		return CodecV8
 	}
 }
 
@@ -817,7 +821,7 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
 		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
@@ -831,7 +835,7 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
 		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
