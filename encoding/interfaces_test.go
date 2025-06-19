@@ -24,6 +24,7 @@ func TestCodecFromVersion(t *testing.T) {
 		{"CodecV5", CodecV5, &DACodecV5{}, false},
 		{"CodecV6", CodecV6, &DACodecV6{}, false},
 		{"CodecV7", CodecV7, &DACodecV7{}, false},
+		{"CodecV8", CodecV8, &DACodecV8{}, false},
 		{"InvalidCodec", CodecVersion(99), nil, true},
 	}
 

@@ -1,9 +1,9 @@
-//go:build !musl
-// +build !musl
+//go:build linux && arm64 && !musl
+// +build linux,arm64,!musl
 
 package zstd
 
 /*
-#cgo LDFLAGS: ${SRCDIR}/libscroll_zstd_linux_arm64.a
+#cgo LDFLAGS: ${SRCDIR}/libencoder_legacy_linux_arm64.a ${SRCDIR}/libencoder_standard_linux_arm64.a
 */
 import "C"

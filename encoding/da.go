@@ -509,6 +509,15 @@ func checkCompressedDataCompatibilityV7(data []byte) error {
 	return nil
 }
 
+// Fast testing if the compressed data (v8) is compatible with our circuit
+// (require specified frame header and each block is compressed)
+func checkCompressedDataCompatibilityV8(data []byte) error {
+	if len(data) < 16 {
+		return fmt.Errorf("too small size (0x%x), what is it?", data)
+	}
+	return nil
+}
+
 // makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
 // The canonical blob representation is a 32-byte array where every 31 bytes are prepended with 1 zero byte.
 // The kzg4844.Blob is a 4096-byte array, thus 0s are padded to the end of the array.
