@@ -27,9 +27,9 @@ pub fn init_zstd_encoder(target_block_size: u32) -> Encoder<'static, Vec<u8>> {
     encoder
         .set_parameter(CParameter::LiteralCompressionMode(ParamSwitch::Disable))
         .expect("infallible");
-    // with a hack in zstd we can set window log <= 17 with single segment kept
+    // with a hack in zstd we can set window log <= CL_WINDOW_LIMIT with single segment kept
     encoder
-        .set_parameter(CParameter::WindowLog(17))
+        .set_parameter(CParameter::WindowLog(CL_WINDOW_LIMIT.try_into().unwrap()))
         .expect("infallible");
     // set target block size to fit within a single block.
     encoder

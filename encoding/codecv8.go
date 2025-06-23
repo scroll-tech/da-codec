@@ -50,7 +50,7 @@ func (d *DACodecV8) checkCompressedDataCompatibility(payloadBytes []byte, checkL
 		return nil, false, fmt.Errorf("failed to compress blob payload: %w", err)
 	}
 
-	if err = checkCompressedDataCompatibilityV8(compressedPayloadBytes); err != nil {
+	if err = checkCompressedDataCompatibilityV7(compressedPayloadBytes); err != nil {
 		log.Warn("Compressed data compatibility check failed", "err", err, "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
 		return nil, false, nil
 	}

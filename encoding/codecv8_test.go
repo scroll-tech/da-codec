@@ -337,7 +337,7 @@ func TestCodecV8BatchStandardTestCasesEnableCompression(t *testing.T) {
 			name:                      "thousands of blocks, multiple tx per block",
 			numBlocks:                 10000,
 			txData:                    []string{"0x010203", "0x040506", "0x070809"},
-			expectedBlobVersionedHash: "0x0180a4479ba88dd950c9742d43529224e7c5385a461452f66aff23dd9fe22dd3",
+			expectedBlobVersionedHash: "0x016889370d5706071080111716b0f65b6ff9df7d7b1621103b10b0e3eabc9282",
 		},
 		{
 			name:                      "single block, single tx, full blob random data -> data bigger compressed than uncompressed",
