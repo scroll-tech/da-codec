@@ -63,7 +63,7 @@ fn out_as_err(err: &str, out: &mut [u8]) -> *const c_char {
     out.as_ptr() as *const c_char
 }
 
-/// Legacy compression function for codec v2-v7
+/// Standard compression function for codec v8 and later.
 /// Uses the customized scroll-tech/zstd-rs implementation
 #[no_mangle]
 pub unsafe extern "C" fn compress_scroll_batch_bytes_standard(
