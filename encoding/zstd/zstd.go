@@ -36,7 +36,7 @@ func CompressScrollBatchBytesLegacy(batchBytes []byte) ([]byte, error) {
 }
 
 // CompressScrollBatchBytesStandard compresses the given batch of bytes using zstd compression.
-// This function uses the standard zstd 0.13+ version for codec v8 and later.
+// This function uses the standard zstd 0.13 experimental version for codec v8 and later.
 // The output buffer is allocated with an extra compressBufferOverhead bytes to accommodate
 // potential metadata overhead or error messages from the underlying C function.
 func CompressScrollBatchBytesStandard(batchBytes []byte) ([]byte, error) {
