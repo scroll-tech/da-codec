@@ -430,3 +430,7 @@ func (d *DACodecV0) computeBatchDataHash(chunks []*Chunk, totalL1MessagePoppedBe
 	dataHash := crypto.Keccak256Hash(dataBytes)
 	return dataHash, nil
 }
+
+func (d *DACodecV0) CompressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
+	return batchBytes, nil
+}

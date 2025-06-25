@@ -14,7 +14,7 @@ import (
 	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
-// DACodecV8 uses zstd.CompressScrollBatchBytesStandard for compression instead of zstd.CompressScrollBatchBytesLegacy.
+// DACodecV8 uses CompressScrollBatchBytesStandard for compression instead of CompressScrollBatchBytesLegacy.
 //
 // Note: Due to Go's method receiver behavior, we need to override all methods that call checkCompressedDataCompatibility.
 // When a method in DACodecV7 calls d.checkCompressedDataCompatibility(), it will always use DACodecV7's version,
@@ -45,7 +45,7 @@ func NewDACodecV8() *DACodecV8 {
 // If checkLength is true, this function returns if compression is needed based on the compressed data's length, which is used when doing batch bytes encoding.
 // If checkLength is false, this function returns the result of the compatibility check, which is used when determining the chunk and batch contents.
 func (d *DACodecV8) checkCompressedDataCompatibility(payloadBytes []byte, checkLength bool) ([]byte, bool, error) {
-	compressedPayloadBytes, err := zstd.CompressScrollBatchBytesStandard(payloadBytes)
+	compressedPayloadBytes, err := d.CompressScrollBatchBytes(payloadBytes)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to compress blob payload: %w", err)
 	}
@@ -205,4 +205,9 @@ func (d *DACodecV8) EstimateChunkL1CommitBatchSizeAndBlobSize(chunk *Chunk) (uin
 // EstimateBatchL1CommitBatchSizeAndBlobSize estimates the L1 commit batch size and blob size for a batch.
 func (d *DACodecV8) EstimateBatchL1CommitBatchSizeAndBlobSize(batch *Batch) (uint64, uint64, error) {
 	return d.estimateL1CommitBatchSizeAndBlobSize(batch)
+}
+
+// CompressScrollBatchBytes compresses the batch bytes using zstd compression.
+func (d *DACodecV8) CompressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
+	return zstd.CompressScrollBatchBytesStandard(batchBytes)
 }

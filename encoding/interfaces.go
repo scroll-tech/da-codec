@@ -76,6 +76,9 @@ type Codec interface {
 	EstimateBatchL1CommitCalldataSize(*Batch) (uint64, error)
 
 	JSONFromBytes([]byte) ([]byte, error) // convert batch header bytes to JSON, this is only used to provide witness data for the prover.
+
+	// CompressScrollBatchBytes compresses batch bytes using the appropriate compression method for this codec version
+	CompressScrollBatchBytes(batchBytes []byte) ([]byte, error)
 }
 
 // CodecVersion represents the version of the codec.
@@ -139,4 +142,10 @@ func CodecFromConfig(chainCfg *params.ChainConfig, startBlockNumber *big.Int, st
 	} else {
 		return &DACodecV0{}
 	}
+}
+
+// CompressScrollBatchBytes compresses batch bytes using the appropriate codec based on block number and timestamp
+func CompressScrollBatchBytes(batchBytes []byte, blockNumber uint64, blockTimestamp uint64, chainCfg *params.ChainConfig) ([]byte, error) {
+	codec := CodecFromConfig(chainCfg, big.NewInt(int64(blockNumber)), blockTimestamp)
+	return codec.CompressScrollBatchBytes(batchBytes)
 }
