@@ -227,7 +227,7 @@ for lib_info in "${LIBRARIES[@]}"; do
     echo
 done
 
-echo "4. Preserved original functions:"
+echo "3. Preserved original functions:"
 for LIB_FILE in "${LIB_FILES[@]}"; do
     if [ ! -f "$LIB_FILE" ]; then
         continue
