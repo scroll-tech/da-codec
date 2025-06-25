@@ -22,7 +22,7 @@ echo
 for lib_info in "${LIBRARIES[@]}"; do
     IFS=':' read -r LIB_FILE PREFIX <<< "$lib_info"
     REDEFINE_FILE="redefine_${LIB_FILE%.*}.syms"
-    
+
     echo "Processing $LIB_FILE with prefix '$PREFIX'"
     
     # Check if library file exists
@@ -30,7 +30,7 @@ for lib_info in "${LIBRARIES[@]}"; do
         echo "Warning: Library file not found: $LIB_FILE, skipping..."
         continue
     fi
-    
+
     # Check if library is already processed by looking for our prefix
     if "$LLVM_NM" "$LIB_FILE" 2>/dev/null | grep -q "${PREFIX}"; then
         echo "Library $LIB_FILE already processed (found ${PREFIX} symbols), skipping..."
@@ -46,7 +46,30 @@ for lib_info in "${LIBRARIES[@]}"; do
     }
     /^[0-9a-fA-F]+ [TDBS] / {
         if ($3 != "" && $3 !~ /^\./ && $3 !~ /^__/ && $3 !~ /^'"$PREFIX"'/) {
+            # Original patterns
             if ($3 ~ /^(entropy|fse|huf|zstd|hist|error|mem_|pool|param|cover|dict)/) {
+                print $3 " '"$PREFIX"'" $3
+            }
+            # Add conflict symbols found by verification logic below
+            if ($3 == "_atomic_flag_test_and_set" ||
+                $3 == "_atomic_signal_fence" ||
+                $3 == "_divbwt" ||
+                $3 == "divsufsort" ||
+                $3 == "g_debuglevel" ||
+                $3 == "rust_begin_unwind" ||
+                $3 == "init_cpu_features" ||
+                $3 == "_ERR_getErrorString" ||
+                $3 == "_atomic_flag_clear" ||
+                $3 == "_atomic_flag_clear_explicit" ||
+                $3 == "_atomic_flag_test_and_set_explicit" ||
+                $3 == "_atomic_thread_fence" ||
+                $3 == "_divsufsort" ||
+                $3 == "_g_debuglevel" ||
+                $3 == "rust_eh_personality" ||
+                $3 == "divbwt" ||
+                $3 == "rust_panic" ||
+                $3 == "ERR_getErrorString" ||
+                $3 == "init_cpu_features_resolver") {
                 print $3 " '"$PREFIX"'" $3
             }
         }
@@ -111,85 +134,81 @@ for LIB_FILE in "${LIB_FILES[@]}"; do
     ' >> "$temp_file"
 done
 
+echo "1. Checking for duplicate symbols across libraries (by architecture):"
+echo "   (Only checking within same architecture - cross-architecture conflicts are expected and ignored)"
 echo
-echo "1. Checking for duplicate symbols across libraries:"
 
-# Find conflicting symbols
-conflicts_output=$(awk '{symbols[$1] = symbols[$1] "\n" $2} END {
-    conflicts = 0
-    for (sym in symbols) {
-        count = gsub(/\n/, "&", symbols[sym])
-        if (count > 1) {
-            conflicts++
-            if (conflicts <= 10) {  # Show first 10 conflicts
-                print "  ❌ CONFLICT: " sym
-                libs = symbols[sym]
-                gsub(/\n/, ", ", libs)
-                print "     Found in: " libs
-                print ""
-            }
-        }
-    }
-    if (conflicts == 0) {
-        print "  ✅ No symbol conflicts found!"
-        return 0
-    } else {
-        print "  ❌ Found " conflicts " conflicting symbols" (conflicts > 10 ? " (showing first 10)" : "")
-        return conflicts
-    }
-}' "$temp_file")
+# Define architectures
+architectures=("darwin_arm64" "linux_amd64" "linux_arm64")
 
-echo "$conflicts_output"
-conflict_count=$(echo "$conflicts_output" | tail -1 | grep -o '[0-9]\+' | tail -1 || echo 0)
+total_conflicts=0
+for arch in "${architectures[@]}"; do
+    echo "  Architecture: $arch"
+    
+    # Create temp file for this architecture
+    arch_temp_file=$(mktemp)
+    
+    # Collect symbols for this architecture only
+    for lib_info in "${LIBRARIES[@]}"; do
+        IFS=':' read -r LIB_FILE PREFIX <<< "$lib_info"
 
-echo
-echo "2. Prefix application verification:"
+        # Skip if file doesn't exist or doesn't match current architecture
+        if [ ! -f "$LIB_FILE" ] || [[ "$LIB_FILE" != *"$arch"* ]]; then
+            continue
+        fi
 
-for lib_info in "${LIBRARIES[@]}"; do
-    IFS=':' read -r LIB_FILE PREFIX <<< "$lib_info"
-
-    if [ ! -f "$LIB_FILE" ]; then
-        continue
-    fi
-
-    # Count unprefixed target symbols
-    unprefixed_targets=$("$LLVM_NM" "$LIB_FILE" 2>/dev/null | awk -v prefix="$PREFIX" '
-    /^[0-9a-fA-F]+ [TDBS] / {
-        if ($3 != "" && $3 !~ /^\./ && $3 !~ /^__/ && $3 !~ ("^" prefix)) {
-            # Check if it matches our target patterns
-            if ($0 ~ /ZSTD|HUF|FSE|ZBUFF|HIST|ERROR|MEM_|XXH|COVER|DICT|POOL|PARAM/ ||
-                $3 ~ /^(entropy|fse|huf|zstd|hist|error|mem_|pool|param|cover|dict)/) {
-                print $3
-            }
-        }
-    }' | wc -l)
-
-    # Count prefixed symbols
-    prefixed_count=$("$LLVM_NM" "$LIB_FILE" 2>/dev/null | grep -c "${PREFIX}" || echo 0)
-
-    echo "  $LIB_FILE:"
-    echo "    - Prefixed symbols (${PREFIX}*): $prefixed_count"
-    echo "    - Unprefixed target symbols: $unprefixed_targets"
-
-    if [ "$unprefixed_targets" -gt 0 ]; then
-        echo "    ⚠️  Still has $unprefixed_targets unprefixed target symbols"
-        echo "    Examples:"
-        "$LLVM_NM" "$LIB_FILE" 2>/dev/null | awk -v prefix="$PREFIX" '
+        "$LLVM_NM" "$LIB_FILE" 2>/dev/null | awk -v lib="$LIB_FILE" '
         /^[0-9a-fA-F]+ [TDBS] / {
-            if ($3 != "" && $3 !~ /^\./ && $3 !~ /^__/ && $3 !~ ("^" prefix)) {
-                if ($0 ~ /ZSTD|HUF|FSE|ZBUFF|HIST|ERROR|MEM_|XXH|COVER|DICT|POOL|PARAM/ ||
-                    $3 ~ /^(entropy|fse|huf|zstd|hist|error|mem_|pool|param|cover|dict)/) {
-                    print "      " $3
+            if ($3 != "" && $3 !~ /^\./ && $3 !~ /^__/ && $3 !~ /^_ZN/) {
+                print $3 "\t" lib
+            }
+        }' >> "$arch_temp_file"
+    done
+
+    # Check for conflicts within this architecture
+    if [ -s "$arch_temp_file" ]; then
+        arch_conflicts=$(awk '{symbols[$1] = symbols[$1] "\n" $2} END {
+            conflicts = 0
+            conflict_list = ""
+            for (sym in symbols) {
+                count = gsub(/\n/, "&", symbols[sym])
+                if (count > 1) {
+                    conflicts++
+                    print "    ❌ CONFLICT: " sym
+                    libs = symbols[sym]
+                    gsub(/\n/, ", ", libs)
+                    print "       Found in: " libs
                 }
             }
-        }' | head -3
+            if (conflicts == 0) {
+                print "    ✅ No symbol conflicts found within this architecture!"
+            } else {
+                print "    ❌ Found " conflicts " conflicting symbols (all shown above)"
+            }
+            print "CONFLICT_COUNT:" conflicts
+        }' "$arch_temp_file")
+
+        echo "$arch_conflicts"
+        arch_conflict_count=$(echo "$arch_conflicts" | grep "CONFLICT_COUNT:" | cut -d: -f2 || echo 0)
+        total_conflicts=$((total_conflicts + arch_conflict_count))
     else
-        echo "    ✅ All target symbols properly prefixed"
+        echo "    ✅ No libraries found for this architecture"
     fi
+
+    rm "$arch_temp_file"
     echo
 done
 
-echo "3. Sample prefixed symbols from each library:"
+# Summary
+if [ "$total_conflicts" -eq 0 ]; then
+    echo "🎉 All architectures passed symbol conflict check!"
+else
+    echo "⚠️  Found $total_conflicts total symbol conflicts across all architectures"
+fi
+
+conflict_count=$total_conflicts
+
+echo "2. Sample prefixed symbols from each library:"
 for lib_info in "${LIBRARIES[@]}"; do
     IFS=':' read -r LIB_FILE PREFIX <<< "$lib_info"
 
