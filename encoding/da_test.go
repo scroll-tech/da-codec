@@ -129,7 +129,7 @@ func TestBlobCompressDecompress(t *testing.T) {
 	blobBytes, err := hex.DecodeString(blobString)
 	assert.NoError(t, err)
 
-	compressed, err := zstd.CompressScrollBatchBytes(blobBytes)
+	compressed, err := zstd.CompressScrollBatchBytesLegacy(blobBytes)
 	assert.NoError(t, err)
 
 	blob, err := makeBlobCanonical(compressed)

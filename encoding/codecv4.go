@@ -14,8 +14,6 @@ import (
 	"github.com/scroll-tech/go-ethereum/crypto"
 	"github.com/scroll-tech/go-ethereum/crypto/kzg4844"
 	"github.com/scroll-tech/go-ethereum/log"
-
-	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
 type DACodecV4 struct {
@@ -205,7 +203,7 @@ func (d *DACodecV4) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	if enableCompression {
 		// blobBytes represents the compressed blob payload (batchBytes)
 		var err error
-		blobBytes, err = zstd.CompressScrollBatchBytes(batchBytes)
+		blobBytes, err = d.CompressScrollBatchBytes(batchBytes)
 		if err != nil {
 			return nil, common.Hash{}, nil, nil, common.Hash{}, err
 		}
@@ -267,7 +265,7 @@ func (d *DACodecV4) estimateL1CommitBatchSizeAndBlobSize(chunks []*Chunk) (uint6
 		return 0, 0, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
 	if enableCompression {
-		blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
+		blobBytes, err := d.CompressScrollBatchBytes(batchBytes)
 		if err != nil {
 			return 0, 0, err
 		}
@@ -295,7 +293,7 @@ func (d *DACodecV4) checkCompressedDataCompatibility(chunks []*Chunk) (bool, err
 	if err != nil {
 		return false, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
-	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
+	blobBytes, err := d.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return false, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
