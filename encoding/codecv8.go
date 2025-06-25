@@ -22,6 +22,7 @@ import (
 // - checkCompressedDataCompatibility (core method using the new compression)
 // - constructBlob (calls checkCompressedDataCompatibility)
 // - NewDABatch (calls constructBlob)
+// - CheckChunkCompressedDataCompatibility (calls checkCompressedDataCompatibility)
 // - CheckBatchCompressedDataCompatibility (calls checkCompressedDataCompatibility)
 // - estimateL1CommitBatchSizeAndBlobSize (calls checkCompressedDataCompatibility)
 // - EstimateChunkL1CommitBatchSizeAndBlobSize (calls estimateL1CommitBatchSizeAndBlobSize)
@@ -139,6 +140,19 @@ func (d *DACodecV8) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 	challengeDigest := crypto.Keccak256Hash(crypto.Keccak256(paddedBlobBytes), blobVersionedHash[:])
 
 	return blob, blobVersionedHash, blobBytes, challengeDigest, nil
+}
+
+// CheckChunkCompressedDataCompatibility checks the compressed data compatibility for a batch built from a single chunk.
+func (d *DACodecV8) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error) {
+	// filling the needed fields for the batch used in the check
+	b := &Batch{
+		Chunks:                 []*Chunk{c},
+		PrevL1MessageQueueHash: c.PrevL1MessageQueueHash,
+		PostL1MessageQueueHash: c.PostL1MessageQueueHash,
+		Blocks:                 c.Blocks,
+	}
+
+	return d.CheckBatchCompressedDataCompatibility(b)
 }
 
 // CheckBatchCompressedDataCompatibility checks the compressed data compatibility for a batch.
