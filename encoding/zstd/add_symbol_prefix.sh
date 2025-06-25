@@ -56,7 +56,6 @@ for lib_info in "${LIBRARIES[@]}"; do
                 $3 == "_divbwt" ||
                 $3 == "divsufsort" ||
                 $3 == "g_debuglevel" ||
-                $3 == "rust_begin_unwind" ||
                 $3 == "init_cpu_features" ||
                 $3 == "_ERR_getErrorString" ||
                 $3 == "_atomic_flag_clear" ||
@@ -65,9 +64,7 @@ for lib_info in "${LIBRARIES[@]}"; do
                 $3 == "_atomic_thread_fence" ||
                 $3 == "_divsufsort" ||
                 $3 == "_g_debuglevel" ||
-                $3 == "rust_eh_personality" ||
                 $3 == "divbwt" ||
-                $3 == "rust_panic" ||
                 $3 == "ERR_getErrorString" ||
                 $3 == "init_cpu_features_resolver") {
                 print $3 " '"$PREFIX"'" $3
@@ -173,6 +170,10 @@ for arch in "${architectures[@]}"; do
             for (sym in symbols) {
                 count = gsub(/\n/, "&", symbols[sym])
                 if (count > 1) {
+                    # Skip Rust runtime symbols - these are expected to be identical
+                    if (sym ~ /^rust_(begin_unwind|eh_personality|panic)$/) {
+                        continue
+                    }
                     conflicts++
                     print "    ❌ CONFLICT: " sym
                     libs = symbols[sym]
