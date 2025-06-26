@@ -9,4 +9,4 @@ name = "encoder_standard"
 crate-type = ["staticlib"]
 
 [dependencies]
-zstd = { version = "0.13", features = ["experimental"] }
+zstd = { version = "=0.13.3", features = ["experimental"] }
