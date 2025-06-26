@@ -17,10 +17,15 @@ import (
 	"github.com/scroll-tech/da-codec/encoding/zstd"
 )
 
-type DACodecV7 struct{}
+type DACodecV7 struct {
+	forcedVersion *CodecVersion
+}
 
 // Version returns the codec version.
 func (d *DACodecV7) Version() CodecVersion {
+	if d.forcedVersion != nil {
+		return *d.forcedVersion
+	}
 	return CodecV7
 }
 
@@ -86,7 +91,7 @@ func (d *DACodecV7) NewDABatch(batch *Batch) (DABatch, error) {
 		return nil, fmt.Errorf("failed to construct blob: %w", err)
 	}
 
-	daBatch, err := newDABatchV7(CodecV7, batch.Index, blobVersionedHash, batch.ParentBatchHash, blob, blobBytes, challengeDigest)
+	daBatch, err := newDABatchV7(d.Version(), batch.Index, blobVersionedHash, batch.ParentBatchHash, blob, blobBytes, challengeDigest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct DABatch: %w", err)
 	}
@@ -115,7 +120,7 @@ func (d *DACodecV7) constructBlob(batch *Batch) (*kzg4844.Blob, common.Hash, []b
 
 	sizeSlice := encodeSize3Bytes(uint32(len(payloadBytes)))
 
-	blobBytes[blobEnvelopeV7OffsetVersion] = uint8(CodecV7)
+	blobBytes[blobEnvelopeV7OffsetVersion] = uint8(d.Version())
 	copy(blobBytes[blobEnvelopeV7OffsetByteSize:blobEnvelopeV7OffsetCompressedFlag], sizeSlice)
 	blobBytes[blobEnvelopeV7OffsetCompressedFlag] = isCompressedFlag
 	blobBytes = append(blobBytes, payloadBytes...)
@@ -166,15 +171,15 @@ func (d *DACodecV7) NewDABatchFromBytes(data []byte) (DABatch, error) {
 		return nil, fmt.Errorf("failed to decode DA batch: %w", err)
 	}
 
-	if daBatch.version != CodecV7 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV7, daBatch.version)
+	if daBatch.version != d.Version() {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", d.Version(), daBatch.version)
 	}
 
 	return daBatch, nil
 }
 
 func (d *DACodecV7) NewDABatchFromParams(batchIndex uint64, blobVersionedHash, parentBatchHash common.Hash) (DABatch, error) {
-	return newDABatchV7(CodecV7, batchIndex, blobVersionedHash, parentBatchHash, nil, nil, common.Hash{})
+	return newDABatchV7(d.Version(), batchIndex, blobVersionedHash, parentBatchHash, nil, nil, common.Hash{})
 }
 
 func (d *DACodecV7) DecodeDAChunksRawTx(_ [][]byte) ([]*DAChunkRawTx, error) {
@@ -186,8 +191,8 @@ func (d *DACodecV7) DecodeBlob(blob *kzg4844.Blob) (DABlobPayload, error) {
 
 	// read the blob envelope header
 	version := rawBytes[blobEnvelopeV7OffsetVersion]
-	if CodecVersion(version) != CodecV7 {
-		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", CodecV7, version)
+	if CodecVersion(version) != d.Version() {
+		return nil, fmt.Errorf("codec version mismatch: expected %d but found %d", d.Version(), version)
 	}
 
 	// read the data size
@@ -229,7 +234,7 @@ func (d *DACodecV7) DecodeTxsFromBlob(blob *kzg4844.Blob, chunks []*DAChunkRawTx
 // If checkLength is true, this function returns if compression is needed based on the compressed data's length, which is used when doing batch bytes encoding.
 // If checkLength is false, this function returns the result of the compatibility check, which is used when determining the chunk and batch contents.
 func (d *DACodecV7) checkCompressedDataCompatibility(payloadBytes []byte, checkLength bool) ([]byte, bool, error) {
-	compressedPayloadBytes, err := zstd.CompressScrollBatchBytes(payloadBytes)
+	compressedPayloadBytes, err := d.CompressScrollBatchBytes(payloadBytes)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to compress blob payload: %w", err)
 	}
@@ -382,4 +387,9 @@ func (d *DACodecV7) JSONFromBytes(data []byte) ([]byte, error) {
 	}
 
 	return jsonBytes, nil
+}
+
+// CompressScrollBatchBytes compresses the batch bytes using zstd compression.
+func (d *DACodecV7) CompressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
+	return zstd.CompressScrollBatchBytesLegacy(batchBytes)
 }

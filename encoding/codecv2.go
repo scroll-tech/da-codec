@@ -154,7 +154,7 @@ func (d *DACodecV2) constructBlobPayload(chunks []*Chunk, maxNumChunksPerBatch i
 	copy(challengePreimage[0:], hash[:])
 
 	// blobBytes represents the compressed blob payload (batchBytes)
-	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
+	blobBytes, err := d.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return nil, common.Hash{}, nil, nil, common.Hash{}, err
 	}
@@ -236,7 +236,7 @@ func (d *DACodecV2) EstimateChunkL1CommitBatchSizeAndBlobSize(c *Chunk) (uint64,
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
-	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
+	blobBytes, err := d.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
@@ -249,7 +249,7 @@ func (d *DACodecV2) EstimateBatchL1CommitBatchSizeAndBlobSize(b *Batch) (uint64,
 	if err != nil {
 		return 0, 0, err
 	}
-	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
+	blobBytes, err := d.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -263,7 +263,7 @@ func (d *DACodecV2) checkCompressedDataCompatibility(chunks []*Chunk) (bool, err
 	if err != nil {
 		return false, fmt.Errorf("failed to construct batch payload in blob: %w", err)
 	}
-	blobBytes, err := zstd.CompressScrollBatchBytes(batchBytes)
+	blobBytes, err := d.CompressScrollBatchBytes(batchBytes)
 	if err != nil {
 		return false, fmt.Errorf("failed to compress scroll batch bytes: %w", err)
 	}
@@ -288,4 +288,9 @@ func (d *DACodecV2) CheckChunkCompressedDataCompatibility(c *Chunk) (bool, error
 // It constructs a batch payload, compresses the data, and checks the compressed data compatibility if the uncompressed data exceeds 128 KiB.
 func (d *DACodecV2) CheckBatchCompressedDataCompatibility(b *Batch) (bool, error) {
 	return d.checkCompressedDataCompatibility(b.Chunks)
+}
+
+// CompressScrollBatchBytes compresses the batch bytes using zstd compression.
+func (d *DACodecV2) CompressScrollBatchBytes(batchBytes []byte) ([]byte, error) {
+	return zstd.CompressScrollBatchBytesLegacy(batchBytes)
 }
