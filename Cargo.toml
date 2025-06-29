@@ -1,8 +1,0 @@
-[workspace]
-members = [
-    "libzstd/encoder-legacy",
-    "libzstd/encoder-standard",
-]
-resolver = "2"
-
-[workspace.dependencies]
