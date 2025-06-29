@@ -6,7 +6,7 @@ edition = "2021"
 
 [lib]
 name = "encoder_legacy"
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "lib"]
 
 [dependencies]
 zstd = { git = "https://github.com/scroll-tech/zstd-rs", branch = "hack/mul-block", features = ["experimental"] }
