@@ -24,7 +24,7 @@ import (
 // TestDecodeAllDeadlock tests the decompression of random bytes to trigger deadlock in zstd library.
 
 func TestDecodeAllDeadlock(t *testing.T) {
-	//t.Skip("Skip test that triggers deadlock in zstd library")
+	t.Skip("Skip test that triggers deadlock in zstd library")
 
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
