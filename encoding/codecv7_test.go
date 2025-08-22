@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"math/rand"
 	"net/http"
-	_ "net/http"
 	_ "net/http/pprof"
 	"strings"
 	"testing"
@@ -22,8 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDecodeAllDeadlock tests the decompression of random bytes to trigger deadlock in zstd library.
-
+// TestDecodeAllDeadlock tests the decompression of random bytes to trigger deadlock in zstd library
+// with setting of zstd.WithDecoderConcurrency(2).
 func TestDecodeAllDeadlock(t *testing.T) {
 	t.Skip("Skip test that triggers deadlock in zstd library")
 
