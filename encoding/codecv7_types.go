@@ -482,7 +482,7 @@ func decompressV7Bytes(compressedBytes []byte) ([]byte, error) {
 
 	compressedBytes = append(zstdMagicNumber, compressedBytes...)
 	r := bytes.NewReader(compressedBytes)
-	zr, err := zstd.NewReader(r)
+	zr, err := zstd.NewReader(r, zstd.WithDecoderConcurrency(1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create zstd reader: %w", err)
 	}

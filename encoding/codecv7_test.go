@@ -4,8 +4,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"math/rand"
+	"net/http"
+	_ "net/http"
+	_ "net/http/pprof"
 	"strings"
 	"testing"
 
@@ -16,6 +20,32 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestDecodeAllDeadlock tests the decompression of random bytes to trigger deadlock in zstd library.
+
+func TestDecodeAllDeadlock(t *testing.T) {
+	//t.Skip("Skip test that triggers deadlock in zstd library")
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	// generate some random bytes
+	randomBytes := make([]byte, maxBlobBytes)
+	rand.Read(randomBytes)
+
+	c := NewDACodecV8()
+
+	compressed, err := c.CompressScrollBatchBytes(randomBytes)
+	require.NoError(t, err)
+
+	// repeatedly decompress the bytes to trigger deadlock in zstd library
+	for i := 0; i < 100000; i++ {
+		uncompressed, err := decompressV7Bytes(compressed)
+		require.NoError(t, err)
+		require.Equal(t, randomBytes, uncompressed)
+	}
+}
 
 // TestCodecV7DABlockEncodeDecode tests the encoding and decoding of daBlockV7.
 func TestCodecV7DABlockEncodeDecode(t *testing.T) {
