@@ -1,6 +1,7 @@
 package encoding
 
 import (
+	crand "crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -32,7 +33,8 @@ func TestDecodeAllDeadlock(t *testing.T) {
 
 	// generate some random bytes
 	randomBytes := make([]byte, maxBlobBytes)
-	rand.Read(randomBytes)
+	_, err := crand.Read(randomBytes)
+	require.NoError(t, err)
 
 	c := NewDACodecV8()
 
