@@ -460,10 +460,6 @@ func (c *daChunkV7) Hash() (common.Hash, error) {
 	// concatenate l1 tx hashes
 	for _, blockTxs := range c.transactions {
 		for _, txData := range blockTxs {
-			if txData.Type != types.L1MessageTxType {
-				continue
-			}
-
 			hashBytes := common.FromHex(txData.TxHash)
 			if len(hashBytes) != common.HashLength {
 				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
