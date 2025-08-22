@@ -552,7 +552,7 @@ func decompressScrollBlobToBatch(compressedBytes []byte) ([]byte, error) {
 	batchOfBytes := make([]byte, readBatchSize)
 
 	r := bytes.NewReader(compressedBytes)
-	zr, err := zstd.NewReader(r)
+	zr, err := zstd.NewReader(r, zstd.WithDecoderConcurrency(1))
 	if err != nil {
 		return nil, err
 	}
