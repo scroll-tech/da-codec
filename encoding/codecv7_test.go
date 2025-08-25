@@ -84,7 +84,6 @@ func TestChunkHashUnique(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEqual(t, chunkHash1, chunkHash2)
-
 }
 
 // TestCodecV7DABlockEncodeDecode tests the encoding and decoding of daBlockV7.
