@@ -1,7 +1,6 @@
 package encoding
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -474,17 +473,14 @@ func (c *daChunkV7) Hash() (common.Hash, error) {
 
 // decompressV7Bytes decompresses the given blob bytes into the original payload bytes.
 func decompressV7Bytes(compressedBytes []byte) ([]byte, error) {
-	var res []byte
-
 	compressedBytes = append(zstdMagicNumber, compressedBytes...)
-	r := bytes.NewReader(compressedBytes)
-	zr, err := zstd.NewReader(r, zstd.WithDecoderConcurrency(1))
+	zr, err := zstd.NewReader(nil, zstd.WithDecoderConcurrency(1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create zstd reader: %w", err)
 	}
 	defer zr.Close()
 
-	res, err = zr.DecodeAll(compressedBytes, res)
+	res, err := zr.DecodeAll(compressedBytes, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decompress zstd data: %w", err)
 	}
