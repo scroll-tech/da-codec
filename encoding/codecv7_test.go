@@ -48,6 +48,44 @@ func TestDecodeAllDeadlock(t *testing.T) {
 	}
 }
 
+// TestChunkHashUnique tests that the hashes of any two different chunks are different.
+func TestChunkHashUnique(t *testing.T) {
+	// construct a chunk with a single, empty block
+	chunk1 := newDAChunkV7([]DABlock{&daBlockV7{
+		daBlockV0: daBlockV0{
+			number:          1,
+			timestamp:       0,
+			baseFee:         big.NewInt(0),
+			gasLimit:        0,
+			numTransactions: 0,
+			numL1Messages:   0,
+		},
+		lowestL1MessageQueueIndex: 0,
+	}}, [][]*types.TransactionData{{}})
+
+	chunkHash1, err := chunk1.Hash()
+	require.NoError(t, err)
+
+	// construct a 2nd chunk with a single, empty block,
+	// the only difference is the block number.
+	chunk2 := newDAChunkV7([]DABlock{&daBlockV7{
+		daBlockV0: daBlockV0{
+			number:          2,
+			timestamp:       0,
+			baseFee:         big.NewInt(0),
+			gasLimit:        0,
+			numTransactions: 0,
+			numL1Messages:   0,
+		},
+		lowestL1MessageQueueIndex: 0,
+	}}, [][]*types.TransactionData{{}})
+
+	chunkHash2, err := chunk2.Hash()
+	require.NoError(t, err)
+
+	require.NotEqual(t, chunkHash1, chunkHash2)
+}
+
 // TestCodecV7DABlockEncodeDecode tests the encoding and decoding of daBlockV7.
 func TestCodecV7DABlockEncodeDecode(t *testing.T) {
 	codecV7, err := CodecFromVersion(CodecV7)

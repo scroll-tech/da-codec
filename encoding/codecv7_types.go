@@ -447,22 +447,26 @@ func newDAChunkV7(blocks []DABlock, transactions [][]*types.TransactionData) *da
 }
 
 // Hash computes the hash of the DAChunk data.
+// Note: Starting from v7, the chunk hash is not used in
+// the protocol anymore, it is simply a unique identifier.
 func (c *daChunkV7) Hash() (common.Hash, error) {
 	var dataBytes []byte
 
 	// concatenate block contexts
 	for _, block := range c.blocks {
+		// append block number
+		var tmp [8]byte
+		binary.BigEndian.PutUint64(tmp[:], block.Number())
+		dataBytes = append(dataBytes, tmp[:]...)
+
+		// append encoded block context
 		encodedBlock := block.Encode()
 		dataBytes = append(dataBytes, encodedBlock...)
 	}
 
-	// concatenate l1 tx hashes
+	// concatenate tx hashes
 	for _, blockTxs := range c.transactions {
 		for _, txData := range blockTxs {
-			if txData.Type != types.L1MessageTxType {
-				continue
-			}
-
 			hashBytes := common.FromHex(txData.TxHash)
 			if len(hashBytes) != common.HashLength {
 				return common.Hash{}, fmt.Errorf("unexpected hash: %s", txData.TxHash)
