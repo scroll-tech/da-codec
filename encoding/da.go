@@ -495,7 +495,16 @@ func checkCompressedDataCompatibilityV7(data []byte) error {
 	// scan each block until done
 	for len(data) > 3 && !isLast {
 		isLast = (data[0] & 1) == 1
-		blkSize := (uint(data[2])*65536 + uint(data[1])*256 + uint(data[0])) >> 3
+		blkType := (data[0] >> 1) & 3
+		var blkSize uint
+		if blkType == 1 { // RLE Block
+			blkSize = 1
+		} else {
+			if blkType == 3 {
+				return fmt.Errorf("encounter reserved block type at %v", data)
+			}
+			blkSize = (uint(data[2])*65536 + uint(data[1])*256 + uint(data[0])) >> 3
+		}
 		if len(data) < 3+int(blkSize) {
 			return fmt.Errorf("wrong data len {%d}, expect min {%d}", len(data), 3+blkSize)
 		}
