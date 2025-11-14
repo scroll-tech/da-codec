@@ -495,6 +495,52 @@ func checkCompressedDataCompatibilityV7(data []byte) error {
 	// scan each block until done
 	for len(data) > 3 && !isLast {
 		isLast = (data[0] & 1) == 1
+		blkSize := (uint(data[2])*65536 + uint(data[1])*256 + uint(data[0])) >> 3
+		if len(data) < 3+int(blkSize) {
+			return fmt.Errorf("wrong data len {%d}, expect min {%d}", len(data), 3+blkSize)
+		}
+		data = data[3+blkSize:]
+	}
+
+	if !isLast {
+		return fmt.Errorf("unexpected end before last block")
+	}
+
+	return nil
+}
+
+// Sanity check if the compressed data (v9) is compatible with our circuit.
+// If we conclude that the data could not be decompressed, then we will
+// commit it uncompressed instead.
+func checkCompressedDataCompatibilityV9(data []byte) error {
+	if len(data) < 16 {
+		return fmt.Errorf("too small size (0x%x), what is it?", data)
+	}
+
+	fheader := data[0]
+	// it is not the encoding type we expected in our zstd header
+	if fheader&63 != 32 {
+		return fmt.Errorf("unexpected header type (%x)", fheader)
+	}
+
+	// skip content size
+	switch fheader >> 6 {
+	case 0:
+		data = data[2:]
+	case 1:
+		data = data[3:]
+	case 2:
+		data = data[5:]
+	case 3:
+		data = data[9:]
+	default:
+		panic("impossible")
+	}
+
+	isLast := false
+	// scan each block until done
+	for len(data) > 3 && !isLast {
+		isLast = (data[0] & 1) == 1
 		blkType := (data[0] >> 1) & 3
 		var blkSize uint
 		if blkType == 1 { // RLE Block
