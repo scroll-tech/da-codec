@@ -768,8 +768,10 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "euclid"
 	} else if !config.IsFeynman(blockTimestamp) {
 		return "euclidV2"
-	} else {
+	} else if !config.IsGalileo(blockTimestamp) {
 		return "feynman"
+	} else {
+		return "galileo"
 	}
 }
 
@@ -791,8 +793,10 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return CodecV6
 	} else if !config.IsFeynman(blockTimestamp) {
 		return CodecV7
-	} else {
+	} else if !config.IsGalileo(blockTimestamp) {
 		return CodecV8
+	} else {
+		return CodecV9
 	}
 }
 
@@ -821,7 +825,7 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8, CodecV9:
 		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
@@ -835,7 +839,7 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8, CodecV9:
 		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
