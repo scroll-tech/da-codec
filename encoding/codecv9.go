@@ -12,8 +12,8 @@ import (
 	"github.com/scroll-tech/go-ethereum/log"
 )
 
-// DACodecV9 updates the implementation of checkCompressedDataCompatibility to use
-// checkCompressedDataCompatibilityV9 instead of checkCompressedDataCompatibilityV7.
+// DACodecV9 updates the implementation of the base function checkCompressedDataCompatibility
+// to use the V9 compatibility check (checkCompressedDataCompatibilityV9) instead of the previous V7 version.
 //
 // As per Go's rules for shadowing methods with struct embedding, we need to override
 // all methods that (transitively) call checkCompressedDataCompatibility:
