@@ -509,6 +509,61 @@ func checkCompressedDataCompatibilityV7(data []byte) error {
 	return nil
 }
 
+// Sanity check if the compressed data (v9) is compatible with our circuit.
+// If we conclude that the data could not be decompressed, then we will
+// commit it uncompressed instead.
+func checkCompressedDataCompatibilityV9(data []byte) error {
+	if len(data) < 16 {
+		return fmt.Errorf("too small size (0x%x), what is it?", data)
+	}
+
+	fheader := data[0]
+	// it is not the encoding type we expected in our zstd header
+	if fheader&63 != 32 {
+		return fmt.Errorf("unexpected header type (%x)", fheader)
+	}
+
+	// skip content size
+	switch fheader >> 6 {
+	case 0:
+		data = data[2:]
+	case 1:
+		data = data[3:]
+	case 2:
+		data = data[5:]
+	case 3:
+		data = data[9:]
+	default:
+		panic("impossible")
+	}
+
+	isLast := false
+	// scan each block until done
+	for len(data) > 3 && !isLast {
+		isLast = (data[0] & 1) == 1
+		blkType := (data[0] >> 1) & 3
+		var blkSize uint
+		if blkType == 1 { // RLE Block
+			blkSize = 1
+		} else {
+			if blkType == 3 {
+				return fmt.Errorf("encounter reserved block type at %v", data)
+			}
+			blkSize = (uint(data[2])*65536 + uint(data[1])*256 + uint(data[0])) >> 3
+		}
+		if len(data) < 3+int(blkSize) {
+			return fmt.Errorf("wrong data len {%d}, expect min {%d}", len(data), 3+blkSize)
+		}
+		data = data[3+blkSize:]
+	}
+
+	if !isLast {
+		return fmt.Errorf("unexpected end before last block")
+	}
+
+	return nil
+}
+
 // makeBlobCanonical converts the raw blob data into the canonical blob representation of 4096 BLSFieldElements.
 // The canonical blob representation is a 32-byte array where every 31 bytes are prepended with 1 zero byte.
 // The kzg4844.Blob is a 4096-byte array, thus 0s are padded to the end of the array.
@@ -768,8 +823,10 @@ func GetHardforkName(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return "euclid"
 	} else if !config.IsFeynman(blockTimestamp) {
 		return "euclidV2"
-	} else {
+	} else if !config.IsGalileo(blockTimestamp) {
 		return "feynman"
+	} else {
+		return "galileo"
 	}
 }
 
@@ -791,8 +848,10 @@ func GetCodecVersion(config *params.ChainConfig, blockHeight, blockTimestamp uin
 		return CodecV6
 	} else if !config.IsFeynman(blockTimestamp) {
 		return CodecV7
-	} else {
+	} else if !config.IsGalileo(blockTimestamp) {
 		return CodecV8
+	} else {
+		return CodecV9
 	}
 }
 
@@ -821,7 +880,7 @@ func GetChunkEnableCompression(codecVersion CodecVersion, chunk *Chunk) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8, CodecV9:
 		return CheckChunkCompressedDataCompatibility(chunk, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
@@ -835,7 +894,7 @@ func GetBatchEnableCompression(codecVersion CodecVersion, batch *Batch) (bool, e
 		return false, nil
 	case CodecV2, CodecV3:
 		return true, nil
-	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8:
+	case CodecV4, CodecV5, CodecV6, CodecV7, CodecV8, CodecV9:
 		return CheckBatchCompressedDataCompatibility(batch, codecVersion)
 	default:
 		return false, fmt.Errorf("unsupported codec version: %v", codecVersion)
