@@ -51,13 +51,13 @@ func (d *DACodecV9) checkCompressedDataCompatibility(payloadBytes []byte, checkL
 	}
 
 	if err = checkCompressedDataCompatibilityV9(compressedPayloadBytes); err != nil {
-		log.Warn("Compressed data compatibility check failed", "err", err, "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
+		log.Warn("Compressed data compatibility check failed", "err", err, "payloadLen", len(payloadBytes), "compressedPayloadLen", len(compressedPayloadBytes))
 		return nil, false, nil
 	}
 
 	// check if compressed data is bigger or equal to the original data -> no need to compress
 	if checkLength && len(compressedPayloadBytes) >= len(payloadBytes) {
-		log.Warn("Compressed data is bigger or equal to the original data", "payloadBytes", hex.EncodeToString(payloadBytes), "compressedPayloadBytes", hex.EncodeToString(compressedPayloadBytes))
+		log.Warn("Compressed data is bigger or equal to the original data", "payloadLen", len(payloadBytes), "compressedPayloadLen", len(compressedPayloadBytes))
 		return nil, false, nil
 	}
 
