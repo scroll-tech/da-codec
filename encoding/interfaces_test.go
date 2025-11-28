@@ -26,7 +26,8 @@ func TestCodecFromVersion(t *testing.T) {
 		{"CodecV7", CodecV7, &DACodecV7{}, false},
 		{"CodecV8", CodecV8, &DACodecV8{}, false},
 		{"CodecV9", CodecV9, &DACodecV9{}, false},
-		{"CodecV10", CodecVersion(10), nil, true}, // not defined yet
+		{"CodecV10", CodecV10, &DACodecV10{}, false},
+		{"CodecV11", CodecVersion(11), nil, true}, // not defined yet
 		{"InvalidCodec", CodecVersion(99), nil, true},
 	}
 
@@ -52,6 +53,23 @@ func TestCodecFromConfig(t *testing.T) {
 		want      Codec
 	}{
 		{
+			name: "GalileoV2 active",
+			config: &params.ChainConfig{
+				LondonBlock:    big.NewInt(0),
+				BernoulliBlock: big.NewInt(0),
+				CurieBlock:     big.NewInt(0),
+				DarwinTime:     new(uint64),
+				DarwinV2Time:   new(uint64),
+				EuclidTime:     new(uint64),
+				EuclidV2Time:   new(uint64),
+				FeynmanTime:    new(uint64),
+				GalileoTime:    new(uint64),
+				GalileoV2Time:  new(uint64),
+			},
+			blockNum:  big.NewInt(0),
+			timestamp: 0,
+			want:      &DACodecV10{},
+		}, {
 			name: "Galileo active",
 			config: &params.ChainConfig{
 				LondonBlock:    big.NewInt(0),

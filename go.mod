@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/agiledragon/gomonkey/v2 v2.12.0
-	github.com/scroll-tech/go-ethereum v1.10.14-0.20251113125950-906b730d541d
+	github.com/scroll-tech/go-ethereum v1.10.14-0.20251127071535-dd8541508584
 	github.com/stretchr/testify v1.10.0
 )
 
