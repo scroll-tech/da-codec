@@ -755,7 +755,13 @@ func getNextTx(bytes []byte, index int) (*types.Transaction, int, error) {
 		}
 		payloadLen := binary.BigEndian.Uint64(lenBytes)
 
-		if length < index+1+lenPayloadLen+int(payloadLen) {
+		// compare without narrowing payloadLen to int first: the narrowed
+		// value can overflow (negative for values >= 2^63, or wrap around
+		// in the addition), which would bypass the bounds check and panic
+		// on the slice below. The header length is already known to fit
+		// (checked above), so the subtraction cannot underflow, and after
+		// this check payloadLen fits in an int.
+		if payloadLen > uint64(length-index-1-lenPayloadLen) {
 			return nil, 0, errSmallLength
 		}
 		txBytes = append(txBytes, bytes[index:index+1+lenPayloadLen+int(payloadLen)]...)
