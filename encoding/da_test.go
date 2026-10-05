@@ -245,3 +245,34 @@ func TestTxsToTxsData_L1Message(t *testing.T) {
 
 	require.Equal(t, tx.Hash(), types.NewTx(decoded).Hash())
 }
+
+func TestGetNextTxPayloadLengthOverflow(t *testing.T) {
+	testCases := []struct {
+		name string
+		hex  string
+	}{
+		// long-form header 0xff: length-of-length is 8, declared payload
+		// length is 2^63 -- narrowing it to int yields a negative value.
+		{name: "payload length 2^63", hex: "ff8000000000000000"},
+		// declared payload length is math.MaxUint64.
+		{name: "payload length max uint64", hex: "ffffffffffffffffff"},
+		// declared payload length is 2^63 - 1: fits in an int, but the
+		// header-plus-length addition overflows int64.
+		{name: "payload length 2^63-1", hex: "ff7fffffffffffffff"},
+		// short length-of-length (1 byte) declaring 100 payload bytes
+		// with no payload present.
+		{name: "declared length exceeds input", hex: "f864"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, err := hex.DecodeString(tc.hex)
+			require.NoError(t, err)
+
+			require.NotPanics(t, func() {
+				_, _, err = getNextTx(raw, 0)
+				require.ErrorIs(t, err, errSmallLength)
+			})
+		})
+	}
+}
